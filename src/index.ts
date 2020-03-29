@@ -213,14 +213,14 @@ class UnionType<T extends TupleType> extends Type<InferTupleUnion<T>> {
 }
 
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
-type InferTupleInterSection<T extends any[]> = UnionToIntersection<InferTupleUnion<T>>;
+type InferTupleIntersection<T extends any[]> = UnionToIntersection<InferTupleUnion<T>>;
 
-class IntersectionType<T extends TupleType> extends Type<InferTupleInterSection<T>> {
+class IntersectionType<T extends TupleType> extends Type<InferTupleIntersection<T>> {
   constructor(private readonly schemas: T) {
     super();
   }
 
-  parse(value: unknown): InferTupleInterSection<T> {
+  parse(value: unknown): InferTupleIntersection<T> {
     for (const schema of this.schemas) {
       // Todo What about unknowns keys of object intersections?
       if (schema instanceof ObjectType) {
