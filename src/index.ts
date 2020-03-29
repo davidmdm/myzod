@@ -11,6 +11,11 @@ abstract class Type<T> {
 
 export class ValidationError extends Error {
   name = 'MyZodError';
+  path?: string;
+  constructor(message: string, path?: string) {
+    super(message);
+    this.path = path;
+  }
 }
 
 export type Infer<T extends Type<any>> = T extends Type<infer K> ? K : any;
@@ -92,6 +97,7 @@ type InferObjectShape<T> = {
 
 type ObjectOptions = {
   allowUnknown?: boolean;
+  suppressPathErrMsg?: boolean;
 };
 
 class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
@@ -100,7 +106,7 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
   }
   parse(value: unknown, optOverrides?: ObjectOptions): InferObjectShape<T> {
     if (typeof value !== 'object') {
-      throw new ValidationError('expected type to be object: ' + typeof value);
+      throw new ValidationError('expected type to be object but got ' + typeof value);
     }
     if (value === null) {
       throw new ValidationError('expected object but got null');
@@ -114,12 +120,26 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
     if (!opts.allowUnknown) {
       const illegalKeys = Object.keys(value).filter(x => !keys.includes(x));
       if (illegalKeys.length > 0) {
-        throw new ValidationError('unexpected keys on object: ' + illegalKeys.join(', '));
+        throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
       }
     }
-    const acc: any = {};
+    const acc: any = { ...value };
     for (const key of keys) {
-      acc[key] = (this.objectShape as any)[key].parse((value as any)[key]);
+      try {
+        const keySchema = (this.objectShape as any)[key];
+        if (keySchema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+        }
+        if (keySchema instanceof ObjectType) {
+          acc[key] = keySchema.parse((value as any)[key], { ...opts, suppressPathErrMsg: true });
+        } else {
+          acc[key] = keySchema.parse((value as any)[key]);
+        }
+      } catch (err) {
+        const path = err.path ? `${key}.${err.path}` : key;
+        const msg = opts.suppressPathErrMsg ? err.message : `error parsing object at path: "${path}" - ${err.message}`;
+        throw new ValidationError(msg, path);
+      }
     }
     return acc;
   }

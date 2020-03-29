@@ -110,4 +110,139 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, `expected value to be literal "123" but got "321"`);
     });
   });
+
+  describe('unknown parsing', () => {
+    it('should return the unknown value as is', () => {
+      const schema = zod.unknown();
+      const ret = schema.parse('hello');
+      assert.equal(ret, 'hello');
+    });
+
+    it('should force a key to be required within an object schema', () => {
+      const schema = zod.object({ required: zod.unknown() });
+      const err = catchError(schema.parse.bind(schema))({});
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        `error parsing object at path: "required" - expected key "required" of unknown type to be present on object`
+      );
+    });
+
+    it('should force a key to be required within an object schema even if key value is undefined', () => {
+      const schema = zod.object({ required: zod.unknown() });
+      const ret = schema.parse({ required: undefined });
+      assert.deepEqual(ret, { required: undefined });
+      assert.equal(ret.hasOwnProperty('required'), true);
+    });
+  });
+
+  describe('optional and nullable modifiers', () => {
+    const optionalSchema = zod.string().optional();
+    const nullableSchema = zod.string().nullable();
+
+    it('should accept undefined as a value when optional schema', () => {
+      const ret = optionalSchema.parse(undefined);
+      assert.equal(ret, undefined);
+    });
+
+    it('should accept null as a value when nullable schema', () => {
+      const ret = nullableSchema.parse(null);
+      assert.equal(ret, null);
+    });
+
+    it('should not allow null when optional schema', () => {
+      const err = catchError(optionalSchema.parse.bind(optionalSchema))(null);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'No union satisfied:\n  expected type to be string but got object\n  expected type to be undefined but got object'
+      );
+    });
+
+    it('should not allow undefined when nullable schema', () => {
+      const err = catchError(nullableSchema.parse.bind(nullableSchema))(undefined);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'No union satisfied:\n  expected type to be string but got undefined\n  expected type to be null but got undefined'
+      );
+    });
+  });
+
+  describe('object parsing', () => {
+    const emptySchema = zod.object({});
+    it('should only accept empty object', () => {
+      const ret = emptySchema.parse({});
+      assert.deepEqual(ret, {});
+    });
+
+    it('should fail if value provided is null', () => {
+      const err = catchError(emptySchema.parse.bind(emptySchema))(null);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected object but got null');
+    });
+
+    it('should fail if value provided is an array', () => {
+      const err = catchError(emptySchema.parse.bind(emptySchema))([]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected type to be regular object but got array');
+    });
+
+    it('should fail if there are unknown keys', () => {
+      const err = catchError(emptySchema.parse.bind(emptySchema))({ key: 'unkown', value: 'unknown' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["key","value"]');
+    });
+
+    it('should allow unknown keys', () => {
+      const ret = emptySchema.parse({ a: 1 }, { allowUnknown: true });
+      assert.deepEqual(ret, { a: 1 });
+    });
+
+    it('should return object with correct object shape - simple', () => {
+      const schema = zod.object({ name: zod.string() });
+      const ret = schema.parse({ name: 'Bobby' });
+      assert.deepEqual(ret, { name: 'Bobby' });
+    });
+
+    it('should allow omitted properties on optional keys but include them in returned object', () => {
+      const schema = zod.object({
+        name: zod.string(),
+        age: zod.number().optional(),
+      });
+      const ret = schema.parse({ name: 'Bobby Darrin' });
+      assert.deepEqual(ret, { name: 'Bobby Darrin', age: undefined });
+      assert.equal(ret.hasOwnProperty('age'), true);
+    });
+
+    it('should fail if object has wrong shape', () => {
+      const schema = zod.object({ name: zod.string() });
+      const err = catchError(schema.parse.bind(schema))({ name: 5 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "name" - expected type to be string but got number');
+      assert.equal((err as zod.ValidationError).path, 'name');
+    });
+
+    it('should give meaningful error for nested objects errors', () => {
+      const schema = zod.object({
+        person: zod.object({ name: zod.string() }),
+      });
+
+      const topLevelError = catchError(schema.parse.bind(schema))({ person: 5 });
+      assert.equal(topLevelError instanceof zod.ValidationError, true);
+      assert.equal(
+        topLevelError.message,
+        'error parsing object at path: "person" - expected type to be object but got number'
+      );
+      assert.equal((topLevelError as zod.ValidationError).path, 'person');
+
+      const nestedError = catchError(schema.parse.bind(schema))({ person: { name: 5 } });
+      assert.equal(nestedError instanceof zod.ValidationError, true);
+      assert.equal(
+        nestedError.message,
+        'error parsing object at path: "person.name" - expected type to be string but got number'
+      );
+      assert.equal((nestedError as zod.ValidationError).path, 'person.name');
+    });
+  });
 });
