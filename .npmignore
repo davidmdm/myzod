@@ -1,0 +1,6 @@
+test
+coverage
+.nyc_output
+.vscode
+.tsconfig.json
+src
