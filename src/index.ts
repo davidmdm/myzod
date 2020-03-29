@@ -11,11 +11,27 @@ abstract class Type<T> {
 
 export class ValidationError extends Error {
   name = 'MyZodError';
-  path?: string;
-  constructor(message: string, path?: string) {
+  path?: (string | number)[];
+  constructor(message: string, path?: (string | number)[]) {
     super(message);
     this.path = path;
   }
+}
+
+function prettyPrintPath(path: (number | string)[] | undefined): string {
+  if (!path || path.length === 0) {
+    return '';
+  }
+  return path.reduce<string>((acc, elem, idx) => {
+    if (typeof elem === 'number') {
+      acc += `[${elem}]`;
+    } else if (idx === 0) {
+      acc += elem;
+    } else {
+      acc += '.' + elem;
+    }
+    return acc;
+  }, '');
 }
 
 export type Infer<T extends Type<any>> = T extends Type<infer K> ? K : any;
@@ -132,12 +148,16 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
         }
         if (keySchema instanceof ObjectType) {
           acc[key] = keySchema.parse((value as any)[key], { ...opts, suppressPathErrMsg: true });
+        } else if (keySchema instanceof ArrayType) {
+          acc[key] = keySchema.parse((value as any)[key], { suppressPathErrMsg: true });
         } else {
           acc[key] = keySchema.parse((value as any)[key]);
         }
       } catch (err) {
-        const path = err.path ? `${key}.${err.path}` : key;
-        const msg = opts.suppressPathErrMsg ? err.message : `error parsing object at path: "${path}" - ${err.message}`;
+        const path = err.path ? [key, ...err.path] : [key];
+        const msg = opts.suppressPathErrMsg
+          ? err.message
+          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
         throw new ValidationError(msg, path);
       }
     }
@@ -149,15 +169,21 @@ class ArrayType<T extends Type<any>> extends Type<Infer<T>[]> {
   constructor(private readonly schema: T) {
     super();
   }
-  parse(value: unknown): Infer<T>[] {
+  parse(value: unknown, opts?: { suppressPathErrMsg: boolean }): Infer<T>[] {
     if (!Array.isArray(value)) {
-      throw new ValidationError('expected an array but got type: ' + typeof value);
+      throw new ValidationError('expected an array but got ' + typeof value);
     }
     value.forEach((elem, idx) => {
       try {
-        this.schema.parse(elem);
+        if (this.schema instanceof ObjectType || this.schema instanceof ArrayType) {
+          this.schema.parse(elem, { suppressPathErrMsg: true });
+        } else {
+          this.schema.parse(elem);
+        }
       } catch (err) {
-        throw new ValidationError(`error at array index ${idx}: ${err.message}`);
+        const path = err.path ? [idx, ...err.path] : [idx];
+        const msg = opts?.suppressPathErrMsg ? err.message : `error at ${prettyPrintPath(path)} - ${err.message}`;
+        throw new ValidationError(msg, path);
       }
     });
     return value;
@@ -220,3 +246,18 @@ export const intersection = <T extends TupleType>(schemas: T) => new Intersectio
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
 export { undefinedValue as undefined, nullValue as null };
+
+// Support default imports
+export default {
+  string,
+  boolean,
+  number,
+  unknown,
+  literal,
+  object,
+  array,
+  union,
+  intersection,
+  undefined: undefinedValue,
+  null: nullValue,
+};

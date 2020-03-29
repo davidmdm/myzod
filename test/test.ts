@@ -242,7 +242,77 @@ describe('Zod Parsing', () => {
         nestedError.message,
         'error parsing object at path: "person.name" - expected type to be string but got number'
       );
-      assert.equal((nestedError as zod.ValidationError).path, 'person.name');
+      assert.deepEqual((nestedError as zod.ValidationError).path, ['person', 'name']);
+    });
+
+    it('should give meaningful path error for errors occuring within array', () => {
+      const carSchema = zod.object({
+        make: zod.string(),
+        year: zod.number(),
+      });
+      const friendSchema = zod.object({
+        cars: zod.array(carSchema),
+      });
+      const personSchema = zod.object({ friends: zod.array(friendSchema) });
+      const schema = zod.object({ person: personSchema });
+
+      const err = catchError(schema.parse.bind(schema))({
+        person: {
+          friends: [
+            { cars: [{ make: 'toyota', year: 1996 }] },
+            {
+              cars: [
+                { make: 'hyundai', year: 2000 },
+                { make: 'kia', year: '2003' }, // error is here on the year
+              ],
+            },
+          ],
+        },
+      });
+
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "person.friends[1].cars[1].year" - expected type to be number but got string'
+      );
+      assert.deepEqual((err as zod.ValidationError).path, ['person', 'friends', 1, 'cars', 1, 'year']);
+    });
+  });
+
+  describe('array parsing', () => {
+    it('should pass when given an empty array', () => {
+      const schema = zod.array(zod.number());
+      const ret = schema.parse([]);
+      assert.deepEqual(ret, []);
+    });
+
+    it('should pass when given an array with elements that match type', () => {
+      const schema = zod.array(zod.number());
+      const ret = schema.parse([1, 2, 3]);
+      assert.deepEqual(ret, [1, 2, 3]);
+    });
+
+    it('should fail if not given an array', () => {
+      const schema = zod.array(zod.string());
+      const err = catchError(schema.parse.bind(schema))({ 0: 'first', 1: 'second', length: 2 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected an array but got object');
+    });
+
+    it('should fail if an array element does not match schema', () => {
+      const schema = zod.array(zod.string());
+      const err = catchError(schema.parse.bind(schema))(['hello', 123]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error at [1] - expected type to be string but got number');
+      assert.deepEqual((err as zod.ValidationError).path, [1]);
+    });
+
+    it('should give meaningful path error for objects', () => {
+      const schema = zod.array(zod.object({ key: zod.number() }));
+      const err = catchError(schema.parse.bind(schema))([{ key: '123' }, { key: 321 }]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error at [0].key - expected type to be number but got string');
+      assert.deepEqual((err as zod.ValidationError).path, [0, 'key']);
     });
   });
 });
