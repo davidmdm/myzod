@@ -51,13 +51,42 @@ type AnyType = Type<any>;
 type Eval<T> = { [K in keyof T]: T[K] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
+type StringOptions = Partial<{ pattern: RegExp; min: number; max: number }>;
 // Primitives
 class StringType extends Type<string> {
+  constructor(private opts: StringOptions = {}) {
+    super();
+  }
   parse(value: unknown): string {
     if (typeof value !== 'string') {
       throw new ValidationError('expected type to be string but got ' + typeOf(value));
     }
+    if (typeof this.opts.min === 'number' && value.length < this.opts.min) {
+      throw new ValidationError(
+        `expected string to have length greater than or equal to ${this.opts.min} but had length ${value.length}`
+      );
+    }
+    if (typeof this.opts.max === 'number' && value.length > this.opts.max) {
+      throw new ValidationError(
+        `expected string to have length less than or equal to ${this.opts.max} but had length ${value.length}`
+      );
+    }
+    if (this.opts.pattern instanceof RegExp && !this.opts.pattern.test(value)) {
+      throw new ValidationError(`expected string to match pattern ${this.opts.pattern} but did not`);
+    }
     return value;
+  }
+  pattern(regexp: RegExp): this {
+    this.opts.pattern = regexp;
+    return this;
+  }
+  min(x: number): this {
+    this.opts.min = x;
+    return this;
+  }
+  max(x: number): this {
+    this.opts.max = x;
+    return this;
   }
 }
 
@@ -75,16 +104,15 @@ class NumberType extends Type<number> {
   constructor(private opts: NumberOptions = {}) {
     super();
   }
-  parse(value: unknown, parseOpts?: NumberOptions): number {
+  parse(value: unknown): number {
     if (typeof value !== 'number') {
       throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
-    const opts = { ...this.opts, ...parseOpts };
-    if (opts.min !== undefined && value < opts.min) {
-      throw new ValidationError(`expected number to be greater than or equal to ${opts.min} but got ${value}`);
+    if (typeof this.opts.min === 'number' && value < this.opts.min) {
+      throw new ValidationError(`expected number to be greater than or equal to ${this.opts.min} but got ${value}`);
     }
-    if (opts.max !== undefined && value > opts.max) {
-      throw new ValidationError(`expected number to be less than or equal to ${opts.max} but got ${value}`);
+    if (typeof this.opts.max === 'number' && value > this.opts.max) {
+      throw new ValidationError(`expected number to be less than or equal to ${this.opts.max} but got ${value}`);
     }
     return value;
   }
@@ -264,7 +292,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<
   }
 }
 
-export const string = () => new StringType();
+export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
 export const unknown = () => new UnknownType();

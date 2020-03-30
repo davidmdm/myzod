@@ -28,6 +28,63 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'expected type to be string but got number');
     });
+
+    it('should pass if matches provided pattern', () => {
+      const schema = zod.string({ pattern: /^hello/ });
+      assert.equal(schema.parse('hello world'), 'hello world');
+    });
+
+    it('should pass if matches provided pattern - fluent syntax', () => {
+      const schema = zod.string().pattern(/^hello/);
+      assert.equal(schema.parse('hello world'), 'hello world');
+    });
+
+    it('should fail if string does not match pattern', () => {
+      const schema = zod.string({ pattern: /^hello/ });
+      const err = catchError(schema.parse.bind(schema))('goodbye world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
+    });
+
+    it('should fail if string does not match pattern - fluent syntax', () => {
+      const schema = zod.string().pattern(/^hello/);
+      const err = catchError(schema.parse.bind(schema))('goodbye world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
+    });
+
+    it('should pass if string length is within the range', () => {
+      const schema = zod.string({ min: 3, max: 6 });
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if string length is less than min', () => {
+      const schema = zod.string({ min: 3 });
+      const err = catchError(schema.parse.bind(schema))('hi');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
+    });
+
+    it('should fail if string length is less than min - fluent syntax', () => {
+      const schema = zod.string().min(3);
+      const err = catchError(schema.parse.bind(schema))('hi');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
+    });
+
+    it('should fail if string length is greater than max', () => {
+      const schema = zod.string({ max: 6 });
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to have length less than or equal to 6 but had length 11');
+    });
+
+    it('should fail if string length is greater than max - fluent syntax', () => {
+      const schema = zod.string().max(6);
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to have length less than or equal to 6 but had length 11');
+    });
   });
 
   describe('boolean parsing', () => {
