@@ -56,7 +56,7 @@ describe('Zod Parsing', () => {
     it('should throw a ValidationError if not a number', () => {
       const err = catchError(schema.parse.bind(schema))(null);
       assert.equal(err instanceof zod.ValidationError, true);
-      assert.equal(err.message, 'expected type to be number but got object');
+      assert.equal(err.message, 'expected type to be number but got null');
     });
   });
 
@@ -155,7 +155,7 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(
         err.message,
-        'No union satisfied:\n  expected type to be string but got object\n  expected type to be undefined but got object'
+        'No union satisfied:\n  expected type to be string but got null\n  expected type to be undefined but got null'
       );
     });
 
@@ -371,6 +371,39 @@ describe('Zod Parsing', () => {
       );
       const ret = schema.parse({ a: 'string', b: 123, c: false });
       assert.deepEqual(ret, { a: 'string', b: 123, c: false });
+    });
+  });
+
+  describe('intersection parsing', () => {
+    it('should pass if value is the intersection of all schema types', () => {
+      const schema = zod.intersection([
+        zod.object({ a: zod.string() }),
+        zod.object({ b: zod.number() }),
+        zod.object({ c: zod.boolean() }),
+      ]);
+      const ret = schema.parse({ a: 'hello', b: 123, c: true });
+      assert.deepEqual(ret, { a: 'hello', b: 123, c: true });
+    });
+
+    it('should fail if value is not the intersection of all schema types', () => {
+      const schema = zod.intersection([
+        zod.object({ a: zod.string() }),
+        zod.object({ b: zod.number() }),
+        zod.object({ c: zod.boolean() }),
+      ]);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 123 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be boolean but got undefined');
+    });
+
+    it('should reduce union types to their interseciton', () => {
+      const schema = zod.intersection([zod.string(), zod.string().nullable()]);
+      const ret = schema.parse('string');
+      assert.equal(ret, 'string');
+
+      const err = catchError(schema.parse.bind(schema))(null);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected type to be string but got null');
     });
   });
 });

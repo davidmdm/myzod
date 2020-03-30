@@ -18,10 +18,17 @@ export class ValidationError extends Error {
   }
 }
 
-function prettyPrintPath(path: (number | string)[] | undefined): string {
-  if (!path || path.length === 0) {
-    return '';
+function typeOf(value: unknown): string {
+  if (value === null) {
+    return 'null';
   }
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+  return typeof value;
+}
+
+function prettyPrintPath(path: (number | string)[]): string {
   return path.reduce<string>((acc, elem, idx) => {
     if (typeof elem === 'number') {
       acc += `[${elem}]`;
@@ -41,7 +48,7 @@ type TupleType = [Type<any>, Type<any>, ...Type<any>[]];
 class StringType extends Type<string> {
   parse(value: unknown): string {
     if (typeof value !== 'string') {
-      throw new ValidationError('expected type to be string but got ' + typeof value);
+      throw new ValidationError('expected type to be string but got ' + typeOf(value));
     }
     return value;
   }
@@ -50,7 +57,7 @@ class StringType extends Type<string> {
 class BooleanType extends Type<boolean> {
   parse(value: unknown): boolean {
     if (typeof value !== 'boolean') {
-      throw new ValidationError('expected type to be boolean but got ' + typeof value);
+      throw new ValidationError('expected type to be boolean but got ' + typeOf(value));
     }
     return value;
   }
@@ -59,7 +66,7 @@ class BooleanType extends Type<boolean> {
 class NumberType extends Type<number> {
   parse(value: unknown): number {
     if (typeof value !== 'number') {
-      throw new ValidationError('expected type to be number but got ' + typeof value);
+      throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
     return value;
   }
@@ -68,7 +75,7 @@ class NumberType extends Type<number> {
 class UndefinedType extends Type<undefined> {
   parse(value: unknown): undefined {
     if (value !== undefined) {
-      throw new ValidationError('expected type to be undefined but got ' + typeof value);
+      throw new ValidationError('expected type to be undefined but got ' + typeOf(value));
     }
     return value;
   }
@@ -77,7 +84,7 @@ class UndefinedType extends Type<undefined> {
 class NullType extends Type<null> {
   parse(value: unknown): null {
     if (value !== null) {
-      throw new ValidationError('expected type to be null but got ' + typeof value);
+      throw new ValidationError('expected type to be null but got ' + typeOf(value));
     }
     return value;
   }
@@ -91,9 +98,8 @@ class LiteralType<T extends Literal> extends Type<T> {
   }
   parse(value: unknown): T {
     if (value !== this.literal) {
-      throw new ValidationError(
-        `expected value to be literal ${JSON.stringify(this.literal)} but got ${JSON.stringify(value)}`
-      );
+      const typeofValue = typeof value !== 'object' ? JSON.stringify(value) : typeOf(value);
+      throw new ValidationError(`expected value to be literal ${JSON.stringify(this.literal)} but got ${typeofValue}`);
     }
     return value as T;
   }
@@ -122,7 +128,7 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
   }
   parse(value: unknown, optOverrides?: ObjectOptions): InferObjectShape<T> {
     if (typeof value !== 'object') {
-      throw new ValidationError('expected type to be object but got ' + typeof value);
+      throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
     if (value === null) {
       throw new ValidationError('expected object but got null');
@@ -130,7 +136,6 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
     if (Array.isArray(value)) {
       throw new ValidationError('expected type to be regular object but got array');
     }
-
     const keys = Object.keys(this.objectShape);
     const opts = { ...this.opts, ...optOverrides };
     if (!opts.allowUnknown) {
@@ -171,7 +176,7 @@ class ArrayType<T extends Type<any>> extends Type<Infer<T>[]> {
   }
   parse(value: unknown, opts?: { suppressPathErrMsg: boolean }): Infer<T>[] {
     if (!Array.isArray(value)) {
-      throw new ValidationError('expected an array but got ' + typeof value);
+      throw new ValidationError('expected an array but got ' + typeOf(value));
     }
     value.forEach((elem, idx) => {
       try {
