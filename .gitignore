@@ -3,3 +3,5 @@ coverage
 libs
 .vscode
 .nyc_output
+
+src/playground.ts

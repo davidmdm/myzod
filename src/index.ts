@@ -86,7 +86,7 @@ class NullType extends Type<null> {
 type Literal = string | number | boolean | undefined | null;
 
 class LiteralType<T extends Literal> extends Type<T> {
-  constructor(private readonly literal: Literal) {
+  constructor(private readonly literal: T) {
     super();
   }
   parse(value: unknown): T {
@@ -237,7 +237,7 @@ export const string = () => new StringType();
 export const boolean = () => new BooleanType();
 export const number = () => new NumberType();
 export const unknown = () => new UnknownType();
-export const literal = (literal: Literal) => new LiteralType(literal);
+export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
 export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
 export const array = <T extends Type<any>>(type: T) => new ArrayType(type);
 export const union = <T extends TupleType>(schemas: T) => new UnionType(schemas);
