@@ -58,6 +58,39 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'expected type to be number but got null');
     });
+
+    it('should succeed if number is with range', () => {
+      const schema = zod.number({ min: 0, max: 10 });
+      const ret = schema.parse(5);
+      assert.equal(ret, 5);
+    });
+
+    it('should succeed if number is equal to min or max', () => {
+      const schema = zod.number({ min: 0, max: 10 });
+      assert.equal(schema.parse(0), 0);
+      assert.equal(schema.parse(10), 10);
+    });
+
+    it('should fail if number is below min', () => {
+      const schema = zod.number({ min: 0 });
+      const err = catchError(schema.parse.bind(schema))(-1);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected number to be greater than or equal to 0 but got -1');
+    });
+
+    it('should fail if number is below min - fluent syntax', () => {
+      const schema = zod.number().min(0);
+      const err = catchError(schema.parse.bind(schema))(-1);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected number to be greater than or equal to 0 but got -1');
+    });
+
+    it('should fail if number is greater than max - fluent syntax', () => {
+      const schema = zod.number().max(10);
+      const err = catchError(schema.parse.bind(schema))(20);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected number to be less than or equal to 10 but got 20');
+    });
   });
 
   describe('undefined parsing', () => {

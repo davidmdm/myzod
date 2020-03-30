@@ -70,12 +70,31 @@ class BooleanType extends Type<boolean> {
   }
 }
 
+type NumberOptions = Partial<{ min: number; max: number }>;
 class NumberType extends Type<number> {
-  parse(value: unknown): number {
+  constructor(private opts: NumberOptions = {}) {
+    super();
+  }
+  parse(value: unknown, parseOpts?: NumberOptions): number {
     if (typeof value !== 'number') {
       throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
+    const opts = { ...this.opts, ...parseOpts };
+    if (opts.min !== undefined && value < opts.min) {
+      throw new ValidationError(`expected number to be greater than or equal to ${opts.min} but got ${value}`);
+    }
+    if (opts.max !== undefined && value > opts.max) {
+      throw new ValidationError(`expected number to be less than or equal to ${opts.max} but got ${value}`);
+    }
     return value;
+  }
+  min(x: number): this {
+    this.opts.min = x;
+    return this;
+  }
+  max(x: number): this {
+    this.opts.max = x;
+    return this;
   }
 }
 
@@ -247,7 +266,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<
 
 export const string = () => new StringType();
 export const boolean = () => new BooleanType();
-export const number = () => new NumberType();
+export const number = (opts?: NumberOptions) => new NumberType(opts);
 export const unknown = () => new UnknownType();
 export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
 export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
