@@ -315,4 +315,62 @@ describe('Zod Parsing', () => {
       assert.deepEqual((err as zod.ValidationError).path, [0, 'key']);
     });
   });
+
+  describe('union parsing', () => {
+    it('should pass for every type inside of a union', () => {
+      const schema = zod.union([
+        zod.string(),
+        zod.boolean(),
+        zod.number(),
+        zod.undefined(),
+        zod.null(),
+        zod.object({}),
+        zod.array(zod.number()),
+      ]);
+
+      schema.parse('hello');
+      schema.parse(true);
+      schema.parse(123);
+      schema.parse(undefined);
+      schema.parse(null);
+      schema.parse({});
+      schema.parse([]);
+    });
+
+    it('should fail if type does not match any schema inside of union', () => {
+      const schema = zod.union([zod.string(), zod.number()]);
+      const err = catchError(schema.parse.bind(schema))(true);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'No union satisfied:\n  expected type to be string but got boolean\n  expected type to be number but got boolean'
+      );
+    });
+
+    it('should fail for the union of objects if value not strictly one or the other', () => {
+      const schema = zod.union([
+        zod.object({ a: zod.string() }),
+        zod.object({ b: zod.number() }),
+        zod.object({ c: zod.boolean() }),
+      ]);
+      const err = catchError(schema.parse.bind(schema))({ a: 'string', b: 123, c: false });
+      assert.equal(err instanceof zod.ValidationError, true);
+
+      const expectedSubMessages = [
+        'unexpected keys on object: ["b","c"]',
+        'unexpected keys on object: ["a","c"]',
+        'unexpected keys on object: ["a","b"]',
+      ];
+      assert.equal(err.message, 'No union satisfied:\n  ' + expectedSubMessages.join('\n  '));
+    });
+
+    it('should pass for the union of objects when strict is false and value subclasses one type', () => {
+      const schema = zod.union(
+        [zod.object({ a: zod.string() }), zod.object({ b: zod.number() }), zod.object({ c: zod.boolean() })],
+        { strict: false }
+      );
+      const ret = schema.parse({ a: 'string', b: 123, c: false });
+      assert.deepEqual(ret, { a: 'string', b: 123, c: false });
+    });
+  });
 });

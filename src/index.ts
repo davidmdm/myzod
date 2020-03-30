@@ -192,9 +192,9 @@ class ArrayType<T extends Type<any>> extends Type<Infer<T>[]> {
 
 type TupleToUnion<T extends any[]> = T[number];
 type InferTupleUnion<T extends Type<any>[]> = TupleToUnion<{ [P in keyof T]: T[P] extends Type<infer K> ? K : any }>;
-
+type UnionOptions = { strict?: boolean };
 class UnionType<T extends TupleType> extends Type<InferTupleUnion<T>> {
-  constructor(private readonly schemas: T) {
+  constructor(private readonly schemas: T, private readonly opts?: UnionOptions) {
     super();
   }
 
@@ -202,8 +202,10 @@ class UnionType<T extends TupleType> extends Type<InferTupleUnion<T>> {
     const errors: string[] = [];
     for (const schema of this.schemas) {
       try {
-        schema.parse(value);
-        return value as any;
+        if (this.opts?.strict === false && schema instanceof ObjectType) {
+          return schema.parse(value, { allowUnknown: true }) as any;
+        }
+        return schema.parse(value);
       } catch (err) {
         errors.push(err.message);
       }
@@ -240,7 +242,7 @@ export const unknown = () => new UnknownType();
 export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
 export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
 export const array = <T extends Type<any>>(type: T) => new ArrayType(type);
-export const union = <T extends TupleType>(schemas: T) => new UnionType(schemas);
+export const union = <T extends TupleType>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends TupleType>(schemas: T) => new IntersectionType(schemas);
 
 const undefinedValue = () => new UndefinedType();
