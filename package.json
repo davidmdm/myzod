@@ -6,7 +6,7 @@
   "types": "./libs/index.d.ts",
   "scripts": {
     "test": "nyc mocha \"test/**/*test.ts\"",
-    "build": "tsc",
+    "build": "rm -rf ./libs && tsc",
     "pub": "npm t && tsc && npm publish"
   },
   "keywords": [],
