@@ -1,6 +1,6 @@
 {
   "name": "myzod",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
@@ -10,6 +10,10 @@
     "pub": "npm t && tsc && npm publish"
   },
   "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidmdm/myzod.git"
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
