@@ -222,10 +222,6 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
     }
     return acc;
   }
-
-  getShapeKeys(): string[] {
-    return Object.keys(this.objectShape);
-  }
 }
 
 class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
