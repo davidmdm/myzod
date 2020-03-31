@@ -48,7 +48,7 @@ function prettyPrintPath(path: (number | string)[]): string {
 }
 
 type AnyType = Type<any>;
-type Eval<T> = { [K in keyof T]: T[K] } & {};
+type Eval<T> = { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
 type StringOptions = Partial<{ pattern: RegExp; min: number; max: number }>;
@@ -182,7 +182,7 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
     //@ts-ignore
     this[getKeyShapesSymbol] = (): string[] => Object.keys(this.objectShape);
   }
-  parse(value: unknown, optOverrides: ObjectOptions & PathOptions = {}): InferObjectShape<T> {
+  parse(value: unknown, optOverrides: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
@@ -303,7 +303,7 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
   }
 }
 
-class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<T> & Infer<K>> {
+class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
   private readonly schemas: AnyType[];
   constructor(left: T, right: K) {
     super();
@@ -312,7 +312,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<
 
   // TODO If One is record and other is Object than remove object keys before parsing it as record
   // TODO if both are Object records we got to allowUnknown.
-  parse(value: unknown): Infer<T> & Infer<K> {
+  parse(value: unknown): Eval<Infer<T> & Infer<K>> {
     for (const schema of this.schemas) {
       // Todo What about unknowns keys of object intersections?
       if (schema instanceof ObjectType) {
