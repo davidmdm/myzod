@@ -9,7 +9,7 @@
     "target": "es2017",
     "noImplicitAny": true,
     "moduleResolution": "node",
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "libs",
     "noUnusedLocals": true,
     "noImplicitReturns": false,

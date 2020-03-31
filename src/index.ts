@@ -51,8 +51,16 @@ type AnyType = Type<any>;
 type Eval<T> = { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
-type StringOptions = Partial<{ pattern: RegExp; min: number; max: number }>;
 // Primitives
+
+type StringOptions = Partial<{
+  pattern: RegExp;
+  min: number;
+  max: number;
+  predicate: (value: string) => boolean;
+  predicateErrMsg: string;
+}>;
+
 class StringType extends Type<string> {
   constructor(private opts: StringOptions = {}) {
     super();
@@ -74,6 +82,18 @@ class StringType extends Type<string> {
     if (this.opts.pattern instanceof RegExp && !this.opts.pattern.test(value)) {
       throw new ValidationError(`expected string to match pattern ${this.opts.pattern} but did not`);
     }
+    if (this.opts.predicate) {
+      try {
+        if (this.opts.predicate(value) === false) {
+          throw new ValidationError(this.opts.predicateErrMsg || 'expected string to pass predicate function');
+        }
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw err;
+        }
+        throw new ValidationError(err.message);
+      }
+    }
     return value;
   }
   pattern(regexp: RegExp): this {
@@ -86,6 +106,11 @@ class StringType extends Type<string> {
   }
   max(x: number): this {
     this.opts.max = x;
+    return this;
+  }
+  predicate(fn: StringOptions['predicate'], errMsg?: string): this {
+    this.opts.predicate = fn;
+    this.opts.predicateErrMsg = errMsg;
     return this;
   }
 }
@@ -253,13 +278,46 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
   }
 }
 
+type ArrayOptions = Partial<{
+  length: number;
+  min: number;
+  max: number;
+  unique: boolean;
+}>;
+
 class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
-  constructor(private readonly schema: T) {
+  constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
     super();
   }
-  parse(value: unknown, opts?: PathOptions): Infer<T>[] {
+  parse(value: unknown, parseOptions?: PathOptions): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
+    }
+    if (typeof this.opts.length === 'number' && this.opts.length >= 0 && value.length !== this.opts.length) {
+      throw new ValidationError(`expected array to have length ${this.opts.length} but got ${value.length}`);
+    }
+    if (typeof this.opts.min === 'number' && value.length < this.opts.min) {
+      throw new ValidationError(
+        `expected array to have length greater than or equal to ${this.opts.min} but got ${value.length}`
+      );
+    }
+    if (typeof this.opts.max === 'number' && value.length > this.opts.max) {
+      throw new ValidationError(
+        `expected array to have length less than or equal to ${this.opts.max} but got ${value.length}`
+      );
+    }
+    if (this.opts.unique === true && new Set(value).size !== value.length) {
+      const seenMap = new Map<any, number[]>();
+      value.forEach((elem, idx) => {
+        const seenAt = seenMap.get(elem);
+        if (!seenAt) {
+          seenMap.set(elem, [idx]);
+        } else {
+          throw new ValidationError(
+            `expected array to be unique but found same element at indexes ${seenAt[0]} and ${idx}`
+          );
+        }
+      });
     }
     value.forEach((elem, idx) => {
       try {
@@ -270,11 +328,29 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
         }
       } catch (err) {
         const path = err.path ? [idx, ...err.path] : [idx];
-        const msg = opts?.suppressPathErrMsg ? err.message : `error at ${prettyPrintPath(path)} - ${err.message}`;
+        const msg = parseOptions?.suppressPathErrMsg
+          ? err.message
+          : `error at ${prettyPrintPath(path)} - ${err.message}`;
         throw new ValidationError(msg, path);
       }
     });
     return value;
+  }
+  length(value: number): this {
+    this.opts.length = value;
+    return this;
+  }
+  min(value: number): this {
+    this.opts.min = value;
+    return this;
+  }
+  max(value: number): this {
+    this.opts.max = value;
+    return this;
+  }
+  unique(value: boolean = true): this {
+    this.opts.unique = value;
+    return this;
   }
 }
 
@@ -371,7 +447,7 @@ export const number = (opts?: NumberOptions) => new NumberType(opts);
 export const unknown = () => new UnknownType();
 export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
 export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
-export const array = <T extends AnyType>(type: T) => new ArrayType(type);
+export const array = <T extends AnyType>(type: T, opts?: ArrayOptions) => new ArrayType(type, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);
 export const record = <T extends AnyType>(type: T) => new RecordType(type);
@@ -396,4 +472,5 @@ export default {
   intersection,
   undefined: undefinedValue,
   null: nullValue,
+  enum: enumValue,
 };

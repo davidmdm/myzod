@@ -85,6 +85,41 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'expected string to have length less than or equal to 6 but had length 11');
     });
+
+    it('should pass if predicate function returns true', () => {
+      const schema = zod.string().predicate(() => true);
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if predicate function returns false', () => {
+      const schema = zod.string({ predicate: () => false });
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to pass predicate function');
+    });
+
+    it('should fail if predicate function returns false - fluent syntax', () => {
+      const schema = zod.string().predicate(() => false);
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected string to pass predicate function');
+    });
+
+    it('should fail with predicate error message if predicate function returns false - fluent syntax', () => {
+      const schema = zod.string().predicate(() => false, 'custom predicate message');
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'custom predicate message');
+    });
+
+    it('should fail with same error message as predicate function if it throws', () => {
+      const schema = zod.string().predicate(() => {
+        throw new Error('predicate error message');
+      });
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'predicate error message');
+    });
   });
 
   describe('boolean parsing', () => {
@@ -431,6 +466,74 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'error at [1] - expected type to be string but got number');
       assert.deepEqual((err as zod.ValidationError).path, [1]);
+    });
+
+    it('should pass if array has provided length', () => {
+      const schema = zod.array(zod.string(), { length: 2 });
+      const ret = schema.parse(['hello', 'world']);
+      assert.deepEqual(ret, ['hello', 'world']);
+    });
+
+    it('should pass if array has provided length - fluent syntax', () => {
+      const schema = zod.array(zod.string()).length(2);
+      const ret = schema.parse(['hello', 'world']);
+      assert.deepEqual(ret, ['hello', 'world']);
+    });
+
+    it('should fail if array does not have provided length', () => {
+      const schema = zod.array(zod.string()).length(2);
+      const err = catchError(schema.parse.bind(schema))([]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected array to have length 2 but got 0');
+    });
+
+    it('should pass if array has length falls within range', () => {
+      const schema = zod.array(zod.number(), { min: 2, max: 2 });
+      const ret = schema.parse([1, 2]);
+      assert.deepEqual(ret, [1, 2]);
+    });
+
+    it('should pass if array has length falls within range - fluent syntax', () => {
+      const schema = zod
+        .array(zod.number())
+        .min(2)
+        .max(2);
+      const ret = schema.parse([1, 2]);
+      assert.deepEqual(ret, [1, 2]);
+    });
+
+    it('should fail if array length is less than min', () => {
+      const schema = zod.array(zod.number(), { min: 2 });
+      const err = catchError(schema.parse.bind(schema))([]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected array to have length greater than or equal to 2 but got 0');
+    });
+
+    it('should fail if array length is greater than max', () => {
+      const schema = zod.array(zod.number(), { max: 1 });
+      const err = catchError(schema.parse.bind(schema))([1, 2]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected array to have length less than or equal to 1 but got 2');
+    });
+
+    it('should pass if elements are unique', () => {
+      const schema = zod.array(zod.number(), { unique: true });
+      const ret = schema.parse([1, 2, 3]);
+      assert.deepEqual(ret, [1, 2, 3]);
+    });
+
+    it('should fail if elements are not unique', () => {
+      const schema = zod.array(zod.number(), { unique: true });
+      const err = catchError(schema.parse.bind(schema))([1, 2, 2]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
+    });
+
+    it('should fail if elements are not unique - fluent syntax', () => {
+      const schema = zod.array(zod.number()).unique();
+      const err = catchError(schema.parse.bind(schema))([1, 2, 2]);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
     });
 
     it('should give meaningful path error for objects', () => {

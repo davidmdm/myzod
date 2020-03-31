@@ -34,12 +34,24 @@ const person: Person = personSchema.parse({ ... });
 ### Api Reference
 
 - [string](#string)
+- [number](#number)
+- [boolean](#boolean)
+- [undefined](#undefined)
+- [null](#null)
+- [literal](#literal)
+- [unknown](#unknown)
+- [object](#object)
+- [array](#array)
+- [record](#record)
+- [enum](#enum)
+- [union](#union)
+- [intersection](#intersection)
 
 ### myzod.Type<T>
 
 All myzod schemas extend the generic myzod.Type class, and as such inherit these methods:
 
-#### Parse
+#### `parse`
 
 Takes an unknown value, and returns it typed if passed validation. Otherwise throws a myzod.ValidationError
 
@@ -47,7 +59,7 @@ Takes an unknown value, and returns it typed if passed validation. Otherwise thr
 parse(value: unknown): T
 ```
 
-##### optional
+##### `optional`
 
 Returns a new schema which is the union of the current schema and the UndefinedType schema.
 
@@ -57,22 +69,22 @@ const optionalStringSchema = myzod.string().optional(); // => UnionType<[Type<st
 type StringOrUndefined = Infer<typeof optionalStringSchema>; // => string | undefined
 ```
 
-##### nullable
+##### `nullable`
 
 Returns a new schema which is the union of the current schema and the NullableType schema.
 
 ```typescript
-const nullableStringSchema = myzod.string().nullable(); // => UnionType<[Type<string>, NullableType]>
+const nullableStringSchema = myzod.string().nullable();
 
 type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 ```
 
-##### or
+##### `or`
 
 Shorthand for creating union types of two schemas.
 
 ```typescript
-const stringOrBoolSchema = myzod.string().or(myzod.boolean()); // => UnionType<[StringType, BooleanType]>
+const stringOrBoolSchema = myzod.string().or(myzod.boolean());
 
 type StringOrUndefined = Infer<typeof stringOrBoolSchema>; // => string | boolean
 ```
@@ -97,6 +109,8 @@ options:
 - min: `number` - sets the minimum length for the string
 - max: `number` - sets the maximum length for the string
 - pattern: `RegExp` - expression string must match
+- predicate: `(val: string) => boolean` - predicate function to extend string validation.
+- predicateErrMsg: `string` - error message to throw in ValidationError should predicate fail
 
 options can be passed as an option object or chained from schema.
 
@@ -108,6 +122,17 @@ myzod
   .min(3)
   .max(10)
   .pattern(/^hey/);
+```
+
+Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended using the predicate and predicateErrMsg options
+
+```typescript
+const uuidSchema = myzod.string().predicate(validator.isUUID, 'expected string to be uuid');
+
+type UUID = Infer<typeof uuidSchema>; // => string
+
+uuidSchema.parse('hello world'); // Throws ValidationError with message 'expected string to be uuid'
+// note that if predicate function throws an error that message will be used instead
 ```
 
 #### Number
@@ -169,4 +194,168 @@ type Schema = Infer<typeof schema>; // => { unknownYetRequiredField: unknown }
 
 schema.parse({}); // throws a ValidationError
 schema.parse({ unkownYetRequiredField: 'hello' }); // succeeds
+```
+
+#### Object
+
+options:
+
+- allowUnknown: `boolean` - allows for object with keys not specified in expected shape to succeed parsing, default `false`
+- suppressErrPathMsg: `boolean` - suppress the path to the invalid key in thrown validationErrors. This option should stay false for most cases but is used internally to generate appropriate messages when validating nested objects. default `false`
+
+myzod.object is the way to construct arbitrary object schemas.
+
+```typescript
+function object(shape: { [key: string]: Type<T> }, opts?: options);
+```
+
+examples:
+
+```typescript
+const strictEmptyObjSchema = myzod.object({});
+const emptyObjSchema = myzod.object({}, { allowUnknown: true });
+
+// Both Schemas infer the same type
+type Empty = Infer<typeof emptyObjSchema>; // => {}
+type StrictEmpty = Infer<typeof strictEmptyObjSchema>; // => {}
+
+emptyObjSchema.parse({ key: 'value' }); // => succeeds
+strictEmptyObjSchema.parse({ key: 'value' }); // => throws ValidationError because not expected key: "key"
+
+const personSchema = myzod.object({
+  name: myzod.string().min(2),
+  age: myzod.number({ min: 0 }).nullable(),
+});
+
+type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
+```
+
+#### Array
+
+options:
+
+- length: `number` - the expected length of the array
+- min: `number` - the minimum length of the array
+- max: `number` - the maximum length of the array
+- unique: `boolean` - should the array be unique. default `false`
+
+Signature:
+
+```typescript
+function array(schema: Type<T>, opts?: Options);
+```
+
+Example:
+
+```typescript
+const schema = myzod.array(myzod.number()).unique();
+
+type Schema = Infer<typeof schema>; // => string[]
+
+schema.parse([1, 1, 2]); // => throws ValidationError
+```
+
+#### Record
+
+The record type emulates as the equivalent typescript type: `Record<string, T>`.
+
+```typescript
+const schema = myzod.record(myzod.string());
+
+type Schema = Infer<typeof schema>; // => { [x: string] : string }
+```
+
+One primary use case of the record type is for creating schemas for objects with unknown keys that you want to have typed. This would be the equivalent of passing a pattern to joi. The way this is done in myzod is to intersect a recordSchema with a object schema.
+
+```typescript
+const objSchema = myzod.object({
+  a: myzod.string(),
+  b: myzod.boolean(),
+  c: myzod.number(),
+});
+
+const recordSchema = myzod.record(zod.number());
+
+const schema = objSchema.and(recordSchema);
+
+type Schema = Infer<typeof schema>;
+
+// Here Schema is the same as the following type definition:
+type Schema = {
+  a: string;
+  b: boolean;
+  c: number;
+  [key: string]: number;
+};
+```
+
+As a utility for creating records whose values are by default optional, you can use the myzod.dictionary function.
+
+```typescript
+const schema = myzod.dictionary(myzod.string());
+// same as
+const schema = myzod.record(myzod.string().optional());
+
+type Schema = Infer<typeof schema>; // => { [key: string]: string | undefined }
+
+// Note I have experienced issues with vscode type hints omitting the undefined union
+// however when running tsc it evaluates Schema as the type above.
+```
+
+#### Enum
+
+The enum implementation differs greatly from the original zod implementation.
+In zod you would create an enum schema by passing an array of litteral schemas.
+I, however, did not like this since enums are literals they must by typed out in the source code regardless, and I prefer to use actual typescript `enum` values.
+
+The cost of this approach is that I cannot statically check that you are passing an enum type to the zod.enum function. If you pass another value it won't make sense within the type system. Users beware.
+
+```typescript
+enum Color {
+  red = 'red',
+  blue = 'blue',
+  green = 'green',
+}
+
+const colorSchema = zod.enum(Color);
+
+Infer<typeof colorSchema> // => Color -- Redundant
+
+const color = colorSchema.parse('red');
+```
+
+The enum schema provides a check method as a typeguard for enums.
+
+```typescript
+const value: string = 'some string variable';
+if (colorSchema.check(value)) {
+  // value's type is Color within this if block
+}
+```
+
+#### Union
+
+The myzod.union function accepts an arbitrary number of schemas and creates a union of their inferred types.
+
+```typescript
+const schema = myzod.union([myzod.string(), myzod.array(myzod.string()), myzod.number()]);
+
+type Schema = Infer<typeof schema>; // => string | string[] | number
+```
+
+#### Intersection
+
+The myzod.intersection takes two schemas as arguments and creates an intersection between their types.
+
+```typescript
+const a = myzod.object({ a: myzod.string() });
+const b = myzod.object({ b: myzod.string() });
+
+const schema = myzod.intersection(a, b);
+// same as
+const schema = a.and(b);
+// or
+const schema = b.and(a);
+
+type Schema = Infer<typeof schema>; // => { a: string; b: string }
 ```
