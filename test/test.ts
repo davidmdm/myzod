@@ -554,4 +554,31 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'error parsing record at path "key.b" - expected type to be string but got undefined');
     });
   });
+
+  describe('enum parsing', () => {
+    enum Colors {
+      red = 'red',
+      blue = 'blue',
+      green = 'green',
+    }
+    const schema = zod.enum(Colors);
+
+    it('should pass if value is part of enum', () => {
+      assert.equal(schema.parse('red'), Colors.red);
+    });
+
+    it('should fail if not part of enum', () => {
+      const err = catchError(schema.parse.bind(schema))('hot fuzz');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error "hot fuzz" not part of enum values');
+    });
+
+    it('should return true if value satisfies enum', () => {
+      assert.equal(schema.check('green'), true);
+    });
+
+    it('should return false if value satisfies enum', () => {
+      assert.equal(schema.check('blueberry'), false);
+    });
+  });
 });

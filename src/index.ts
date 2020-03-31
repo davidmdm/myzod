@@ -345,6 +345,30 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<
   }
 }
 
+type ValueOf<T> = T[keyof T];
+
+class EnumType<T> extends Type<ValueOf<T>> {
+  private values: any[];
+  constructor(enumeration: T) {
+    super();
+    this.values = Object.values(enumeration);
+  }
+  parse(x: unknown): ValueOf<T> {
+    if (!this.values.includes(x)) {
+      throw new ValidationError(`error ${JSON.stringify(x)} not part of enum values`);
+    }
+    return x as ValueOf<T>;
+  }
+  check(value: unknown): value is ValueOf<T> {
+    try {
+      this.parse(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
@@ -359,7 +383,9 @@ export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
-export { undefinedValue as undefined, nullValue as null };
+const enumValue = <T>(e: T) => new EnumType(e);
+
+export { undefinedValue as undefined, nullValue as null, enumValue as enum };
 
 // Support default imports
 export default {
