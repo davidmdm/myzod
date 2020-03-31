@@ -171,16 +171,18 @@ type InferObjectShape<T> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : any;
 };
 
-type ObjectOptions = {
-  allowUnknown?: boolean;
-  suppressPathErrMsg?: boolean;
-};
+type PathOptions = { suppressPathErrMsg?: boolean };
+type ObjectOptions = { allowUnknown?: boolean };
+
+const getKeyShapesSymbol = Symbol.for('getKeyShapes');
 
 class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
+    //@ts-ignore
+    this[getKeyShapesSymbol] = (): string[] => Object.keys(this.objectShape);
   }
-  parse(value: unknown, optOverrides?: ObjectOptions): InferObjectShape<T> {
+  parse(value: unknown, optOverrides: ObjectOptions & PathOptions = {}): InferObjectShape<T> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
@@ -205,16 +207,14 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
         if (keySchema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
           throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
         }
-        if (keySchema instanceof ObjectType) {
-          acc[key] = keySchema.parse((value as any)[key], { ...opts, suppressPathErrMsg: true });
-        } else if (keySchema instanceof ArrayType) {
+        if (keySchema instanceof ObjectType || keySchema instanceof ArrayType || keySchema instanceof RecordType) {
           acc[key] = keySchema.parse((value as any)[key], { suppressPathErrMsg: true });
         } else {
           acc[key] = keySchema.parse((value as any)[key]);
         }
       } catch (err) {
         const path = err.path ? [key, ...err.path] : [key];
-        const msg = opts.suppressPathErrMsg
+        const msg = opts?.suppressPathErrMsg
           ? err.message
           : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
         throw new ValidationError(msg, path);
@@ -222,13 +222,46 @@ class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
     }
     return acc;
   }
+
+  getShapeKeys(): string[] {
+    return Object.keys(this.objectShape);
+  }
+}
+
+class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
+  constructor(private readonly schema: T) {
+    super();
+  }
+  parse(value: unknown, opts?: PathOptions & ObjectOptions): Record<string, Infer<T>> {
+    if (typeof value !== 'object') {
+      throw new ValidationError('expected type to be object but got ' + typeOf(value));
+    }
+    for (const key in value) {
+      try {
+        if (this.schema instanceof ObjectType) {
+          this.schema.parse((value as any)[key], { allowUnknown: opts?.allowUnknown, suppressPathErrMsg: true });
+        } else if (this.schema instanceof ArrayType || this.schema instanceof RecordType) {
+          this.schema.parse((value as any)[key], { suppressPathErrMsg: true });
+        } else {
+          this.schema.parse((value as any)[key]);
+        }
+      } catch (err) {
+        const path = err.path ? [key, ...err.path] : [key];
+        const msg = opts?.suppressPathErrMsg
+          ? err.message
+          : `error parsing record at path "${prettyPrintPath(path)}" - ${err.message}`;
+        throw new ValidationError(msg, path);
+      }
+    }
+    return value as any;
+  }
 }
 
 class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
   constructor(private readonly schema: T) {
     super();
   }
-  parse(value: unknown, opts?: { suppressPathErrMsg: boolean }): Infer<T>[] {
+  parse(value: unknown, opts?: PathOptions): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
     }
@@ -275,15 +308,35 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
 }
 
 class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Infer<T> & Infer<K>> {
-  constructor(private readonly left: T, private readonly right: K) {
+  private readonly schemas: AnyType[];
+  constructor(left: T, right: K) {
     super();
+    this.schemas = [left, right];
   }
 
+  // TODO If One is record and other is Object than remove object keys before parsing it as record
+  // TODO if both are Object records we got to allowUnknown.
   parse(value: unknown): Infer<T> & Infer<K> {
-    for (const schema of [this.left, this.right]) {
+    for (const schema of this.schemas) {
       // Todo What about unknowns keys of object intersections?
       if (schema instanceof ObjectType) {
         schema.parse(value, { allowUnknown: true });
+      } else if (this.schemas.every(schema => schema instanceof RecordType)) {
+        (schema as RecordType<any>).parse(value, { allowUnknown: true });
+      } else if (schema instanceof RecordType && typeOf(value) === 'object') {
+        const objectSchema = this.schemas.find(x => x instanceof ObjectType);
+        if (!objectSchema) {
+          schema.parse(value);
+        }
+        const objectKeys: string[] = (objectSchema as any)[getKeyShapesSymbol]();
+        const proxy = Object.keys(value as any).reduce<any>((acc, key) => {
+          if (objectKeys.includes(key)) {
+            return acc;
+          }
+          acc[key] = (value as any)[key];
+          return acc;
+        }, {});
+        schema.parse(proxy);
       } else {
         schema.parse(value);
       }
@@ -301,6 +354,8 @@ export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new 
 export const array = <T extends AnyType>(type: T) => new ArrayType(type);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);
+export const record = <T extends AnyType>(type: T) => new RecordType(type);
+export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();

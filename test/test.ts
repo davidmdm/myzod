@@ -369,6 +369,42 @@ describe('Zod Parsing', () => {
     });
   });
 
+  describe('record parsing', () => {
+    it('should pass if all values in object match type', () => {
+      const schema = zod.record(zod.boolean());
+      const ret = schema.parse({ a: true, b: false });
+      assert.deepEqual(ret, { a: true, b: false });
+    });
+
+    it('should fail if a value in object does not match the type', () => {
+      const schema = zod.record(zod.boolean());
+      const err = catchError(schema.parse.bind(schema))({ a: 'true', b: false });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing record at path "a" - expected type to be boolean but got string');
+    });
+
+    it('should give meaningful error messages for object records with nested errors', () => {
+      const schema = zod.record(zod.object({ a: zod.object({ b: zod.boolean() }) }));
+      const err = catchError(schema.parse.bind(schema))({ key: { a: { b: 'hello' } } });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing record at path "key.a.b" - expected type to be boolean but got string');
+      assert.deepEqual((err as zod.ValidationError).path, ['key', 'a', 'b']);
+    });
+
+    it('should fail if a key is present on object but value is undefined', () => {
+      const schema = zod.record(zod.boolean());
+      const err = catchError(schema.parse.bind(schema))({ a: undefined, b: false });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing record at path "a" - expected type to be boolean but got undefined');
+    });
+
+    it('should pass if a key is present on object but value is undefined if using dictionary', () => {
+      const schema = zod.dictionary(zod.boolean());
+      const ret = schema.parse({ a: undefined, b: false });
+      assert.deepEqual(ret, { a: undefined, b: false });
+    });
+  });
+
   describe('array parsing', () => {
     it('should pass when given an empty array', () => {
       const schema = zod.array(zod.number());
@@ -486,6 +522,36 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))(null);
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'expected type to be string but got null');
+    });
+
+    it('should intersect a record an object such that the object fields have precedence over the record', () => {
+      const schema = zod.intersection(zod.object({ a: zod.string() }), zod.record(zod.number()));
+      const ret = schema.parse({ a: 'hello', b: 3 });
+      assert.deepEqual(ret, { a: 'hello', b: 3 });
+    });
+
+    it('should fail the record and object intersection does not respect the object shape', () => {
+      const schema = zod.intersection(zod.object({ a: zod.string() }), zod.record(zod.number()));
+      const err = catchError(schema.parse.bind(schema))({ a: 2, b: 3 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
+    });
+
+    it('should pass if key values in object respects record intersection', () => {
+      const recordA = zod.record(zod.object({ a: zod.number() }));
+      const recordB = zod.record(zod.object({ b: zod.string() }));
+      const schema = zod.intersection(recordA, recordB);
+      const ret = schema.parse({ key: { a: 2, b: 'hello' } });
+      assert.deepEqual(ret, { key: { a: 2, b: 'hello' } });
+    });
+
+    it('should fail if key values in object do satisfy record intersection', () => {
+      const recordA = zod.record(zod.object({ a: zod.number() }));
+      const recordB = zod.record(zod.object({ b: zod.string() }));
+      const schema = zod.intersection(recordA, recordB);
+      const err = catchError(schema.parse.bind(schema))({ key: { a: 2 } });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing record at path "key.b" - expected type to be string but got undefined');
     });
   });
 });
