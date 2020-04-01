@@ -700,4 +700,59 @@ describe('Zod Parsing', () => {
       assert.equal(schema.check('blueberry'), false);
     });
   });
+
+  describe('partial parsing', () => {
+    it('should have no effect on a primitive type', () => {
+      const schema = zod.partial(zod.string());
+      assert.equal(schema.parse('hello'), 'hello');
+
+      const err = catchError(schema.parse.bind(schema))(undefined);
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected type to be string but got undefined');
+    });
+
+    it('should make an object keys optional', () => {
+      const schema = zod.partial(zod.object({ a: zod.string(), b: zod.boolean() }));
+      const ret = schema.parse({});
+      assert.deepEqual(ret, { a: undefined, b: undefined });
+    });
+
+    it('should not lose any validation definitions', () => {
+      const schema = zod.partial(zod.object({ a: zod.string().pattern(/hello/) }));
+      const err = catchError(schema.parse.bind(schema))({ a: 'hey' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "a" - No union satisfied:\n  expected string to match pattern /hello/ but did not\n  expected type to be undefined but got string'
+      );
+    });
+
+    it('should make arrays become "holey" with undefined', () => {
+      const schema = zod.partial(zod.array(zod.string()));
+      const ret = schema.parse(['hello', undefined, 'world']);
+      assert.deepEqual(ret, ['hello', undefined, 'world']);
+    });
+
+    it('should make object intersection keys optional', () => {
+      const schemaA = zod.object({ a: zod.string() });
+      const schemaB = zod.object({ b: zod.boolean() });
+      const schema = zod.partial(schemaA.and(schemaB));
+      assert.deepEqual(schema.parse({}), { a: undefined, b: undefined });
+    });
+
+    it('should fail if unknown keys of partial object intersection', () => {
+      const schemaA = zod.object({ a: zod.string() });
+      const schemaB = zod.object({ b: zod.boolean() });
+      const schema = zod.partial(schemaA.and(schemaB));
+      const err = catchError(schema.parse.bind(schema))({ d: 'hey' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["d"]');
+    });
+
+    it('should make the values of a record optional', () => {
+      const schema = zod.partial(zod.record(zod.number()));
+      const ret = schema.parse({ a: 3, b: undefined });
+      assert.deepEqual(ret, { a: 3, b: undefined });
+    });
+  });
 });

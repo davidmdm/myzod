@@ -388,8 +388,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     super();
   }
 
-  // TODO If One is record and other is Object than remove object keys before parsing it as record
-  // TODO if both are Object records we got to allowUnknown.
+  // TODO Handle Partial Types????
   parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
     if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
       return this.parseObjectIntersection(value, opts);
@@ -409,7 +408,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     return value as any;
   }
 
-  parseObjectIntersection(value: any, opts?: PathOptions): any {
+  private parseObjectIntersection(value: any, opts?: PathOptions): any {
     const intersectionKeys = new Set<string>([
       ...(this.left as any)[getKeyShapesSymbol](),
       ...(this.right as any)[getKeyShapesSymbol](),
@@ -425,13 +424,13 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     };
   }
 
-  parseRecordIntersection(value: any): any {
+  private parseRecordIntersection(value: any): any {
     const leftSchema: Type<any> = (this.left as any).schema;
     const rightSchema: Type<any> = (this.right as any).schema;
     return new RecordType(leftSchema.and(rightSchema)).parse(value);
   }
 
-  parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
+  private parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
     objectSchema.parse(value, { allowUnknown: true });
     const objectKeys: string[] = (objectSchema as any)[getKeyShapesSymbol]();
     const proxy = Object.keys(value).reduce<any>((acc, key) => {
@@ -469,6 +468,41 @@ class EnumType<T> extends Type<ValueOf<T>> {
   }
 }
 
+function toPartialSchema(schema: AnyType): AnyType {
+  if (schema instanceof ObjectType) {
+    const originalShape = (schema as any).objectShape;
+    const shape = Object.keys(originalShape).reduce<any>((acc, key) => {
+      acc[key] = originalShape[key].optional();
+      return acc;
+    }, {});
+    return new ObjectType(shape, (schema as any).opts);
+  }
+  if (schema instanceof RecordType) {
+    return new RecordType((schema as any).schema.optional());
+  }
+  if (schema instanceof IntersectionType) {
+    return new IntersectionType(toPartialSchema((schema as any).left), toPartialSchema((schema as any).right));
+  }
+  if (schema instanceof UnionType) {
+    return new UnionType((schema as any).schemas.map((x: AnyType) => x.optional()));
+  }
+  if (schema instanceof ArrayType) {
+    return new ArrayType((schema as any).schema.optional());
+  }
+  return schema;
+}
+
+class PartialType<T extends AnyType> extends Type<Partial<Infer<T>>> {
+  private readonly schema: AnyType;
+  constructor(schema: T) {
+    super();
+    this.schema = toPartialSchema(schema);
+  }
+  parse(value: unknown): Partial<Infer<T>> {
+    return this.schema.parse(value);
+  }
+}
+
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
@@ -480,6 +514,7 @@ export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => n
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);
 export const record = <T extends AnyType>(type: T) => new RecordType(type);
 export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
+export const partial = <T extends AnyType>(type: T) => new PartialType(type);
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
@@ -498,6 +533,9 @@ export default {
   array,
   union,
   intersection,
+  record,
+  dictionary,
+  partial,
   undefined: undefinedValue,
   null: nullValue,
   enum: enumValue,

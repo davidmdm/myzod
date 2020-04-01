@@ -46,6 +46,7 @@ const person: Person = personSchema.parse({ ... });
 - [enum](#enum)
 - [union](#union)
 - [intersection](#intersection)
+- [partial](#partial)
 
 ### myzod.Type<T>
 
@@ -358,4 +359,18 @@ const schema = a.and(b);
 const schema = b.and(a);
 
 type Schema = Infer<typeof schema>; // => { a: string; b: string }
+```
+
+#### Partial
+
+The myzod.partial function take a schema and generates a new schema equivalent to typescript's Partial<T> type for that schema.
+
+```typescript
+const personSchema = myzod.object({ name: myzod.string() });
+const partialPersonSchema = myzod.partial(personSchema);
+
+type PartialPerson = Infer<typeof partialPersonSchema>; // => Partial<{ name: string }> || { name?: string }
+
+partialPersonSchema.parse({}); // Succeeds
+partialPersonSchema.parse({ nickName: 'lil kenny g' }); // throws validation error
 ```
