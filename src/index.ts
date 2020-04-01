@@ -192,6 +192,7 @@ class UnknownType extends Type<unknown> {
 
 // Non Primitive types
 
+type ObjectShape = Record<string, AnyType>;
 type InferObjectShape<T> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : any;
 };
@@ -201,7 +202,7 @@ type ObjectOptions = { allowUnknown?: boolean };
 
 const getKeyShapesSymbol = Symbol.for('getKeyShapes');
 
-class ObjectType<T extends object> extends Type<InferObjectShape<T>> {
+class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
     //@ts-ignore
@@ -513,7 +514,7 @@ export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
 export const unknown = () => new UnknownType();
 export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
-export const object = <T extends object>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
+export const object = <T extends ObjectShape>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
 export const array = <T extends AnyType>(type: T, opts?: ArrayOptions) => new ArrayType(type, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);

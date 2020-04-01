@@ -349,10 +349,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should give meaningful error for nested objects errors', () => {
-      const schema = zod.object({
-        person: zod.object({ name: zod.string() }),
-      });
-
+      const schema = zod.object({ person: zod.object({ name: zod.string() }) });
       const topLevelError = catchError(schema.parse.bind(schema))({ person: 5 });
       assert.equal(topLevelError instanceof zod.ValidationError, true);
       assert.equal(
