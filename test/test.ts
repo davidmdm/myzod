@@ -405,6 +405,19 @@ describe('Zod Parsing', () => {
   });
 
   describe('record parsing', () => {
+    it('should pass for a record of primitive type', () => {
+      const schema = zod.record(zod.string());
+      const ret = schema.parse({ a: 'hello', b: 'world' });
+      assert.deepEqual(ret, { a: 'hello', b: 'world' });
+    });
+
+    it('should fail if value to be parsed is not a record/object', () => {
+      const schema = zod.record(zod.boolean());
+      const err = catchError(schema.parse.bind(schema))('i am a string');
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'expected type to be object but got string');
+    });
+
     it('should pass if all values in object match type', () => {
       const schema = zod.record(zod.boolean());
       const ret = schema.parse({ a: true, b: false });
@@ -437,6 +450,20 @@ describe('Zod Parsing', () => {
       const schema = zod.dictionary(zod.boolean());
       const ret = schema.parse({ a: undefined, b: false });
       assert.deepEqual(ret, { a: undefined, b: false });
+    });
+
+    it('should pass for record of partial objects', () => {
+      const schema = zod.record(zod.partial(zod.object({ a: zod.string(), b: zod.string() })));
+      const ret = schema.parse({
+        key1: { a: 'hello', b: 'world' },
+        key2: { a: 'hello' },
+        key3: {},
+      });
+      assert.deepEqual(ret, {
+        key1: { a: 'hello', b: 'world' },
+        key2: { a: 'hello' },
+        key3: {},
+      });
     });
   });
 
@@ -671,6 +698,28 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2, b: 'string', c: true } });
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'error parsing record at path "key" - unexpected keys on object ["c"]');
+    });
+
+    it('should parse the intersection of partials objects', () => {
+      const schema = zod.intersection(
+        zod.partial(zod.object({ a: zod.string() })),
+        zod.partial(zod.object({ b: zod.number() }))
+      );
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello', b: undefined });
+    });
+
+    it('should fail if intersection of partial types is not respected', () => {
+      const schema = zod.intersection(
+        zod.partial(zod.object({ a: zod.string() })),
+        zod.partial(zod.object({ b: zod.number() }))
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 3 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "a" - No union satisfied:\n  expected type to be string but got number\n  expected type to be undefined but got number'
+      );
     });
   });
 

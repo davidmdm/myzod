@@ -388,7 +388,6 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     super();
   }
 
-  // TODO Handle Partial Types????
   parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
     if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
       return this.parseObjectIntersection(value, opts);
@@ -401,6 +400,12 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     }
     if (this.right instanceof RecordType && this.left instanceof ObjectType) {
       return this.parseRecordObjectIntersection(value, this.right, this.left);
+    }
+    if (this.left instanceof PartialType) {
+      return new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
+    }
+    if (this.right instanceof PartialType) {
+      return new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
     }
 
     this.left.parse(value);
