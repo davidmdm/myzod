@@ -261,7 +261,11 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
       try {
         if (this.schema instanceof ObjectType) {
           this.schema.parse((value as any)[key], { allowUnknown: opts?.allowUnknown, suppressPathErrMsg: true });
-        } else if (this.schema instanceof ArrayType || this.schema instanceof RecordType) {
+        } else if (
+          this.schema instanceof ArrayType ||
+          this.schema instanceof RecordType ||
+          this.schema instanceof IntersectionType
+        ) {
           this.schema.parse((value as any)[key], { suppressPathErrMsg: true });
         } else {
           this.schema.parse((value as any)[key]);
@@ -380,40 +384,64 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
 }
 
 class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
-  private readonly schemas: AnyType[];
-  constructor(left: T, right: K) {
+  constructor(private readonly left: T, private readonly right: K) {
     super();
-    this.schemas = [left, right];
   }
 
   // TODO If One is record and other is Object than remove object keys before parsing it as record
   // TODO if both are Object records we got to allowUnknown.
-  parse(value: unknown): Eval<Infer<T> & Infer<K>> {
-    for (const schema of this.schemas) {
-      // Todo What about unknowns keys of object intersections?
-      if (schema instanceof ObjectType) {
-        schema.parse(value, { allowUnknown: true });
-      } else if (this.schemas.every(schema => schema instanceof RecordType)) {
-        (schema as RecordType<any>).parse(value, { allowUnknown: true });
-      } else if (schema instanceof RecordType && typeOf(value) === 'object') {
-        const objectSchema = this.schemas.find(x => x instanceof ObjectType);
-        if (!objectSchema) {
-          schema.parse(value);
-        }
-        const objectKeys: string[] = (objectSchema as any)[getKeyShapesSymbol]();
-        const proxy = Object.keys(value as any).reduce<any>((acc, key) => {
-          if (objectKeys.includes(key)) {
-            return acc;
-          }
-          acc[key] = (value as any)[key];
-          return acc;
-        }, {});
-        schema.parse(proxy);
-      } else {
-        schema.parse(value);
-      }
+  parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
+    if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
+      return this.parseObjectIntersection(value, opts);
     }
+    if (this.left instanceof RecordType && this.right instanceof RecordType) {
+      return this.parseRecordIntersection(value);
+    }
+    if (this.left instanceof RecordType && this.right instanceof ObjectType) {
+      return this.parseRecordObjectIntersection(value, this.left, this.right);
+    }
+    if (this.right instanceof RecordType && this.left instanceof ObjectType) {
+      return this.parseRecordObjectIntersection(value, this.right, this.left);
+    }
+
+    this.left.parse(value);
+    this.right.parse(value);
     return value as any;
+  }
+
+  parseObjectIntersection(value: any, opts?: PathOptions): any {
+    const intersectionKeys = new Set<string>([
+      ...(this.left as any)[getKeyShapesSymbol](),
+      ...(this.right as any)[getKeyShapesSymbol](),
+    ]);
+    const invalidKeys = Object.keys(value).filter(key => !intersectionKeys.has(key));
+    if (invalidKeys.length > 0) {
+      throw new ValidationError('unexpected keys on object ' + JSON.stringify(invalidKeys));
+    }
+    const parsingOptions = { ...opts, allowUnknown: true };
+    return {
+      ...((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions),
+      ...((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions),
+    };
+  }
+
+  parseRecordIntersection(value: any): any {
+    const leftSchema: Type<any> = (this.left as any).schema;
+    const rightSchema: Type<any> = (this.right as any).schema;
+    return new RecordType(leftSchema.and(rightSchema)).parse(value);
+  }
+
+  parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
+    objectSchema.parse(value, { allowUnknown: true });
+    const objectKeys: string[] = (objectSchema as any)[getKeyShapesSymbol]();
+    const proxy = Object.keys(value).reduce<any>((acc, key) => {
+      if (!objectKeys.includes(key)) {
+        acc[key] = value[key];
+      }
+      return acc;
+    }, {});
+    recordSchema.parse(proxy);
+    return value;
   }
 }
 

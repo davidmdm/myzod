@@ -604,17 +604,24 @@ describe('Zod Parsing', () => {
   });
 
   describe('intersection parsing', () => {
-    it('should pass if value is the intersection of all schema types', () => {
+    it('should pass if value is the intersection of both object types', () => {
       const schema = zod.intersection(zod.object({ a: zod.string() }), zod.object({ b: zod.number() }));
       const ret = schema.parse({ a: 'hello', b: 123 });
       assert.deepEqual(ret, { a: 'hello', b: 123 });
     });
 
-    it('should fail if value is not the intersection of all schema types', () => {
+    it('should fail if value is not the intersection of both object types', () => {
       const schema = zod.intersection(zod.object({ a: zod.string() }), zod.object({ b: zod.number() }));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
+    });
+
+    it('should fail if value has unknown keys to the intersection of both object types', () => {
+      const schema = zod.intersection(zod.object({ a: zod.string() }), zod.object({ b: zod.number() }));
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 3, c: true, d: false });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["c","d"]');
     });
 
     it('should reduce union types to their interseciton', () => {
@@ -655,6 +662,15 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2 } });
       assert.equal(err instanceof zod.ValidationError, true);
       assert.equal(err.message, 'error parsing record at path "key.b" - expected type to be string but got undefined');
+    });
+
+    it('should fail if the value contains object keys not in Record<object> intersection', () => {
+      const recordA = zod.record(zod.object({ a: zod.number() }));
+      const recordB = zod.record(zod.object({ b: zod.string() }));
+      const schema = zod.intersection(recordA, recordB);
+      const err = catchError(schema.parse.bind(schema))({ key: { a: 2, b: 'string', c: true } });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing record at path "key" - unexpected keys on object ["c"]');
     });
   });
 
