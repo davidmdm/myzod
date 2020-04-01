@@ -1,13 +1,13 @@
 {
   "name": "myzod",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
   "scripts": {
     "test": "nyc mocha \"test/**/*test.ts\"",
     "build": "rm -rf ./libs && tsc",
-    "pub": "npm t && tsc && npm publish"
+    "pub": "npm t && npm run build && npm publish"
   },
   "keywords": [],
   "repository": {
