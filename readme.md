@@ -33,6 +33,12 @@ const person: Person = personSchema.parse({ ... });
 
 ### Api Reference
 
+Type Root
+
+- [type class](#myzod.type<t>)
+
+Primitive Types
+
 - [string](#string)
 - [number](#number)
 - [boolean](#boolean)
@@ -40,13 +46,20 @@ const person: Person = personSchema.parse({ ... });
 - [null](#null)
 - [literal](#literal)
 - [unknown](#unknown)
+
+Reference Types
+
 - [object](#object)
 - [array](#array)
 - [record](#record)
 - [enum](#enum)
+
+Logical Types
+
 - [union](#union)
 - [intersection](#intersection)
 - [partial](#partial)
+- [pick](#pick)
 
 ### myzod.Type<T>
 
@@ -363,7 +376,7 @@ type Schema = Infer<typeof schema>; // => { a: string; b: string }
 
 #### Partial
 
-The myzod.partial function take a schema and generates a new schema equivalent to typescript's Partial<T> type for that schema.
+The myzod.partial function takes a schema and generates a new schema equivalent to typescript's Partial<T> type for that schema.
 
 ```typescript
 const personSchema = myzod.object({ name: myzod.string() });
@@ -373,4 +386,21 @@ type PartialPerson = Infer<typeof partialPersonSchema>; // => Partial<{ name: st
 
 partialPersonSchema.parse({}); // Succeeds
 partialPersonSchema.parse({ nickName: 'lil kenny g' }); // throws validation error
+```
+
+#### Pick
+
+The myzod.pick function takes a myzod schema and an array of keys, and generates a new schema equivalent to typescript's Pick<T, keyof T> type.
+
+```typescript
+const personSchema = myzod.object({
+  name: myzod.string(),
+  lastName: myzod.string(),
+  email: myzod.email(),
+  age: myzod.number(),
+});
+
+const nameSchema = myzod.pick(personSchema, ['name', 'lastName']);
+
+type Named = myzod.Infer<typeof nameSchema>; // => { name: string; lastName: string; }
 ```

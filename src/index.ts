@@ -490,7 +490,7 @@ function toPartialSchema(schema: AnyType): AnyType {
     return new IntersectionType(toPartialSchema((schema as any).left), toPartialSchema((schema as any).right));
   }
   if (schema instanceof UnionType) {
-    return new UnionType((schema as any).schemas.map((x: AnyType) => x.optional()));
+    return new UnionType((schema as any).schemas.map(toPartialSchema));
   }
   if (schema instanceof ArrayType) {
     return new ArrayType((schema as any).schema.optional());
@@ -509,6 +509,72 @@ class PartialType<T extends AnyType> extends Type<Partial<Infer<T>>> {
   }
 }
 
+const primitiveTypes = [NumberType, StringType, UnknownType, BooleanType, UndefinedType, NullType, LiteralType];
+
+function isPrimitiveSchema(schema: AnyType): boolean {
+  if (primitiveTypes.some(primitiveType => schema instanceof primitiveType)) {
+    return true;
+  }
+  if (schema instanceof IntersectionType) {
+    return isPrimitiveSchema((schema as any).left) || isPrimitiveSchema((schema as any).right);
+  }
+  if (schema instanceof UnionType) {
+    return (schema as any).schemas.every(isPrimitiveSchema);
+  }
+  return false;
+}
+
+function createPickedSchema(schema: AnyType, keys: any[]): AnyType {
+  if (schema instanceof ObjectType) {
+    const shape = (schema as any).objectShape;
+    const pickedShape = keys.reduce<any>((acc, key) => {
+      if (shape[key]) {
+        acc[key] = shape[key];
+      }
+      return acc;
+    }, {});
+    return new ObjectType(pickedShape, { allowUnknown: true });
+  }
+  if (schema instanceof IntersectionType) {
+    const newLeft = createPickedSchema((schema as any).left, keys);
+    const newRight = createPickedSchema((schema as any).right, keys);
+    return new IntersectionType(newLeft, newRight);
+  }
+  if (schema instanceof UnionType) {
+    // TODO ???
+  }
+  return schema;
+}
+
+class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<{ [Key in K]: Infer<T>[Key] }> {
+  private readonly schema: AnyType;
+  constructor(rootSchema: T, private readonly validKeys: K[]) {
+    super();
+    if (isPrimitiveSchema(rootSchema)) {
+      throw new Error('cannot instantiate a PickType with a primitive schema');
+    }
+    this.schema = createPickedSchema(rootSchema, validKeys);
+  }
+  parse(value: unknown): { [Key in K]: Infer<T>[Key] } {
+    if (value === null || typeof value !== 'object') {
+      throw new ValidationError('expected type to be object but got ' + typeOf(value));
+    }
+    const keys = Object.keys(value as any);
+    const illegalKeys = keys.filter(key => !(this.validKeys as any[]).includes(key));
+    if (illegalKeys.length > 0) {
+      throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+    }
+    // For records if the key isn't present the record won't be able to validate it.
+    for (const key of this.validKeys) {
+      if (!(value as object).hasOwnProperty(key)) {
+        (value as any)[key] = undefined;
+      }
+    }
+
+    return this.schema.parse(value);
+  }
+}
+
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
@@ -521,6 +587,7 @@ export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) =
 export const record = <T extends AnyType>(type: T) => new RecordType(type);
 export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
 export const partial = <T extends AnyType>(type: T) => new PartialType(type);
+export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new PickType(type, keys);
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
@@ -542,6 +609,7 @@ export default {
   record,
   dictionary,
   partial,
+  pick,
   undefined: undefinedValue,
   null: nullValue,
   enum: enumValue,

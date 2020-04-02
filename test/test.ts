@@ -800,5 +800,96 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ a: 3, b: undefined });
       assert.deepEqual(ret, { a: 3, b: undefined });
     });
+
+    xit('should pass with empty object for object unions partial', () => {
+      const schema = zod.partial(zod.object({ a: zod.number() }).or(zod.object({ b: zod.string() })));
+      assert.deepEqual(schema.parse({}), { a: undefined, b: undefined });
+    });
+  });
+
+  describe('pick parsing', () => {
+    it('should pass if picked object type is satisfied', () => {
+      const schema = zod.pick(zod.object({ a: zod.number(), b: zod.string() }), ['a']);
+      const ret = schema.parse({ a: 1 });
+      assert.deepEqual(ret, { a: 1 });
+    });
+
+    it('should fail if value contains all keys and not only picked ones from picked object', () => {
+      const schema = zod.pick(zod.object({ a: zod.number(), b: zod.string() }), ['a']);
+      const err = catchError(schema.parse.bind(schema))({ a: 1, b: 'hello' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should fail if value is missing properties from picked object', () => {
+      const schema = zod.pick(zod.object({ a: zod.number(), b: zod.string() }), ['a']);
+      const err = catchError(schema.parse.bind(schema))({});
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+    });
+
+    it('should pass if picked record type is satisfied', () => {
+      const schema = zod.pick(zod.record(zod.number()), ['a', 'b']);
+      const ret = schema.parse({ a: 1, b: 2 });
+      assert.deepEqual(ret, { a: 1, b: 2 });
+    });
+
+    it('should fail if keys not part of the pick in from the record', () => {
+      const schema = zod.pick(zod.record(zod.number()), ['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 1, b: 2, c: 3 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+    });
+
+    it('should fail if value is missing properties from picked record', () => {
+      const schema = zod.pick(zod.record(zod.number()), ['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 1 });
+      assert.equal(err instanceof zod.ValidationError, true, 'Did not throw ValidationError');
+      assert.equal(err.message, 'error parsing record at path "b" - expected type to be number but got undefined');
+    });
+
+    it('should pass if picked object intersection type is satisfied', () => {
+      const schema = zod.pick(zod.object({ a: zod.number() }).and(zod.object({ b: zod.string() })), ['a']);
+      const ret = schema.parse({ a: 1 });
+      assert.deepEqual(ret, { a: 1 });
+    });
+
+    it('should pass if value contains all keys and not only picked ones from object intersection', () => {
+      const schema = zod.pick(zod.object({ a: zod.number() }).and(zod.object({ b: zod.string() })), ['a']);
+      const err = catchError(schema.parse.bind(schema))({ a: 1, b: 'hello' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should fail if value is missing properties from picked object intersection', () => {
+      const schema = zod.pick(zod.object({ a: zod.number() }).and(zod.object({ b: zod.string() })), ['a']);
+      const err = catchError(schema.parse.bind(schema))({});
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+    });
+
+    it('should fail on construction of primitive schema if root is primitive', () => {
+      // @ts-ignore
+      for (const type of [zod.string, zod.boolean, zod.undefined, zod.unknown, zod.null, zod.number]) {
+        const err = catchError(zod.pick)(type(), ['a']);
+        assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
+      }
+    });
+
+    it('should fail on construction of intesection of primitive schemas', () => {
+      const err = catchError(zod.pick)(zod.string().and(zod.string().optional()), ['a']);
+      assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
+    });
+
+    it('should fail on construction of union of only primitive schemas', () => {
+      const err = catchError(zod.pick)(
+        zod
+          .string()
+          .or(zod.boolean())
+          .or(zod.number()),
+        []
+      );
+      assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
+    });
   });
 });
