@@ -892,7 +892,40 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
     });
 
-    xit('should pass for pick of omitted object', () => {
+    it('should pass for pick of pick', () => {
+      const schema = zod.pick(
+        zod.pick(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a', 'b']
+        ),
+        ['a']
+      );
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should fail for pick of pick if keys outside of picked are present', () => {
+      const schema = zod.pick(
+        zod.pick(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a', 'b']
+        ),
+        ['a']
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yo' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+    });
+
+    it('should pass for pick of omitted object', () => {
       const schema = zod.pick(
         zod.omit(
           zod.object({
@@ -1035,6 +1068,39 @@ describe('Zod Parsing', () => {
           c: zod.string(),
         }),
         ['a', 'b']
+      ),
+      ['b']
+    );
+    const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
+    assert.equal(err instanceof zod.ValidationError, true);
+    assert.equal(err.message, 'unexpected keys on object: ["b"]');
+  });
+
+  it('should work for omit of omit', () => {
+    const schema = zod.omit(
+      zod.omit(
+        zod.object({
+          a: zod.string(),
+          b: zod.string(),
+          c: zod.string(),
+        }),
+        ['a']
+      ),
+      ['b']
+    );
+    const ret = schema.parse({ c: 'hello' });
+    assert.deepEqual(ret, { c: 'hello' });
+  });
+
+  it('should fail for omit of omit if omitted keys are preset', () => {
+    const schema = zod.omit(
+      zod.omit(
+        zod.object({
+          a: zod.string(),
+          b: zod.string(),
+          c: zod.string(),
+        }),
+        ['a']
       ),
       ['b']
     );

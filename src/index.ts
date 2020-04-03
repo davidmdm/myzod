@@ -540,11 +540,15 @@ function createPickedSchema(schema: AnyType, pickedKeys: any[]): AnyType {
     const newRight = createPickedSchema((schema as any).right, pickedKeys);
     return new IntersectionType(newLeft, newRight);
   }
-  if (schema instanceof OmitType) {
-    // TODO
+  if (schema instanceof PickType || schema instanceof OmitType) {
+    // This might not hold true at runtime in a JS environment but typescript
+    // will not allow you to pick keys you've previously omitted, or keys that
+    // you have not picked. Since this is a TS package lets depend on it a little.
+    return new PickType((schema as any).schema, pickedKeys);
   }
   if (schema instanceof UnionType) {
     // TODO ???
+    throw new Error('myzod does not currently support PickTypes of unions');
   }
   return schema;
 }
@@ -597,8 +601,12 @@ function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
     const pickedKeys = (schema as any).pickedKeys.filter((key: any) => !omittedKeys.includes(key));
     return new PickType((schema as any).schema, pickedKeys);
   }
+  if (schema instanceof OmitType) {
+    return new OmitType((schema as any).schema, omittedKeys.concat((schema as any).omittedKeys));
+  }
   if (schema instanceof UnionType) {
     // TODO ???
+    throw new Error('myzod does not currently support OmitTypes of unions');
   }
   return schema;
 }

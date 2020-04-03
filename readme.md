@@ -2,7 +2,11 @@
 
 The original intent was to create a fork of [zod](https://www.npmjs.com/package/zod), however as I played with it and changed the inference mechanism and started writing tests it became clear to me that it would never be merged into zod, thus `myzod` is born.
 
-The resulting package has a similar api to `zod` with a little bit of inspiration from [joi](https://www.npmjs.com/package/@hapi/joi). The goal is to write schemas from which the _type_ of a successfully parsed value can be inferred.
+Myzod tries to emulate the typescript type system as much as possible and is even in some ways a little stricter. The goal is that writing a schema feels the same as defining a typescript type, with equivalent & and | operators, and well known Generic types like Record, Pick and Omit. On top of that myzod aims to offer validation within the schemas for such things as number ranges, string patterns and lengths to help enforce business logic.
+
+The resulting package has a similar api to `zod` with a little bit of inspiration from [joi](https://www.npmjs.com/package/@hapi/joi).
+
+The goal is to write schemas from which the _type_ of a successfully parsed value can be inferred. With myzod typescript types and validation logic no longer need to be maintained separately.
 
 ### Installation
 
@@ -60,6 +64,7 @@ Logical Types
 - [intersection](#intersection)
 - [partial](#partial)
 - [pick](#pick)
+- [omit](#omit)
 
 ### myzod.Type<T>
 
@@ -200,7 +205,7 @@ type Val = Infer<typeof schema>; // => 'Value'
 myzod.unknown();
 ```
 
-The unknown schema does nothing when parsing by itself. However it is useful to require a key to be required inside an object schema when we don't know or don't care about the type.
+The unknown schema does nothing when parsing by itself. However it is useful to require a key to be present inside an object schema when we don't know or don't care about the type.
 
 ```typescript
 const schema = myzod.object({ unknownYetRequiredField: myzod.unknown() });
@@ -401,6 +406,23 @@ const personSchema = myzod.object({
 });
 
 const nameSchema = myzod.pick(personSchema, ['name', 'lastName']);
+
+type Named = myzod.Infer<typeof nameSchema>; // => { name: string; lastName: string; }
+```
+
+#### Omit
+
+The myzod.pick function takes a myzod schema and an array of keys, and generates a new schema equivalent to typescript's Omit<T, keyof T> type.
+
+```typescript
+const personSchema = myzod.object({
+  name: myzod.string(),
+  lastName: myzod.string(),
+  email: myzod.email(),
+  age: myzod.number(),
+});
+
+const nameSchema = myzod.omit(personSchema, ['email', 'age']);
 
 type Named = myzod.Infer<typeof nameSchema>; // => { name: string; lastName: string; }
 ```
