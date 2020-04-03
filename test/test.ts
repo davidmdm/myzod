@@ -891,5 +891,155 @@ describe('Zod Parsing', () => {
       );
       assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
     });
+
+    xit('should pass for pick of omitted object', () => {
+      const schema = zod.pick(
+        zod.omit(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['c']
+        ),
+        ['a']
+      );
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should fail for pick of omitted object', () => {
+      const schema = zod.pick(
+        zod.omit(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['c']
+        ),
+        ['a']
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yo' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+    });
+  });
+
+  describe('omit parsing', () => {
+    it('should fail on construction of primitive schema if root is primitive', () => {
+      // @ts-ignore
+      for (const type of [zod.string, zod.boolean, zod.undefined, zod.unknown, zod.null, zod.number]) {
+        const err = catchError(zod.omit)(type(), ['a']);
+        assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
+      }
+    });
+
+    it('should fail on construction of intesection of primitive schemas', () => {
+      const err = catchError(zod.omit)(zod.string().and(zod.string().optional()), ['a']);
+      assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
+    });
+
+    it('should fail on construction of union of only primitive schemas', () => {
+      const err = catchError(zod.omit)(
+        zod
+          .string()
+          .or(zod.boolean())
+          .or(zod.number()),
+        []
+      );
+      assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
+    });
+
+    it('should pass if value satisfies schema and omits indicated keys', () => {
+      const schema = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['b']);
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should fail if value does not omit indicated key', () => {
+      const schema = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should pass when value omit key from object intersection', () => {
+      const schema = zod.omit(zod.object({ a: zod.string() }).and(zod.object({ b: zod.string() })), ['b']);
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should pass if record does not contain omitted fields', () => {
+      const schema = zod.omit(zod.record(zod.string()), ['b']);
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should fail if record does contain omitted fields', () => {
+      const schema = zod.omit(zod.record(zod.string()), ['b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should fail key is in record intersection', () => {
+      const schema = zod.omit(
+        zod.record(zod.object({ a: zod.string() }).and(zod.record(zod.object({ b: zod.string() })))),
+        ['b']
+      );
+      const err = catchError(schema.parse.bind(schema))({
+        a: { a: 'hello', b: 'world' },
+        b: { a: 'hello', b: 'world' },
+      });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should pass if key is not present in record object intersection', () => {
+      const schema = zod.omit(zod.record(zod.string()).and(zod.object({ b: zod.number() })), ['b']);
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+
+    it('should fail if key is present in record object intersection', () => {
+      const schema = zod.omit(zod.record(zod.string()).and(zod.object({ b: zod.number() })), ['b']);
+      const err = catchError(schema.parse.bind(schema))({ b: 123 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+
+    it('should omit a key from a picked type', () => {
+      const schema = zod.omit(
+        zod.pick(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a', 'b']
+        ),
+        ['b']
+      );
+      const ret = schema.parse({ a: 'hello' });
+      assert.deepEqual(ret, { a: 'hello' });
+    });
+  });
+
+  it('should fail if key is present in the omit of a picked type', () => {
+    const schema = zod.omit(
+      zod.pick(
+        zod.object({
+          a: zod.string(),
+          b: zod.string(),
+          c: zod.string(),
+        }),
+        ['a', 'b']
+      ),
+      ['b']
+    );
+    const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
+    assert.equal(err instanceof zod.ValidationError, true);
+    assert.equal(err.message, 'unexpected keys on object: ["b"]');
   });
 });

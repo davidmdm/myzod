@@ -524,10 +524,10 @@ function isPrimitiveSchema(schema: AnyType): boolean {
   return false;
 }
 
-function createPickedSchema(schema: AnyType, keys: any[]): AnyType {
+function createPickedSchema(schema: AnyType, pickedKeys: any[]): AnyType {
   if (schema instanceof ObjectType) {
     const shape = (schema as any).objectShape;
-    const pickedShape = keys.reduce<any>((acc, key) => {
+    const pickedShape = pickedKeys.reduce<any>((acc, key) => {
       if (shape[key]) {
         acc[key] = shape[key];
       }
@@ -536,9 +536,12 @@ function createPickedSchema(schema: AnyType, keys: any[]): AnyType {
     return new ObjectType(pickedShape, { allowUnknown: true });
   }
   if (schema instanceof IntersectionType) {
-    const newLeft = createPickedSchema((schema as any).left, keys);
-    const newRight = createPickedSchema((schema as any).right, keys);
+    const newLeft = createPickedSchema((schema as any).left, pickedKeys);
+    const newRight = createPickedSchema((schema as any).right, pickedKeys);
     return new IntersectionType(newLeft, newRight);
+  }
+  if (schema instanceof OmitType) {
+    // TODO
   }
   if (schema instanceof UnionType) {
     // TODO ???
@@ -546,31 +549,78 @@ function createPickedSchema(schema: AnyType, keys: any[]): AnyType {
   return schema;
 }
 
-class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<{ [Key in K]: Infer<T>[Key] }> {
+class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<Pick<Infer<T>, K>> {
   private readonly schema: AnyType;
-  constructor(rootSchema: T, private readonly validKeys: K[]) {
+  constructor(rootSchema: T, private readonly pickedKeys: K[]) {
     super();
     if (isPrimitiveSchema(rootSchema)) {
       throw new Error('cannot instantiate a PickType with a primitive schema');
     }
-    this.schema = createPickedSchema(rootSchema, validKeys);
+    this.schema = createPickedSchema(rootSchema, pickedKeys);
   }
-  parse(value: unknown): { [Key in K]: Infer<T>[Key] } {
+  parse(value: unknown): Eval<Pick<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
     const keys = Object.keys(value as any);
-    const illegalKeys = keys.filter(key => !(this.validKeys as any[]).includes(key));
+    const illegalKeys = keys.filter(key => !(this.pickedKeys as any[]).includes(key));
     if (illegalKeys.length > 0) {
       throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
     }
     // For records if the key isn't present the record won't be able to validate it.
-    for (const key of this.validKeys) {
+    for (const key of this.pickedKeys) {
       if (!(value as object).hasOwnProperty(key)) {
         (value as any)[key] = undefined;
       }
     }
+    return this.schema.parse(value);
+  }
+}
 
+function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
+  if (schema instanceof ObjectType) {
+    const shape = (schema as any).objectShape;
+    const omittedShape = Object.keys(shape).reduce<any>((acc, key) => {
+      if (!omittedKeys.includes(key)) {
+        acc[key] = shape[key];
+      }
+      return acc;
+    }, {});
+    return new ObjectType(omittedShape, { allowUnknown: true });
+  }
+  if (schema instanceof IntersectionType) {
+    const newLeft = createOmittedSchema((schema as any).left, omittedKeys);
+    const newRight = createOmittedSchema((schema as any).right, omittedKeys);
+    return new IntersectionType(newLeft, newRight);
+  }
+  if (schema instanceof PickType) {
+    const pickedKeys = (schema as any).pickedKeys.filter((key: any) => !omittedKeys.includes(key));
+    return new PickType((schema as any).schema, pickedKeys);
+  }
+  if (schema instanceof UnionType) {
+    // TODO ???
+  }
+  return schema;
+}
+
+class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<Infer<T>, K>> {
+  private readonly schema: AnyType;
+  constructor(rootSchema: T, private readonly omittedKeys: K[]) {
+    super();
+    if (isPrimitiveSchema(rootSchema)) {
+      throw new Error('cannot instantiate a OmitType with a primitive schema');
+    }
+    this.schema = createOmittedSchema(rootSchema, omittedKeys);
+  }
+  parse(value: unknown): Eval<Omit<Infer<T>, K>> {
+    if (value === null || typeof value !== 'object') {
+      throw new ValidationError('expected type to be object but got ' + typeOf(value));
+    }
+    const keys = Object.keys(value as any);
+    const illegalKeys = keys.filter(key => (this.omittedKeys as any[]).includes(key));
+    if (illegalKeys.length > 0) {
+      throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+    }
     return this.schema.parse(value);
   }
 }
@@ -588,6 +638,7 @@ export const record = <T extends AnyType>(type: T) => new RecordType(type);
 export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
 export const partial = <T extends AnyType>(type: T) => new PartialType(type);
 export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new PickType(type, keys);
+export const omit = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new OmitType(type, keys);
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
@@ -610,6 +661,7 @@ export default {
   dictionary,
   partial,
   pick,
+  omit,
   undefined: undefinedValue,
   null: nullValue,
   enum: enumValue,
