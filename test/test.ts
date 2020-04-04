@@ -4,7 +4,7 @@ import * as zod from '../src/index';
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
 const catchError = <T extends (...args: any[]) => any>(fn: T): ((...args: ArgumentsType<T>[]) => Error) => {
-  return function(...args) {
+  return function (...args) {
     try {
       fn(...args);
       throw new Error('expected function to throw');
@@ -336,8 +336,7 @@ describe('Zod Parsing', () => {
         age: zod.number().optional(),
       });
       const ret = schema.parse({ name: 'Bobby Darrin' });
-      assert.deepEqual(ret, { name: 'Bobby Darrin', age: undefined });
-      assert.equal(ret.hasOwnProperty('age'), true);
+      assert.deepEqual(ret, { name: 'Bobby Darrin' });
     });
 
     it('should fail if object has wrong shape', () => {
@@ -518,10 +517,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should pass if array has length falls within range - fluent syntax', () => {
-      const schema = zod
-        .array(zod.number())
-        .min(2)
-        .max(2);
+      const schema = zod.array(zod.number()).min(2).max(2);
       const ret = schema.parse([1, 2]);
       assert.deepEqual(ret, [1, 2]);
     });
@@ -703,7 +699,7 @@ describe('Zod Parsing', () => {
         zod.partial(zod.object({ b: zod.number() }))
       );
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello', b: undefined });
+      assert.deepEqual(ret, { a: 'hello' });
     });
 
     it('should fail if intersection of partial types is not respected', () => {
@@ -760,7 +756,7 @@ describe('Zod Parsing', () => {
     it('should make an object keys optional', () => {
       const schema = zod.partial(zod.object({ a: zod.string(), b: zod.boolean() }));
       const ret = schema.parse({});
-      assert.deepEqual(ret, { a: undefined, b: undefined });
+      assert.deepEqual(ret, {});
     });
 
     it('should not lose any validation definitions', () => {
@@ -783,7 +779,7 @@ describe('Zod Parsing', () => {
       const schemaA = zod.object({ a: zod.string() });
       const schemaB = zod.object({ b: zod.boolean() });
       const schema = zod.partial(schemaA.and(schemaB));
-      assert.deepEqual(schema.parse({}), { a: undefined, b: undefined });
+      assert.deepEqual(schema.parse({}), {});
     });
 
     it('should fail if unknown keys of partial object intersection', () => {
@@ -882,13 +878,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail on construction of union of only primitive schemas', () => {
-      const err = catchError(zod.pick)(
-        zod
-          .string()
-          .or(zod.boolean())
-          .or(zod.number()),
-        []
-      );
+      const err = catchError(zod.pick)(zod.string().or(zod.boolean()).or(zod.number()), []);
       assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
     });
 
@@ -974,13 +964,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail on construction of union of only primitive schemas', () => {
-      const err = catchError(zod.omit)(
-        zod
-          .string()
-          .or(zod.boolean())
-          .or(zod.number()),
-        []
-      );
+      const err = catchError(zod.omit)(zod.string().or(zod.boolean()).or(zod.number()), []);
       assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
     });
 

@@ -10,6 +10,7 @@
     "noImplicitAny": true,
     "moduleResolution": "node",
     "sourceMap": false,
+    "esModuleInterop": true,
     "outDir": "libs",
     "noUnusedLocals": true,
     "noImplicitReturns": false,

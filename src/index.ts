@@ -193,9 +193,19 @@ class UnknownType extends Type<unknown> {
 // Non Primitive types
 
 type ObjectShape = Record<string, AnyType>;
+
+// type OptionalKeys<T extends ObjectShape> = {
+//   [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
+// }[keyof T];
+
+// type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
+
 type InferObjectShape<T> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : any;
 };
+//&
+// { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
+// { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
 
 type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
@@ -208,7 +218,7 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     //@ts-ignore
     this[getKeyShapesSymbol] = (): string[] => Object.keys(this.objectShape);
   }
-  parse(value: unknown, optOverrides: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
+  parse(value: unknown, parseOpts: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
@@ -218,41 +228,60 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     if (Array.isArray(value)) {
       throw new ValidationError('expected type to be regular object but got array');
     }
+
     const keys = Object.keys(this.objectShape);
-    const opts = { ...this.opts, ...optOverrides };
-    if (!opts.allowUnknown) {
+    const allowUnknown = typeof parseOpts.allowUnknown === 'boolean' ? parseOpts.allowUnknown : this.opts?.allowUnknown;
+
+    if (!allowUnknown) {
       const illegalKeys = Object.keys(value).filter(x => !keys.includes(x));
       if (illegalKeys.length > 0) {
         throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
       }
     }
-    const acc: any = { ...value };
+
     for (const key of keys) {
       try {
-        const keySchema = (this.objectShape as any)[key];
-        if (keySchema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+        const schema = (this.objectShape as any)[key];
+        if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
           throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
         }
-        if (keySchema instanceof ObjectType || keySchema instanceof ArrayType || keySchema instanceof RecordType) {
-          acc[key] = keySchema.parse((value as any)[key], { suppressPathErrMsg: true });
+        if (schema instanceof ObjectType || schema instanceof ArrayType || schema instanceof RecordType) {
+          schema.parse((value as any)[key], { suppressPathErrMsg: true });
         } else {
-          acc[key] = keySchema.parse((value as any)[key]);
+          schema.parse((value as any)[key]);
         }
       } catch (err) {
         const path = err.path ? [key, ...err.path] : [key];
-        const msg = opts?.suppressPathErrMsg
+        const msg = parseOpts.suppressPathErrMsg
           ? err.message
           : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
         throw new ValidationError(msg, path);
       }
     }
-    return acc;
+    return value as any;
   }
 }
 
 class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
+  private _parse: (value: unknown, opts?: PathOptions & ObjectOptions) => any;
   constructor(private readonly schema: T) {
     super();
+
+    this._parse = (() => {
+      if (this.schema instanceof ObjectType) {
+        return (value: unknown, opts?: PathOptions & ObjectOptions) =>
+          //@ts-ignore
+          this.schema.parse(value, { allowUnknown: opts?.allowUnknown, suppressPathErrMsg: true });
+      } else if (
+        this.schema instanceof ArrayType ||
+        this.schema instanceof RecordType ||
+        this.schema instanceof IntersectionType
+      ) {
+        //@ts-ignore
+        return (value: unknown) => this.schema.parse(value, { suppressPathErrMsg: true });
+      }
+      return (value: unknown) => this.schema.parse(value);
+    })();
   }
   parse(value: unknown, opts?: PathOptions & ObjectOptions): Record<string, Infer<T>> {
     if (typeof value !== 'object') {
@@ -260,17 +289,7 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
     }
     for (const key in value) {
       try {
-        if (this.schema instanceof ObjectType) {
-          this.schema.parse((value as any)[key], { allowUnknown: opts?.allowUnknown, suppressPathErrMsg: true });
-        } else if (
-          this.schema instanceof ArrayType ||
-          this.schema instanceof RecordType ||
-          this.schema instanceof IntersectionType
-        ) {
-          this.schema.parse((value as any)[key], { suppressPathErrMsg: true });
-        } else {
-          this.schema.parse((value as any)[key]);
-        }
+        this._parse((value as any)[key], opts);
       } catch (err) {
         const path = err.path ? [key, ...err.path] : [key];
         const msg = opts?.suppressPathErrMsg
@@ -458,19 +477,14 @@ class EnumType<T> extends Type<ValueOf<T>> {
     super();
     this.values = Object.values(enumeration);
   }
-  parse(x: unknown): ValueOf<T> {
-    if (!this.values.includes(x)) {
-      throw new ValidationError(`error ${JSON.stringify(x)} not part of enum values`);
+  parse(value: unknown): ValueOf<T> {
+    if (!this.values.includes(value)) {
+      throw new ValidationError(`error ${JSON.stringify(value)} not part of enum values`);
     }
-    return x as ValueOf<T>;
+    return value as ValueOf<T>;
   }
   check(value: unknown): value is ValueOf<T> {
-    try {
-      this.parse(value);
-      return true;
-    } catch {
-      return false;
-    }
+    return this.values.includes(value);
   }
 }
 

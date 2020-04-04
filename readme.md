@@ -8,6 +8,23 @@ The resulting package has a similar api to `zod` with a little bit of inspiratio
 
 The goal is to write schemas from which the _type_ of a successfully parsed value can be inferred. With myzod typescript types and validation logic no longer need to be maintained separately.
 
+### Distinction from zod
+
+Myzod includes some advanced typescript types as schema constructors such as Record, Pick and Omit that zod currently does not support.
+Also myzod tries to go beyond type checking and provide more validation utils such as pattern matching for strings.
+
+### Performance
+
+When parsing equivalent simple object (with nesting) schemas for myzod, zod and joi, on my machine Linux Ubuntu 18.04 running NodeJS 13.X, the results are as such:
+
+objects parsed per second:
+`zod`: 954
+`joi`: 178412
+`myzod`: 1048218
+
+myzod vs zod: ~20 X Speedup
+myzod vs joi: ~5-6 X Speedup
+
 ### Installation
 
 ```
@@ -136,11 +153,7 @@ options can be passed as an option object or chained from schema.
 ```typescript
 myzod.string({ min: 3, max: 10, patten: /^hey/ });
 // Same as:
-myzod
-  .string()
-  .min(3)
-  .max(10)
-  .pattern(/^hey/);
+myzod.string().min(3).max(10).pattern(/^hey/);
 ```
 
 Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended using the predicate and predicateErrMsg options
@@ -166,10 +179,7 @@ options can be passed as an option object or chained from schema.
 ```typescript
 myzod.number({ min: 0, max: 10 });
 // Same as:
-myzod
-  .number()
-  .min(0)
-  .max(10);
+myzod.number().min(0).max(10);
 ```
 
 #### Boolean

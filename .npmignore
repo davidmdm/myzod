@@ -3,4 +3,5 @@ coverage
 .nyc_output
 .vscode
 .tsconfig.json
+.prettierrc.json
 src
