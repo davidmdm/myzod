@@ -19,7 +19,7 @@ When parsing equivalent simple object (with nesting) schemas for myzod, zod and 
 
 objects parsed per second:
 
-- `zod`: 954
+- `zod`: 51345
 - `joi`: 178412
 - `myzod`: 1048218
 
