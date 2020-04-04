@@ -5,6 +5,28 @@ import * as z from '../src';
 const iter = 1_000_000;
 
 (function () {
+  const schema = z.string();
+  const testData = 'hello world';
+
+  console.time('StringType');
+  for (let i = 0; i < iter; i++) {
+    schema.parse(testData);
+  }
+  console.timeEnd('StringType');
+})();
+
+(function () {
+  const schema = z.array(z.string());
+  const testData = ['hello', ' ', 'world', '!'];
+
+  console.time('ArrayType');
+  for (let i = 0; i < iter; i++) {
+    schema.parse(testData);
+  }
+  console.timeEnd('ArrayType');
+})();
+
+(function () {
   const testObj = {
     a: 'hello',
     b: 'world',
@@ -43,4 +65,26 @@ const iter = 1_000_000;
     schema.parse(testData);
   }
   console.timeEnd('record of record type');
+})();
+
+(function () {
+  const schema = z.object({ a: z.string() }).and(z.object({ b: z.number() }));
+  const testData = { a: 'hello', b: 42 };
+  console.time('object intersection type');
+  for (let i = 0; i < iter; i++) {
+    schema.parse(testData);
+  }
+  console.timeEnd('object intersection type');
+})();
+
+(function () {
+  const recordA = z.record(z.object({ a: z.string() }));
+  const recordB = z.record(z.object({ b: z.number() }));
+  const schema = recordA.and(recordB);
+  const testData = { one: { a: 'hello', b: 1 }, two: { a: 'world', b: 2 } };
+  console.time('record intersection type');
+  for (let i = 0; i < iter; i++) {
+    schema.parse(testData);
+  }
+  console.timeEnd('record intersection type');
 })();

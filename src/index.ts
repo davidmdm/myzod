@@ -310,8 +310,13 @@ type ArrayOptions = Partial<{
 }>;
 
 class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
+  private readonly _parse: (value: unknown, parseOptions?: PathOptions) => any;
   constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
     super();
+    this._parse =
+      this.schema instanceof ObjectType || this.schema instanceof ArrayType
+        ? (elem: unknown) => (this.schema.parse as any)(elem, { suppressPathErrMsg: true })
+        : (elem: unknown) => this.schema.parse(elem);
   }
   parse(value: unknown, parseOptions?: PathOptions): Infer<T>[] {
     if (!Array.isArray(value)) {
@@ -343,21 +348,18 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
         }
       });
     }
-    value.forEach((elem, idx) => {
+    for (let i = 0; i < value.length; i++) {
       try {
-        if (this.schema instanceof ObjectType || this.schema instanceof ArrayType) {
-          this.schema.parse(elem, { suppressPathErrMsg: true });
-        } else {
-          this.schema.parse(elem);
-        }
+        this._parse(value[i]);
       } catch (err) {
-        const path = err.path ? [idx, ...err.path] : [idx];
+        const path = err.path ? [i, ...err.path] : [i];
         const msg = parseOptions?.suppressPathErrMsg
           ? err.message
           : `error at ${prettyPrintPath(path)} - ${err.message}`;
         throw new ValidationError(msg, path);
       }
-    });
+    }
+
     return value;
   }
   length(value: number): this {
@@ -404,33 +406,44 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
 }
 
 class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
+  private readonly _parse: (value: unknown, opts?: PathOptions) => any;
+
   constructor(private readonly left: T, private readonly right: K) {
     super();
+    this._parse = (() => {
+      if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
+        return (value: unknown, opts?: PathOptions) => this.parseObjectIntersection(value, opts);
+      }
+      if (this.left instanceof RecordType && this.right instanceof RecordType) {
+        const leftSchema: Type<any> = (this.left as any).schema;
+        const rightSchema: Type<any> = (this.right as any).schema;
+        const record = new RecordType(leftSchema.and(rightSchema));
+        return (value: unknown) => record.parse(value);
+      }
+      if (this.left instanceof RecordType && this.right instanceof ObjectType) {
+        //@ts-ignore
+        return (value: unknown) => this.parseRecordObjectIntersection(value, this.left, this.right);
+      }
+      if (this.right instanceof RecordType && this.left instanceof ObjectType) {
+        //@ts-ignore
+        return (value: unknown) => this.parseRecordObjectIntersection(value, this.right, this.left);
+      }
+      if (this.left instanceof PartialType) {
+        return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
+      }
+      if (this.right instanceof PartialType) {
+        return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
+      }
+      return (value: unknown) => {
+        this.left.parse(value);
+        this.right.parse(value);
+        return value as any;
+      };
+    })();
   }
 
   parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
-    if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
-      return this.parseObjectIntersection(value, opts);
-    }
-    if (this.left instanceof RecordType && this.right instanceof RecordType) {
-      return this.parseRecordIntersection(value);
-    }
-    if (this.left instanceof RecordType && this.right instanceof ObjectType) {
-      return this.parseRecordObjectIntersection(value, this.left, this.right);
-    }
-    if (this.right instanceof RecordType && this.left instanceof ObjectType) {
-      return this.parseRecordObjectIntersection(value, this.right, this.left);
-    }
-    if (this.left instanceof PartialType) {
-      return new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
-    }
-    if (this.right instanceof PartialType) {
-      return new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
-    }
-
-    this.left.parse(value);
-    this.right.parse(value);
-    return value as any;
+    return this._parse(value, opts);
   }
 
   private parseObjectIntersection(value: any, opts?: PathOptions): any {
@@ -442,17 +455,10 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     if (invalidKeys.length > 0) {
       throw new ValidationError('unexpected keys on object ' + JSON.stringify(invalidKeys));
     }
-    const parsingOptions = { ...opts, allowUnknown: true };
-    return {
-      ...((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions),
-      ...((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions),
-    };
-  }
-
-  private parseRecordIntersection(value: any): any {
-    const leftSchema: Type<any> = (this.left as any).schema;
-    const rightSchema: Type<any> = (this.right as any).schema;
-    return new RecordType(leftSchema.and(rightSchema)).parse(value);
+    const parsingOptions = { suppressPathErrMsg: opts?.suppressPathErrMsg, allowUnknown: true };
+    ((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions);
+    ((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions);
+    return value;
   }
 
   private parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
