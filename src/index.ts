@@ -194,18 +194,14 @@ class UnknownType extends Type<unknown> {
 
 type ObjectShape = Record<string, AnyType>;
 
-// type OptionalKeys<T extends ObjectShape> = {
-//   [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
-// }[keyof T];
+type OptionalKeys<T extends ObjectShape> = {
+  [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
+}[keyof T];
 
-// type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
+type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
 
-type InferObjectShape<T> = {
-  [key in keyof T]: T[key] extends Type<infer K> ? K : any;
-};
-//&
-// { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-// { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
+type InferObjectShape<T extends ObjectShape> = { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
+  { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
 
 type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
