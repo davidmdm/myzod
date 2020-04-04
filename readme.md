@@ -18,11 +18,13 @@ Also myzod tries to go beyond type checking and provide more validation utils su
 When parsing equivalent simple object (with nesting) schemas for myzod, zod and joi, on my machine Linux Ubuntu 18.04 running NodeJS 13.X, the results are as such:
 
 objects parsed per second:
-`zod`: 954
-`joi`: 178412
-`myzod`: 1048218
+
+- `zod`: 954
+- `joi`: 178412
+- `myzod`: 1048218
 
 myzod vs zod: ~20 X Speedup
+
 myzod vs joi: ~5-6 X Speedup
 
 ### Installation
