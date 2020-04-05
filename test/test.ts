@@ -722,6 +722,76 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ a: 'hello', b: 123 });
       assert.deepEqual(ret, { a: 'hello', b: 123 });
     });
+
+    it('should fail if unknown key is present of intersect of two picked types', () => {
+      const schemaA = zod.pick(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.pick(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 123, c: 'patate' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["c"]');
+    });
+
+    it('should fail if key is missing from intersect of two picked types', () => {
+      const schemaA = zod.pick(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.pick(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ b: 123 });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
+    });
+
+    it('should intersect two omit types', () => {
+      const schemaA = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.omit(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
+      const schema = schemaA.and(schemaB);
+      const ret = schema.parse({ a: 123, b: 'hello' });
+      assert.deepEqual(ret, { a: 123, b: 'hello' });
+    });
+
+    it('should fail if unknown key in intersect of two omit types', () => {
+      const schemaA = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.omit(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["c"]');
+    });
+
+    it('should fail if missing key in intersect of two omit types', () => {
+      const schemaA = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.omit(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ b: 'hello' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+    });
+
+    it('should intersect a pick and an omit', () => {
+      const schemaA = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.pick(zod.object({ a: zod.number(), b: zod.number() }), ['a']);
+      const schema = schemaA.and(schemaB);
+      const ret = schema.parse({ a: 123, b: 'hello' });
+      assert.deepEqual(ret, { a: 123, b: 'hello' });
+    });
+
+    it('should fail if unknown key in intersect of pick and omit types', () => {
+      const schemaA = zod.omit(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.pick(zod.object({ a: zod.number(), b: zod.number() }), ['a']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["c"]');
+    });
+
+    it('should fail if missing key in intersect of pick and omit types', () => {
+      const schemaA = zod.pick(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const schemaB = zod.omit(zod.object({ a: zod.number(), b: zod.number() }), ['a']);
+      const schema = schemaA.and(schemaB);
+      const err = catchError(schema.parse.bind(schema))({ b: 'hello' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
+    });
   });
 
   describe('enum parsing', () => {

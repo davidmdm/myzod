@@ -413,6 +413,8 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
   }
 }
 
+const isPickOrOmitType = (schema: AnyType): boolean => schema instanceof PickType || schema instanceof OmitType;
+
 class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
   private readonly _parse: (value: unknown, opts?: PathOptions) => any;
 
@@ -453,6 +455,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.right, this.left);
       }
+      // TODO Investigate why I unwrap partials in a new intersection again
       if (this.left instanceof PartialType) {
         (this as any)[requiredKeysSymbol] = (this.right as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
@@ -460,6 +463,31 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
       if (this.right instanceof PartialType) {
         (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
+      }
+      if (isPickOrOmitType(this.left) && isPickOrOmitType(this.right)) {
+        return (value: unknown) => {
+          //@ts-ignore
+          this.left.parse(value, { allowUnknown: true });
+          //@ts-ignore
+          this.right.parse(value, { allowUnknown: true });
+          return value as any;
+        };
+      }
+      if (isPickOrOmitType(this.left)) {
+        return (value: unknown) => {
+          //@ts-ignore
+          this.left.parse(value, { allowUnknown: true });
+          this.right.parse(value);
+          return value as any;
+        };
+      }
+      if (isPickOrOmitType(this.right)) {
+        return (value: unknown) => {
+          this.left.parse(value);
+          //@ts-ignore
+          this.right.parse(value, { allowUnknown: true });
+          return value as any;
+        };
       }
       return (value: unknown) => {
         this.left.parse(value);
@@ -610,19 +638,23 @@ class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<Pick<In
     const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
     (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => pickedKeys.includes(key));
   }
-  parse(value: unknown): Eval<Pick<Infer<T>, K>> {
+  parse(value: unknown, parseOptions?: ObjectOptions): Eval<Pick<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
-    const keys = Object.keys(value as any);
-    const illegalKeys = keys.filter(key => !(this.pickedKeys as any[]).includes(key));
-    if (illegalKeys.length > 0) {
-      throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+    if (!parseOptions?.allowUnknown) {
+      const keys = Object.keys(value as any);
+      const illegalKeys = keys.filter(key => !(this.pickedKeys as any[]).includes(key));
+      if (illegalKeys.length > 0) {
+        throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+      }
     }
     // For records if the key isn't present the record won't be able to validate it.
-    for (const key of this.pickedKeys) {
-      if (!(value as object).hasOwnProperty(key)) {
-        (value as any)[key] = undefined;
+    if (this.schema instanceof RecordType) {
+      for (const key of this.pickedKeys) {
+        if (!(value as object).hasOwnProperty(key)) {
+          (value as any)[key] = undefined;
+        }
       }
     }
     return this.schema.parse(value);
@@ -638,8 +670,7 @@ function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
       }
       return acc;
     }, {});
-    //@ts-ignore
-    return new ObjectType(omittedShape, { allowUnknown: schema.opts?.allowUnknown });
+    return new ObjectType(omittedShape, { allowUnknown: true });
   }
   if (schema instanceof IntersectionType) {
     const newLeft = createOmittedSchema((schema as any).left, omittedKeys);
@@ -671,14 +702,16 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
     const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
     (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => !omittedKeys.includes(key));
   }
-  parse(value: unknown): Eval<Omit<Infer<T>, K>> {
+  parse(value: unknown, opts?: ObjectOptions): Eval<Omit<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
-    const keys = Object.keys(value as any);
-    const illegalKeys = keys.filter(key => (this.omittedKeys as any[]).includes(key));
-    if (illegalKeys.length > 0) {
-      throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+    if (!opts?.allowUnknown) {
+      const keys = Object.keys(value as any);
+      const illegalKeys = keys.filter(key => (this.omittedKeys as any[]).includes(key));
+      if (illegalKeys.length > 0) {
+        throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+      }
     }
     return this.schema.parse(value);
   }
