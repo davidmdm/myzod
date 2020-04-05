@@ -714,6 +714,15 @@ describe('Zod Parsing', () => {
         'error parsing object at path: "a" - No union satisfied:\n  expected type to be string but got number\n  expected type to be undefined but got number'
       );
     });
+
+    it('should intersect two picked types', () => {
+      const schemaA = zod.pick(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
+      const shapeB = zod.object({ a: zod.number(), b: zod.number() });
+      const schemaB = zod.pick(shapeB, ['b']);
+      const schema = schemaA.and(schemaB);
+      const ret = schema.parse({ a: 'hello', b: 123 });
+      assert.deepEqual(ret, { a: 'hello', b: 123 });
+    });
   });
 
   describe('enum parsing', () => {
@@ -1013,8 +1022,11 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'unexpected keys on object: ["b"]');
     });
 
-    it('should pass if key is not present in record object intersection', () => {
-      const schema = zod.omit(zod.record(zod.string()).and(zod.object({ b: zod.number() })), ['b']);
+    it('should pass if omitted key is not present in record of object intersection', () => {
+      const record = zod.record(zod.string());
+      const obj = zod.object({ b: zod.number() });
+      const intersec = record.and(obj);
+      const schema = zod.omit(intersec, ['b']);
       const ret = schema.parse({ a: 'hello' });
       assert.deepEqual(ret, { a: 'hello' });
     });
@@ -1041,55 +1053,54 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ a: 'hello' });
       assert.deepEqual(ret, { a: 'hello' });
     });
-  });
+    it('should fail if key is present in the omit of a picked type', () => {
+      const schema = zod.omit(
+        zod.pick(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a', 'b']
+        ),
+        ['b']
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
 
-  it('should fail if key is present in the omit of a picked type', () => {
-    const schema = zod.omit(
-      zod.pick(
-        zod.object({
-          a: zod.string(),
-          b: zod.string(),
-          c: zod.string(),
-        }),
-        ['a', 'b']
-      ),
-      ['b']
-    );
-    const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
-    assert.equal(err instanceof zod.ValidationError, true);
-    assert.equal(err.message, 'unexpected keys on object: ["b"]');
-  });
+    it('should work for omit of omit', () => {
+      const schema = zod.omit(
+        zod.omit(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a']
+        ),
+        ['b']
+      );
+      const ret = schema.parse({ c: 'hello' });
+      assert.deepEqual(ret, { c: 'hello' });
+    });
 
-  it('should work for omit of omit', () => {
-    const schema = zod.omit(
-      zod.omit(
-        zod.object({
-          a: zod.string(),
-          b: zod.string(),
-          c: zod.string(),
-        }),
-        ['a']
-      ),
-      ['b']
-    );
-    const ret = schema.parse({ c: 'hello' });
-    assert.deepEqual(ret, { c: 'hello' });
-  });
-
-  it('should fail for omit of omit if omitted keys are preset', () => {
-    const schema = zod.omit(
-      zod.omit(
-        zod.object({
-          a: zod.string(),
-          b: zod.string(),
-          c: zod.string(),
-        }),
-        ['a']
-      ),
-      ['b']
-    );
-    const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
-    assert.equal(err instanceof zod.ValidationError, true);
-    assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    it('should fail for omit of omit if omitted keys are preset', () => {
+      const schema = zod.omit(
+        zod.omit(
+          zod.object({
+            a: zod.string(),
+            b: zod.string(),
+            c: zod.string(),
+          }),
+          ['a']
+        ),
+        ['b']
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
+      assert.equal(err instanceof zod.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
   });
 });

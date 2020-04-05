@@ -51,6 +51,9 @@ type AnyType = Type<any>;
 type Eval<T> = { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
+const requiredKeysSymbol = Symbol.for('requiredKeys');
+const shapekeysSymbol = Symbol.for('shapeKeys');
+
 // Primitives
 
 type StringOptions = Partial<{
@@ -194,25 +197,33 @@ class UnknownType extends Type<unknown> {
 
 type ObjectShape = Record<string, AnyType>;
 
-type OptionalKeys<T extends ObjectShape> = {
-  [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
-}[keyof T];
+// type OptionalKeys<T extends ObjectShape> = {
+//   [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
+// }[keyof T];
 
-type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
+// type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
 
-type InferObjectShape<T extends ObjectShape> = { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-  { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
+type InferObjectShape<T extends ObjectShape> = { [key in keyof T]: T[key] extends Type<infer K> ? K : any };
+
+// { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
+//   { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
 
 type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
 
-const getKeyShapesSymbol = Symbol.for('getKeyShapes');
-
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
-    //@ts-ignore
-    this[getKeyShapesSymbol] = (): string[] => Object.keys(this.objectShape);
+    const keys = Object.keys(this.objectShape);
+    (this as any)[shapekeysSymbol] = keys;
+    (this as any)[requiredKeysSymbol] = keys.filter(key => {
+      const keySchema = this.objectShape[key];
+      const isUndefined = keySchema instanceof UndefinedType;
+      const unionOfUndefined =
+        keySchema instanceof UnionType &&
+        (keySchema as any).schemas.some((schema: AnyType) => schema instanceof UndefinedType);
+      return !isUndefined && !unionOfUndefined;
+    });
   }
   parse(value: unknown, parseOpts: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
     if (typeof value !== 'object') {
@@ -376,15 +387,13 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
   }
 }
 
-type TupleToUnion<T extends any[]> = T[number];
-type InferTupleUnion<T extends AnyType[]> = TupleToUnion<{ [P in keyof T]: T[P] extends Type<infer K> ? K : any }>;
+type InferTupleUnion<T extends any[]> = Infer<T[number]>;
 type UnionOptions = { strict?: boolean };
 
 class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
   constructor(private readonly schemas: T, private readonly opts?: UnionOptions) {
     super();
   }
-
   parse(value: unknown): InferTupleUnion<T> {
     const errors: string[] = [];
     for (const schema of this.schemas) {
@@ -406,6 +415,18 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
+    if ((this.left as any)[requiredKeysSymbol] && (this.right as any)[requiredKeysSymbol]) {
+      //@ts-ignore
+      this[requiredKeysSymbol] = Array.from(
+        new Set<string>([...(this.left as any)[requiredKeysSymbol], ...(this.right as any)[requiredKeysSymbol]])
+      );
+    }
+    if ((this.left as any)[shapekeysSymbol] && (this.right as any)[shapekeysSymbol]) {
+      //@ts-ignore
+      this[shapekeysSymbol] = Array.from(
+        new Set<string>([...(this.left as any)[shapekeysSymbol], ...(this.right as any)[shapekeysSymbol]])
+      );
+    }
     this._parse = (() => {
       if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
         return (value: unknown, opts?: PathOptions) => this.parseObjectIntersection(value, opts);
@@ -417,17 +438,21 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
         return (value: unknown) => record.parse(value);
       }
       if (this.left instanceof RecordType && this.right instanceof ObjectType) {
+        (this as any)[requiredKeysSymbol] = (this.right as any)[requiredKeysSymbol];
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.left, this.right);
       }
       if (this.right instanceof RecordType && this.left instanceof ObjectType) {
+        (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.right, this.left);
       }
       if (this.left instanceof PartialType) {
+        (this as any)[requiredKeysSymbol] = (this.right as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
       }
       if (this.right instanceof PartialType) {
+        (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
       }
       return (value: unknown) => {
@@ -439,18 +464,17 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
   }
 
   parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
+    if ((this as any)[shapekeysSymbol]) {
+      const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];
+      const invalidKeys = Object.keys(value as any).filter((key: string) => !expectedShapeKeys.includes(key));
+      if (invalidKeys.length > 0) {
+        throw new ValidationError('unexpected keys on object ' + JSON.stringify(invalidKeys));
+      }
+    }
     return this._parse(value, opts);
   }
 
   private parseObjectIntersection(value: any, opts?: PathOptions): any {
-    const intersectionKeys = new Set<string>([
-      ...(this.left as any)[getKeyShapesSymbol](),
-      ...(this.right as any)[getKeyShapesSymbol](),
-    ]);
-    const invalidKeys = Object.keys(value).filter(key => !intersectionKeys.has(key));
-    if (invalidKeys.length > 0) {
-      throw new ValidationError('unexpected keys on object ' + JSON.stringify(invalidKeys));
-    }
     const parsingOptions = { suppressPathErrMsg: opts?.suppressPathErrMsg, allowUnknown: true };
     ((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions);
     ((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions);
@@ -459,7 +483,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   private parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
     objectSchema.parse(value, { allowUnknown: true });
-    const objectKeys: string[] = (objectSchema as any)[getKeyShapesSymbol]();
+    const objectKeys: string[] = (objectSchema as any)[shapekeysSymbol];
     const proxy = Object.keys(value).reduce<any>((acc, key) => {
       if (!objectKeys.includes(key)) {
         acc[key] = value[key];
@@ -606,7 +630,8 @@ function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
       }
       return acc;
     }, {});
-    return new ObjectType(omittedShape, { allowUnknown: true });
+    //@ts-ignore
+    return new ObjectType(omittedShape, { allowUnknown: schema.opts?.allowUnknown });
   }
   if (schema instanceof IntersectionType) {
     const newLeft = createOmittedSchema((schema as any).left, omittedKeys);
@@ -689,4 +714,5 @@ export default {
   undefined: undefinedValue,
   null: nullValue,
   enum: enumValue,
+  ValidationError,
 };
