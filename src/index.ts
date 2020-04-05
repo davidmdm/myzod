@@ -51,6 +51,7 @@ type AnyType = Type<any>;
 type Eval<T> = { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
+const allowUnknownSymbol = Symbol.for('allowUnknown');
 const requiredKeysSymbol = Symbol.for('requiredKeys');
 const shapekeysSymbol = Symbol.for('shapeKeys');
 
@@ -128,6 +129,7 @@ class BooleanType extends Type<boolean> {
 }
 
 type NumberOptions = Partial<{ min: number; max: number }>;
+
 class NumberType extends Type<number> {
   constructor(private opts: NumberOptions = {}) {
     super();
@@ -215,6 +217,7 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
     const keys = Object.keys(this.objectShape);
+    (this as any)[allowUnknownSymbol] = !!opts?.allowUnknown;
     (this as any)[shapekeysSymbol] = keys;
     (this as any)[requiredKeysSymbol] = keys.filter(key => {
       const keySchema = this.objectShape[key];
@@ -415,6 +418,9 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
+    (this as any)[allowUnknownSymbol] = !!(
+      (this.left as any)[allowUnknownSymbol] && (this.right as any)[allowUnknownSymbol]
+    );
     if ((this.left as any)[requiredKeysSymbol] && (this.right as any)[requiredKeysSymbol]) {
       //@ts-ignore
       this[requiredKeysSymbol] = Array.from(
@@ -464,7 +470,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
   }
 
   parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
-    if ((this as any)[shapekeysSymbol]) {
+    if (!(this as any)[allowUnknownSymbol] && (this as any)[shapekeysSymbol]) {
       const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];
       const invalidKeys = Object.keys(value as any).filter((key: string) => !expectedShapeKeys.includes(key));
       if (invalidKeys.length > 0) {
@@ -601,6 +607,8 @@ class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<Pick<In
       throw new Error('cannot instantiate a PickType with a primitive schema');
     }
     this.schema = createPickedSchema(rootSchema, pickedKeys);
+    const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
+    (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => pickedKeys.includes(key));
   }
   parse(value: unknown): Eval<Pick<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {
@@ -660,6 +668,8 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
       throw new Error('cannot instantiate a OmitType with a primitive schema');
     }
     this.schema = createOmittedSchema(rootSchema, omittedKeys);
+    const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
+    (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => !omittedKeys.includes(key));
   }
   parse(value: unknown): Eval<Omit<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {

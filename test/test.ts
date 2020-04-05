@@ -717,8 +717,7 @@ describe('Zod Parsing', () => {
 
     it('should intersect two picked types', () => {
       const schemaA = zod.pick(zod.object({ a: zod.string(), b: zod.string() }), ['a']);
-      const shapeB = zod.object({ a: zod.number(), b: zod.number() });
-      const schemaB = zod.pick(shapeB, ['b']);
+      const schemaB = zod.pick(zod.object({ a: zod.number(), b: zod.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const ret = schema.parse({ a: 'hello', b: 123 });
       assert.deepEqual(ret, { a: 'hello', b: 123 });
