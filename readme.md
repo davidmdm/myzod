@@ -1,17 +1,18 @@
 # myzod
 
-The original intent was to create a fork of [zod](https://www.npmjs.com/package/zod), however as I played with it and changed the inference mechanism and started writing tests it became clear to me that it would never be merged into zod, thus `myzod` is born.
+Schema Validation with typescript type inference.
+
+### Acknowledgements
+
+Major Shout-out to [zod](https://www.npmjs.com/package/zod) for the inspiration.
+
+### Description
 
 Myzod tries to emulate the typescript type system as much as possible and is even in some ways a little stricter. The goal is that writing a schema feels the same as defining a typescript type, with equivalent & and | operators, and well known Generic types like Record, Pick and Omit. On top of that myzod aims to offer validation within the schemas for such things as number ranges, string patterns and lengths to help enforce business logic.
 
 The resulting package has a similar api to `zod` with a little bit of inspiration from [joi](https://www.npmjs.com/package/@hapi/joi).
 
 The goal is to write schemas from which the _type_ of a successfully parsed value can be inferred. With myzod typescript types and validation logic no longer need to be maintained separately.
-
-### Distinction from zod
-
-Myzod includes some advanced typescript types as schema constructors such as Partial, Pick and Omit that zod currently does not support.
-Also myzod tries to go beyond type checking and provide more validation utils such as pattern matching for strings, array minimum and maximum lengths, and more.
 
 ### Performance
 
@@ -74,6 +75,7 @@ Reference Types
 
 - [object](#object)
 - [array](#array)
+- [tuple](#tuple)
 - [record](#record)
 - [enum](#enum)
 
@@ -284,6 +286,17 @@ const schema = myzod.array(myzod.number()).unique();
 type Schema = Infer<typeof schema>; // => string[]
 
 schema.parse([1, 1, 2]); // => throws ValidationError
+```
+
+#### Tuple
+
+Tuples are similar to arrays but allow for mixed types of static length.
+Note that myzod does not support intersections of tuple types at this time.
+
+```typescript
+const schema = myzod.tuple([myzod.string(), myzod.object({ key: myzod.boolean() }), myzod.array(myzod.number())]);
+
+type Schema = Infer<typeof schema>; // => [string, { key: boolean; }, number[]];
 ```
 
 #### Record

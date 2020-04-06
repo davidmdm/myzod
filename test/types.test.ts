@@ -101,4 +101,16 @@ describe('Types test', () => {
     const x: AssertEqual<z.Infer<typeof schema>, Record<string, { a: string; b: string }>> = true;
     x;
   });
+
+  it('mult dimensional array', () => {
+    const schema = z.array(z.array(z.array(z.string())));
+    const x: AssertEqual<z.Infer<typeof schema>, string[][][]> = true;
+    x;
+  });
+
+  it('tuple type', () => {
+    const schema = z.tuple([z.string(), z.object({ r: z.number() }), z.array(z.array(z.string()))]);
+    const x: AssertEqual<z.Infer<typeof schema>, [string, { r: number }, string[][]]> = true;
+    x;
+  });
 });

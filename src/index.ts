@@ -48,7 +48,7 @@ function prettyPrintPath(path: (number | string)[]): string {
 }
 
 type AnyType = Type<any>;
-type Eval<T> = { [Key in keyof T]: T[Key] } & {};
+type Eval<T> = T extends any[] ? T : { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
@@ -397,6 +397,32 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
   }
 }
 
+type InferTuple<T extends [AnyType, ...AnyType[]] | []> = {
+  [key in keyof T]: T[key] extends Type<infer K> ? K : never;
+};
+
+class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<InferTuple<T>> {
+  constructor(private readonly schemas: T) {
+    super();
+  }
+  parse(value: unknown): InferTuple<T> {
+    if (!Array.isArray(value)) {
+      throw new ValidationError('expected tuple value to be type array but got ' + typeOf(value));
+    }
+    if (value.length !== this.schemas.length) {
+      throw new ValidationError(`expected tuple length to be ${this.schemas.length} but got ${value.length}`);
+    }
+    for (let i = 0; i < this.schemas.length; i++) {
+      try {
+        this.schemas[i].parse(value[i]);
+      } catch (err) {
+        throw new ValidationError(`error parsing tuple at index ${i}: ${err.message}`);
+      }
+    }
+    return value as any;
+  }
+}
+
 type InferTupleUnion<T extends any[]> = Infer<T[number]>;
 type UnionOptions = { strict?: boolean };
 
@@ -443,6 +469,9 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
       );
     }
     this._parse = (() => {
+      if (this.left instanceof TupleType || this.right instanceof TupleType) {
+        throw new Error('tuple intersection not supported');
+      }
       if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
         return (value: unknown, opts?: PathOptions) => this.parseObjectIntersection(value, opts);
       }
@@ -629,7 +658,7 @@ function createPickedSchema(schema: AnyType, pickedKeys: any[]): AnyType {
   }
   if (schema instanceof UnionType) {
     // TODO ???
-    throw new Error('myzod does not currently support PickTypes of unions');
+    throw new Error('pick of union types not supported');
   }
   return schema;
 }
@@ -693,7 +722,7 @@ function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
   }
   if (schema instanceof UnionType) {
     // TODO ???
-    throw new Error('myzod does not currently support OmitTypes of unions');
+    throw new Error('omit of union types not supported');
   }
   return schema;
 }
@@ -738,6 +767,7 @@ export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([
 export const partial = <T extends AnyType>(type: T) => new PartialType(type);
 export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new PickType(type, keys);
 export const omit = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new OmitType(type, keys);
+export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
@@ -758,6 +788,7 @@ export default {
   intersection,
   record,
   dictionary,
+  tuple,
   partial,
   pick,
   omit,

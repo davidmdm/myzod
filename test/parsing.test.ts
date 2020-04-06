@@ -781,6 +781,11 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
     });
+
+    it('should fail if trying to create an intersection of a tuple type', () => {
+      const err = catchError(z.intersection)(z.tuple([]), z.object({}));
+      assert.equal(err.message, 'tuple intersection not supported');
+    });
   });
 
   describe('enum parsing', () => {
@@ -1156,6 +1161,45 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'unexpected keys on object: ["b"]');
+    });
+  });
+
+  describe('tuple parsing', () => {
+    it('should fail if non array is passed as value', () => {
+      const schema = z.tuple([]);
+      const err = catchError(schema.parse.bind(schema))(null);
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected tuple value to be type array but got null');
+    });
+
+    it('should fail fast if value does not have same length as tuple type', () => {
+      const schema = z.tuple([z.string(), z.number()]);
+      const err = catchError(schema.parse.bind(schema))(['hello']);
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected tuple length to be 2 but got 1');
+    });
+
+    it('should pass for tuple', () => {
+      const schema = z.tuple([z.string(), z.number(), z.object({ a: z.string(), b: z.number() })]);
+      const ret = schema.parse(['hello', 42, { a: 'hello', b: 42 }]);
+      assert.deepEqual(ret, ['hello', 42, { a: 'hello', b: 42 }]);
+    });
+
+    it('should fail if tuple does not match', () => {
+      const schema = z.tuple([z.string(), z.number()]);
+      const err = catchError(schema.parse.bind(schema))(['hello', 'world']);
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
+    });
+
+    it('should give meaningful error message', () => {
+      const schema = z.tuple([z.string(), z.object({ a: z.object({ b: z.string() }) })]);
+      const err = catchError(schema.parse.bind(schema))(['hello', { a: { b: 42 } }]);
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(
+        err.message,
+        'error parsing tuple at index 1: error parsing object at path: "a.b" - expected type to be string but got number'
+      );
     });
   });
 });
