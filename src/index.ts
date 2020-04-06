@@ -199,16 +199,18 @@ class UnknownType extends Type<unknown> {
 
 type ObjectShape = Record<string, AnyType>;
 
-// type OptionalKeys<T extends ObjectShape> = {
-//   [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
-// }[keyof T];
+type OptionalKeys<T extends ObjectShape> = {
+  [key in keyof T]: undefined extends Infer<T[key]> ? key : never;
+}[keyof T];
 
-// type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
+type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
 
-type InferObjectShape<T extends ObjectShape> = { [key in keyof T]: T[key] extends Type<infer K> ? K : any };
-
-// { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-//   { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
+// Infer object used to be this:
+// { [key in keyof T]: T[key] extends Type<infer K> ? K : any };
+// VSCode seems to have issues and shows errors but typescript compiles correctly so going to put it in
+// for now and hope for the best.
+type InferObjectShape<T extends ObjectShape> = { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
+  { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
 
 type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
