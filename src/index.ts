@@ -453,8 +453,9 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
+
     (this as any)[allowUnknownSymbol] = !!(
-      (this.left as any)[allowUnknownSymbol] && (this.right as any)[allowUnknownSymbol]
+      (this.left as any)[allowUnknownSymbol] || (this.right as any)[allowUnknownSymbol]
     );
     if ((this.left as any)[requiredKeysSymbol] && (this.right as any)[requiredKeysSymbol]) {
       //@ts-ignore
@@ -468,6 +469,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
         new Set<string>([...(this.left as any)[shapekeysSymbol], ...(this.right as any)[shapekeysSymbol]])
       );
     }
+
     this._parse = (() => {
       if (this.left instanceof TupleType || this.right instanceof TupleType) {
         throw new Error('tuple intersection not supported');
@@ -500,26 +502,10 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
         (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
       }
-      if (isPickOrOmitType(this.left) && isPickOrOmitType(this.right)) {
+      if (isPickOrOmitType(this.left) || isPickOrOmitType(this.right)) {
         return (value: unknown) => {
           //@ts-ignore
           this.left.parse(value, { allowUnknown: true });
-          //@ts-ignore
-          this.right.parse(value, { allowUnknown: true });
-          return value as any;
-        };
-      }
-      if (isPickOrOmitType(this.left)) {
-        return (value: unknown) => {
-          //@ts-ignore
-          this.left.parse(value, { allowUnknown: true });
-          this.right.parse(value);
-          return value as any;
-        };
-      }
-      if (isPickOrOmitType(this.right)) {
-        return (value: unknown) => {
-          this.left.parse(value);
           //@ts-ignore
           this.right.parse(value, { allowUnknown: true });
           return value as any;
@@ -533,8 +519,9 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     })();
   }
 
-  parse(value: unknown, opts?: PathOptions): Eval<Infer<T> & Infer<K>> {
-    if (!(this as any)[allowUnknownSymbol] && (this as any)[shapekeysSymbol]) {
+  parse(value: unknown, opts?: PathOptions & ObjectOptions): Eval<Infer<T> & Infer<K>> {
+    const allowUnknown = opts?.allowUnknown || (this as any)[allowUnknownSymbol];
+    if (!allowUnknown && (this as any)[shapekeysSymbol]) {
       const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];
       const invalidKeys = Object.keys(value as any).filter((key: string) => !expectedShapeKeys.includes(key));
       if (invalidKeys.length > 0) {

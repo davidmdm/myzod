@@ -782,6 +782,32 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
     });
 
+    it('should intersect a pick and some other type correctly', () => {
+      const schema = z
+        .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
+        .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
+      const ret = schema.parse({ a: 'hello', c: 42, d: true });
+      assert.deepEqual(ret, { a: 'hello', c: 42, d: true });
+    });
+
+    it('should fail if unknown key in intersect of pick and some other complex type', () => {
+      const schema = z
+        .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
+        .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 42, d: true });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object ["b"]');
+    });
+
+    it('should fail if missing key in intersect of pick and some other complex type', () => {
+      const schema = z
+        .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
+        .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', d: true });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be number but got undefined');
+    });
+
     it('should fail if trying to create an intersection of a tuple type', () => {
       const err = catchError(z.intersection)(z.tuple([]), z.object({}));
       assert.equal(err.message, 'tuple intersection not supported');
