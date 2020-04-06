@@ -1,6 +1,6 @@
 {
   "name": "myzod",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
@@ -10,7 +10,13 @@
     "pub": "npm t && npm run build && npm publish",
     "bench": "ts-node test/benchmark.ts > test/results.json"
   },
-  "keywords": [],
+  "keywords": [
+    "typescript",
+    "schema",
+    "validation",
+    "type",
+    "inference"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/davidmdm/myzod.git"

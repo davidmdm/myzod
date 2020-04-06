@@ -10,8 +10,8 @@ The goal is to write schemas from which the _type_ of a successfully parsed valu
 
 ### Distinction from zod
 
-Myzod includes some advanced typescript types as schema constructors such as Record, Pick and Omit that zod currently does not support.
-Also myzod tries to go beyond type checking and provide more validation utils such as pattern matching for strings.
+Myzod includes some advanced typescript types as schema constructors such as Partial, Pick and Omit that zod currently does not support.
+Also myzod tries to go beyond type checking and provide more validation utils such as pattern matching for strings, array minimum and maximum lengths, and more.
 
 ### Performance
 
@@ -19,13 +19,13 @@ When parsing equivalent simple object (with nesting) schemas for myzod, zod and 
 
 objects parsed per second:
 
-- `zod`: 51345
-- `joi`: 178412
-- `myzod`: 1048218
+- `zod`: 51861
+- `joi`: 194325
+- `myzod`: 1288659
 
-myzod vs zod: ~20 X Speedup
+myzod vs zod: ~25 X Speedup
 
-myzod vs joi: ~5-6 X Speedup
+myzod vs joi: ~6 X Speedup
 
 ### Installation
 

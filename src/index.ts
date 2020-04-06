@@ -241,11 +241,16 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
       throw new ValidationError('expected type to be regular object but got array');
     }
 
-    const keys = Object.keys(this.objectShape);
+    const keys: string[] = (this as any)[shapekeysSymbol];
     const allowUnknown = typeof parseOpts.allowUnknown === 'boolean' ? parseOpts.allowUnknown : this.opts?.allowUnknown;
 
     if (!allowUnknown) {
-      const illegalKeys = Object.keys(value).filter(x => !keys.includes(x));
+      const illegalKeys: string[] = [];
+      for (const k in value) {
+        if (!keys.includes(k)) {
+          illegalKeys.push(k);
+        }
+      }
       if (illegalKeys.length > 0) {
         throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
       }
