@@ -214,6 +214,8 @@ type InferObjectShape<T extends ObjectShape> = { [key in OptionalKeys<T>]?: T[ke
 
 type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
+type ToUnion<T extends any[]> = T[number];
+type PartialShape<T extends ObjectShape> = { [key in keyof T]: UnionType<[T[key], UndefinedType]> };
 
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
@@ -276,6 +278,27 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
       }
     }
     return value as any;
+  }
+
+  pick<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Pick<T, ToUnion<typeof keys>>>> {
+    const pickedShape = keys.reduce<any>((acc, key) => {
+      acc[key] = this.objectShape[key];
+      return acc;
+    }, {});
+    return new ObjectType(pickedShape, opts);
+  }
+
+  omit<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Omit<T, ToUnion<typeof keys>>>> {
+    const pickedKeys: K[] = ((this as any)[shapekeysSymbol] as K[]).filter((x: K) => !keys.includes(x));
+    return this.pick(pickedKeys, opts) as any;
+  }
+
+  partial(opts?: ObjectOptions): ObjectType<PartialShape<T>> {
+    const partialShape = ((this as any)[shapekeysSymbol] as string[]).reduce<any>((acc, key) => {
+      acc[key] = this.objectShape[key].optional();
+      return acc;
+    }, {});
+    return new ObjectType(partialShape, opts);
   }
 }
 

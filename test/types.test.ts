@@ -113,4 +113,22 @@ describe('Types test', () => {
     const x: AssertEqual<z.Infer<typeof schema>, [string, { r: number }, string[][]]> = true;
     x;
   });
+
+  it('object.pick', () => {
+    const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
+    const x: AssertEqual<z.Infer<typeof schema>, { a: string; b: number }> = true;
+    x;
+  });
+
+  it('object.omit', () => {
+    const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).omit(['a', 'b']);
+    const x: AssertEqual<z.Infer<typeof schema>, { c: boolean }> = true;
+    x;
+  });
+
+  it('object.partial', () => {
+    const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).partial();
+    const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: number; c?: boolean }> = true;
+    x;
+  });
 });

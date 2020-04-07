@@ -400,6 +400,48 @@ describe('Zod Parsing', () => {
     });
   });
 
+  describe('object utility parsing', () => {
+    it('should pick some keys', () => {
+      const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
+      const ret = schema.parse({ a: 'hello', b: 42 });
+      assert.deepEqual(ret, { a: 'hello', b: 42 });
+    });
+
+    it('should fail unexpected key in object.pick', () => {
+      const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 42, c: false });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+    });
+
+    it('should fail if missing key in object.pick', () => {
+      const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
+    });
+
+    it('should create an equivalent object between omit and pick', () => {
+      const root = z.object({ a: z.string(), b: z.number(), c: z.boolean() });
+      const picked = root.pick(['a', 'b']);
+      const omitted = root.omit(['c']);
+      assert.deepEqual(picked, omitted);
+    });
+
+    it('should create a partial of the object', () => {
+      const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).partial();
+      const ret = schema.parse({});
+      assert.deepEqual(ret, {});
+    });
+
+    it('should fail if value contains an unknown key in object.partial', () => {
+      const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).partial();
+      const err = catchError(schema.parse.bind(schema))({ d: 'hello' });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["d"]');
+    });
+  });
+
   describe('record parsing', () => {
     it('should pass for a record of primitive type', () => {
       const schema = z.record(z.string());

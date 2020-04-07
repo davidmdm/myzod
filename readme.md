@@ -263,6 +263,28 @@ const personSchema = myzod.object({
 type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
 ```
 
+The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance.
+This is more performant than creating Pick or Omit types that wrap a schema.
+
+```typescript
+const profileSchema = myzod.object({
+  id: myzod.string().predicate(validator.isUUID),
+  name: myzod.string().pattern(/[A-Z]\w+/)
+  age: myzod.number().min(0),
+});
+
+type Profile = myzod.Infer<typeof profileSchema>; // => { id: string; name: string; age: number }
+
+const putProfileSchema = profileSchema.pick(['name','age']); // Same as profileSchema.omit(['id']);
+
+type PutProfile = myzod.Infer<typeof putProfileSchema>; // => { name: string; age: number }
+
+const patchProfileSchema = putProfileSchema.partial();
+
+type PatchProfile = myzod.Infer<typeof patchProfileSchema>; // => { name?: string; age?: number }
+
+```
+
 #### Array
 
 options:
