@@ -112,6 +112,13 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'custom predicate message');
     });
 
+    it('should fail with predicate error message from options object if not overridden in fluent syntax', () => {
+      const schema = z.string({ predicateErrMsg: 'options.predicateErrMsg' }).predicate(() => false);
+      const err = catchError(schema.parse.bind(schema))('hello world');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'options.predicateErrMsg');
+    });
+
     it('should fail with same error message as predicate function if it throws', () => {
       const schema = z.string().predicate(() => {
         throw new Error('predicate error message');

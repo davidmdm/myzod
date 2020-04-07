@@ -114,7 +114,9 @@ class StringType extends Type<string> {
   }
   predicate(fn: StringOptions['predicate'], errMsg?: string): this {
     this.opts.predicate = fn;
-    this.opts.predicateErrMsg = errMsg;
+    if (errMsg) {
+      this.opts.predicateErrMsg = errMsg;
+    }
     return this;
   }
 }
