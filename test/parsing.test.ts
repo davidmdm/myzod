@@ -449,7 +449,8 @@ describe('Zod Parsing', () => {
     });
 
     it('should create a deep partial', () => {
-      const schema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) }).partial({ deep: true });
+      const inner = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) });
+      const schema = inner.partial({ deep: true });
       const ret = schema.parse({ b: { d: 32 } });
       assert.deepEqual(ret, { b: { d: 32 } });
     });

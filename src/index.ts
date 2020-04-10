@@ -218,6 +218,11 @@ type PathOptions = { suppressPathErrMsg?: boolean };
 type ObjectOptions = { allowUnknown?: boolean };
 type ToUnion<T extends any[]> = T[number];
 type PartialShape<T extends ObjectShape> = { [key in keyof T]: UnionType<[T[key], UndefinedType]> };
+type DeepPartialShape<T extends ObjectShape> = {
+  [key in keyof T]: T[key] extends ObjectType<infer K>
+    ? UnionType<[ObjectType<DeepPartialShape<K>>, UndefinedType]>
+    : UnionType<[T[key], UndefinedType]>;
+};
 
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
@@ -297,7 +302,7 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
 
   partial<K extends ObjectOptions & PartialOpts>(
     opts?: K
-  ): ObjectType<Eval<K extends { deep: true } ? DeepPartial<PartialShape<T>> : PartialShape<T>>> {
+  ): ObjectType<Eval<K extends { deep: true } ? DeepPartialShape<T> : PartialShape<T>>> {
     const schema = (toPartialSchema(this, { deep: opts?.deep || false }) as any).objectShape;
     return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
   }
@@ -595,7 +600,7 @@ class EnumType<T> extends Type<ValueOf<T>> {
   }
 }
 
-type DeepPartial<T> = { [key in keyof T]?: T[key] extends Object ? DeepPartial<T[key]> : T[key] };
+type DeepPartial<T> = { [key in keyof T]?: T[key] extends Object ? Eval<DeepPartial<T[key]>> : T[key] };
 type PartialOpts = { deep: boolean };
 
 function toPartialSchema(schema: AnyType, opts?: PartialOpts): AnyType {

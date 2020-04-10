@@ -144,6 +144,7 @@ describe('Types test', () => {
         }),
       })
       .partial({ deep: true });
+
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
     x;
   });
