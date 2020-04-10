@@ -447,6 +447,22 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'unexpected keys on object: ["d"]');
     });
+
+    it('should create a deep partial', () => {
+      const schema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) }).partial({ deep: true });
+      const ret = schema.parse({ b: { d: 32 } });
+      assert.deepEqual(ret, { b: { d: 32 } });
+    });
+
+    it('should fail deep partial if unknown keys included in nested objects', () => {
+      const schema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) }).partial({ deep: true });
+      const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "b" - No union satisfied:\n  unexpected keys on object: ["f"]\n  expected type to be undefined but got object'
+      );
+    });
   });
 
   describe('record parsing', () => {
@@ -942,6 +958,24 @@ describe('Zod Parsing', () => {
       const schema = z.partial(z.record(z.number()));
       const ret = schema.parse({ a: 3, b: undefined });
       assert.deepEqual(ret, { a: 3, b: undefined });
+    });
+
+    it('should create a deep partial', () => {
+      const innerSchema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) });
+      const schema = z.partial(innerSchema, { deep: true });
+      const ret = schema.parse({ b: { d: 32 } });
+      assert.deepEqual(ret, { b: { d: 32 } });
+    });
+
+    it('should fail deep partial if unknown keys included in nested objects', () => {
+      const innerSchema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) });
+      const schema = z.partial(innerSchema, { deep: true });
+      const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "b" - No union satisfied:\n  unexpected keys on object: ["f"]\n  expected type to be undefined but got object'
+      );
     });
 
     xit('should pass with empty object for object unions partial', () => {

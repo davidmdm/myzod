@@ -295,12 +295,11 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     return this.pick(pickedKeys, opts) as any;
   }
 
-  partial(opts?: ObjectOptions): ObjectType<PartialShape<T>> {
-    const partialShape = ((this as any)[shapekeysSymbol] as string[]).reduce<any>((acc, key) => {
-      acc[key] = this.objectShape[key].optional();
-      return acc;
-    }, {});
-    return new ObjectType(partialShape, opts);
+  partial<K extends ObjectOptions & PartialOpts>(
+    opts?: K
+  ): ObjectType<Eval<K extends { deep: true } ? DeepPartial<PartialShape<T>> : PartialShape<T>>> {
+    const schema = (toPartialSchema(this, { deep: opts?.deep || false }) as any).objectShape;
+    return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
   }
 }
 
@@ -596,37 +595,55 @@ class EnumType<T> extends Type<ValueOf<T>> {
   }
 }
 
-function toPartialSchema(schema: AnyType): AnyType {
+type DeepPartial<T> = { [key in keyof T]?: T[key] extends Object ? DeepPartial<T[key]> : T[key] };
+type PartialOpts = { deep: boolean };
+
+function toPartialSchema(schema: AnyType, opts?: PartialOpts): AnyType {
   if (schema instanceof ObjectType) {
     const originalShape = (schema as any).objectShape;
     const shape = Object.keys(originalShape).reduce<any>((acc, key) => {
-      acc[key] = originalShape[key].optional();
+      if (opts?.deep) {
+        acc[key] = toPartialSchema(originalShape[key], opts).optional();
+      } else {
+        acc[key] = originalShape[key].optional();
+      }
       return acc;
     }, {});
     return new ObjectType(shape, (schema as any).opts);
   }
   if (schema instanceof RecordType) {
+    if (opts?.deep) {
+      return new RecordType(toPartialSchema((schema as any).schema, opts).optional());
+    }
     return new RecordType((schema as any).schema.optional());
   }
   if (schema instanceof IntersectionType) {
-    return new IntersectionType(toPartialSchema((schema as any).left), toPartialSchema((schema as any).right));
+    return new IntersectionType(
+      toPartialSchema((schema as any).left, opts),
+      toPartialSchema((schema as any).right, opts)
+    );
   }
   if (schema instanceof UnionType) {
-    return new UnionType((schema as any).schemas.map(toPartialSchema));
+    return new UnionType((schema as any).schemas.map((schema: AnyType) => toPartialSchema(schema, opts)));
   }
   if (schema instanceof ArrayType) {
+    if (opts?.deep) {
+      return new ArrayType(toPartialSchema((schema as any).schema, opts).optional());
+    }
     return new ArrayType((schema as any).schema.optional());
   }
   return schema;
 }
 
-class PartialType<T extends AnyType> extends Type<Partial<Infer<T>>> {
+class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
+  K extends { deep: true } ? Eval<DeepPartial<Infer<T>>> : Partial<Infer<T>>
+> {
   private readonly schema: AnyType;
-  constructor(schema: T) {
+  constructor(schema: T, opts?: K) {
     super();
-    this.schema = toPartialSchema(schema);
+    this.schema = toPartialSchema(schema, opts);
   }
-  parse(value: unknown): Partial<Infer<T>> {
+  parse(value: unknown): K extends { deep: true } ? Eval<DeepPartial<Infer<T>>> : Partial<Infer<T>> {
     return this.schema.parse(value);
   }
 }
@@ -776,7 +793,7 @@ export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => n
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);
 export const record = <T extends AnyType>(type: T) => new RecordType(type);
 export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
-export const partial = <T extends AnyType>(type: T) => new PartialType(type);
+export const partial = <T extends AnyType, K extends PartialOpts>(type: T, opts?: K) => new PartialType(type, opts);
 export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new PickType(type, keys);
 export const omit = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new OmitType(type, keys);
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);

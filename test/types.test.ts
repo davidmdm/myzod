@@ -131,4 +131,53 @@ describe('Types test', () => {
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: number; c?: boolean }> = true;
     x;
   });
+
+  it('object.partial deep', () => {
+    const schema = z
+      .object({
+        a: z.string(),
+        b: z.object({
+          c: z.number(),
+          d: z.object({
+            e: z.number(),
+          }),
+        }),
+      })
+      .partial({ deep: true });
+    const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
+    x;
+  });
+
+  it('partial', () => {
+    const schema = z.partial(
+      z.object({
+        a: z.string(),
+        b: z.object({
+          c: z.number(),
+          d: z.object({
+            e: z.number(),
+          }),
+        }),
+      })
+    );
+    const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c: number; d: { e: number } } }> = true;
+    x;
+  });
+
+  it('deep partial', () => {
+    const schema = z.partial(
+      z.object({
+        a: z.string(),
+        b: z.object({
+          c: z.number(),
+          d: z.object({
+            e: z.number(),
+          }),
+        }),
+      }),
+      { deep: true }
+    );
+    const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
+    x;
+  });
 });

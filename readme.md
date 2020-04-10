@@ -285,6 +285,23 @@ type PatchProfile = myzod.Infer<typeof patchProfileSchema>; // => { name?: strin
 
 ```
 
+Partial accepts an options object to allow for deeply nested partials:
+
+```typescript
+const schema = myzod
+  .object({
+    name: myzod.string(),
+    birthday: myzod.object({
+      year: myzod.number(),
+      month: myzod.number().min(1).max(12),
+      date: myzod.number().min(1).max(31),
+    }),
+  })
+  .partial({ deep: true });
+
+type DeeplyPartialSchema = myzod.Infer<typeof schema>; // { name?: string; birthday?: { year?: number; month?: number; date?: number; } }
+```
+
 #### Array
 
 options:
@@ -438,6 +455,31 @@ type PartialPerson = Infer<typeof partialPersonSchema>; // => Partial<{ name: st
 
 partialPersonSchema.parse({}); // Succeeds
 partialPersonSchema.parse({ nickName: 'lil kenny g' }); // throws validation error
+```
+
+The partial function accepts an options object as second argument to create a deeply partial object.
+
+options:
+
+- deep: `boolean` created a deeply partial schema for nested objects
+
+```typescript
+const schema = myzod.object({
+  name: myzod.string(),
+  birthday: myzod.object({
+    year: myzod.number(),
+    month: myzod.number().min(1).max(12),
+    date: myzod.number().min(1).max(31),
+  }),
+});
+
+const partialSchema = myzod.partial(schema);
+
+type PartialSchema = myzod.Infer<typeof partialSchema>; // => { name?: string; birthday?: { year: number; month: number; date: number; } }
+
+const deeplyPartialSchema = myzod.partial(schema, { deep: true });
+
+type DeeplyPartialSchema = myzod.Infer<typeof deeplyPartialSchema>; // { name?: string; birthday?: { year?: number; month?: number; date?: number; } }
 ```
 
 #### Pick
