@@ -54,7 +54,7 @@ export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 const allowUnknownSymbol = Symbol.for('allowUnknown');
 const requiredKeysSymbol = Symbol.for('requiredKeys');
 const shapekeysSymbol = Symbol.for('shapeKeys');
-const convTypeSymbol = Symbol.for('convtype');
+const coercionTypeSybol = Symbol.for('coersion');
 
 // Primitives
 
@@ -131,13 +131,22 @@ class BooleanType extends Type<boolean> {
   }
 }
 
-type NumberOptions = Partial<{ min: number; max: number }>;
+type NumberOptions = Partial<{ min: number; max: number; coerce: boolean }>;
 
 class NumberType extends Type<number> {
   constructor(private opts: NumberOptions = {}) {
     super();
+    (this as any)[coercionTypeSybol] = false;
   }
   parse(value: unknown): number {
+    if (this.opts.coerce && typeof value === 'string') {
+      const number = parseFloat(value);
+      if (isNaN(number)) {
+        throw new ValidationError('expected type to be number but got string');
+      }
+      return this.parse(number);
+    }
+
     if (typeof value !== 'number') {
       throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
@@ -155,6 +164,11 @@ class NumberType extends Type<number> {
   }
   max(x: number): this {
     this.opts.max = x;
+    return this;
+  }
+  coerce(value?: boolean): this {
+    this.opts.coerce = typeof value === 'undefined' ? true : value;
+    (this as any)[coercionTypeSybol] = this.opts.coerce;
     return this;
   }
 }
@@ -203,13 +217,10 @@ class UnknownType extends Type<unknown> {
 class DateType extends Type<Date> {
   constructor() {
     super();
-    (this as any)[convTypeSymbol] = true;
+    (this as any)[coercionTypeSybol] = true;
   }
   parse(value: unknown): Date {
     if (typeof value === 'string') {
-      if (value.length === 0) {
-        throw new ValidationError('expected date string but got empty string');
-      }
       const date = new Date(value);
       if (isNaN(date.getTime())) {
         throw new ValidationError(`expected date string to be valid date`);
@@ -262,7 +273,9 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
         (keySchema as any).schemas.some((schema: AnyType) => schema instanceof UndefinedType);
       return !isUndefined && !unionOfUndefined;
     });
-    (this as any)[convTypeSymbol] = Object.values(this.objectShape).some(schema => (schema as any)[convTypeSymbol]);
+    (this as any)[coercionTypeSybol] = Object.values(this.objectShape).some(
+      schema => (schema as any)[coercionTypeSybol]
+    );
   }
   parse(value: unknown, parseOpts: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
     if (typeof value !== 'object') {
@@ -291,7 +304,7 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     }
 
     //@ts-ignore
-    const convVal: any = (this as any)[convTypeSymbol] ? (allowUnknown ? { ...value } : {}) : undefined;
+    const convVal: any = (this as any)[coercionTypeSybol] ? (allowUnknown ? { ...value } : {}) : undefined;
 
     for (const key of keys) {
       try {
@@ -348,7 +361,7 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
   private _parse: (value: unknown, opts?: PathOptions & ObjectOptions) => any;
   constructor(private readonly schema: T) {
     super();
-    (this as any)[convTypeSymbol] = (schema as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (schema as any)[coercionTypeSybol];
 
     this._parse = (() => {
       if (this.schema instanceof ObjectType) {
@@ -370,7 +383,7 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
-    const convValue: any = (this as any)[convTypeSymbol] ? {} : undefined;
+    const convValue: any = (this as any)[coercionTypeSybol] ? {} : undefined;
     for (const key in value) {
       try {
         if (convValue) {
@@ -401,7 +414,7 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
   private readonly _parse: (value: unknown, parseOptions?: PathOptions) => any;
   constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
     super();
-    (this as any)[convTypeSymbol] = (this.schema as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType
         ? (elem: unknown) => (this.schema.parse as any)(elem, { suppressPathErrMsg: true })
@@ -437,7 +450,7 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
         }
       });
     }
-    const convValue: any = (this as any)[convTypeSymbol] ? [] : undefined;
+    const convValue: any = (this as any)[coercionTypeSybol] ? [] : undefined;
     for (let i = 0; i < value.length; i++) {
       try {
         if (convValue) {
@@ -480,7 +493,7 @@ type InferTuple<T extends [AnyType, ...AnyType[]] | []> = {
 class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<InferTuple<T>> {
   constructor(private readonly schemas: T) {
     super();
-    (this as any)[convTypeSymbol] = schemas.some(schema => (schema as any)[convTypeSymbol]);
+    (this as any)[coercionTypeSybol] = schemas.some(schema => (schema as any)[coercionTypeSybol]);
   }
   parse(value: unknown): InferTuple<T> {
     if (!Array.isArray(value)) {
@@ -489,7 +502,7 @@ class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<InferTuple<
     if (value.length !== this.schemas.length) {
       throw new ValidationError(`expected tuple length to be ${this.schemas.length} but got ${value.length}`);
     }
-    const convValue: any = (this as any)[convTypeSymbol] ? [] : undefined;
+    const convValue: any = (this as any)[coercionTypeSybol] ? [] : undefined;
     for (let i = 0; i < this.schemas.length; i++) {
       try {
         if (convValue) {
@@ -535,7 +548,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
-    (this as any)[convTypeSymbol] = (this.left as any)[convTypeSymbol] || (this.right as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (this.left as any)[coercionTypeSybol] || (this.right as any)[coercionTypeSybol];
     (this as any)[allowUnknownSymbol] = !!(
       (this.left as any)[allowUnknownSymbol] || (this.right as any)[allowUnknownSymbol]
     );
@@ -586,7 +599,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
       }
       if (isPickOrOmitType(this.left) || isPickOrOmitType(this.right)) {
         return (value: unknown) => {
-          if ((this as any)[convTypeSymbol]) {
+          if ((this as any)[coercionTypeSybol]) {
             return {
               //@ts-ignore
               ...this.left.parse(value, { allowUnknown: true }),
@@ -623,7 +636,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
 
   private parseObjectIntersection(value: any, opts?: PathOptions): any {
     const parsingOptions = { suppressPathErrMsg: opts?.suppressPathErrMsg, allowUnknown: true };
-    if ((this as any)[convTypeSymbol]) {
+    if ((this as any)[coercionTypeSybol]) {
       return {
         ...((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions),
         ...((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions),
@@ -635,7 +648,7 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
   }
 
   private parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {
-    if ((this as any)[convTypeSymbol]) {
+    if ((this as any)[coercionTypeSybol]) {
       const convObj = objectSchema.parse(value, { allowUnknown: true });
       const proxy = Object.keys(value).reduce<any>((acc, key) => {
         if (!objectKeys.includes(key)) {
@@ -726,7 +739,7 @@ class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
   constructor(schema: T, opts?: K) {
     super();
     this.schema = toPartialSchema(schema, opts);
-    (this as any)[convTypeSymbol] = (this.schema as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
   }
   parse(value: unknown): K extends { deep: true } ? Eval<DeepPartial<Infer<T>>> : Partial<Infer<T>> {
     return this.schema.parse(value);
@@ -787,7 +800,7 @@ class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<Pick<In
     this.schema = createPickedSchema(rootSchema, pickedKeys);
     const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
     (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => pickedKeys.includes(key));
-    (this as any)[convTypeSymbol] = (this.schema as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
   }
   parse(value: unknown, parseOptions?: ObjectOptions): Eval<Pick<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {
@@ -852,7 +865,7 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
     this.schema = createOmittedSchema(rootSchema, omittedKeys);
     const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
     (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => !omittedKeys.includes(key));
-    (this as any)[convTypeSymbol] = (this.schema as any)[convTypeSymbol];
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
   }
   parse(value: unknown, opts?: ObjectOptions): Eval<Omit<Infer<T>, K>> {
     if (value === null || typeof value !== 'object') {

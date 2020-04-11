@@ -16,6 +16,17 @@ const iter = 1_000_000;
 })();
 
 (function () {
+  const schema = z.number();
+  const testData = 42;
+
+  console.time('numberType');
+  for (let i = 0; i < iter; i++) {
+    schema.parse(testData);
+  }
+  console.timeEnd('numberType');
+})();
+
+(function () {
   const schema = z.array(z.string());
   const testData = ['hello', ' ', 'world', '!'];
 

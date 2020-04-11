@@ -178,6 +178,7 @@ options:
 
 - min: `number` - min value for number
 - max: `number` - max value for number
+- coerce: `boolean` - when true will attempt to coerce strings to numbers. default `false`
 
 options can be passed as an option object or chained from schema.
 
@@ -185,6 +186,17 @@ options can be passed as an option object or chained from schema.
 myzod.number({ min: 0, max: 10 });
 // Same as:
 myzod.number().min(0).max(10);
+```
+
+Coercion example:
+
+```typescript
+const schema = myzod.number().coerce(); // same as myzod.number({ coerce: true });
+
+const value = schema.parse('42');
+
+assert.equal(typeof value === 'number'); // succeeds
+assert.equal(value, 42); // succeeds
 ```
 
 #### Boolean

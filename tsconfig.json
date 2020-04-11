@@ -15,7 +15,8 @@
     "noUnusedLocals": true,
     "noImplicitReturns": false,
     "strictNullChecks": true,
-    "declaration": true
+    "declaration": true,
+    "removeComments": false
   },
   "include": ["src/**/*"],
   "exlude": ["test/**/*"]

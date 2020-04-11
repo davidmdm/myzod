@@ -190,6 +190,39 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected number to be less than or equal to 10 but got 20');
     });
+
+    it('should convert a string to a number if coerce is true', () => {
+      const schema = z.number({ coerce: true });
+      const ret = schema.parse('42');
+      assert.equal(ret, 42);
+    });
+
+    it('should convert a string to a number if coerce is true - fluent syntax', () => {
+      const schema = z.number().coerce();
+      const ret = schema.parse('42');
+      assert.equal(ret, 42);
+    });
+
+    it('should fail to convert an empty string', () => {
+      const schema = z.number().coerce();
+      const err = catchError(schema.parse.bind(schema))('');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be number but got string');
+    });
+
+    it('should fail to convert a non numeric string', () => {
+      const schema = z.number().coerce();
+      const err = catchError(schema.parse.bind(schema))('hello');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be number but got string');
+    });
+
+    it('should apply validators with coerced values', () => {
+      const schema = z.number().coerce().min(42);
+      const err = catchError(schema.parse.bind(schema))('5');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected number to be greater than or equal to 42 but got 5');
+    });
   });
 
   describe('undefined parsing', () => {
@@ -437,6 +470,12 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ value: date.toISOString() });
       assert.ok(ret.value instanceof Date);
       assert.equal(ret.value.getTime(), date.getTime());
+    });
+
+    it('should convert string numbers to numbers with coercion', () => {
+      const schema = z.object({ value: z.number().coerce() });
+      const ret = schema.parse({ value: '42' });
+      assert.deepEqual(ret, { value: 42 });
     });
   });
 
