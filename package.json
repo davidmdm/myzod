@@ -1,6 +1,6 @@
 {
   "name": "myzod",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
@@ -8,7 +8,7 @@
     "test": "nyc mocha \"test/**/*test.ts\"",
     "build": "rm -rf ./libs && tsc",
     "pub": "npm t && npm run build && npm publish",
-    "bench": "ts-node test/benchmark.ts > test/results.json"
+    "bench": "ts-node test/benchmark.ts | tee ./test/results.json"
   },
   "keywords": [
     "typescript",

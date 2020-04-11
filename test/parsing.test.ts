@@ -243,6 +243,31 @@ describe('Zod Parsing', () => {
     });
   });
 
+  describe('date parsing', () => {
+    it('should return date instance if valid date', () => {
+      const schema = z.date();
+      const date = new Date();
+      const ret = schema.parse(date);
+      assert.equal(ret, date);
+    });
+
+    it('should fail if non date or string-date type', () => {
+      const schema = z.date();
+      const err = catchError(schema.parse.bind(schema))(true);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type Date but got boolean');
+    });
+
+    it('should convert a date string to a date', () => {
+      const schema = z.date();
+      const date = new Date();
+      const ret = schema.parse(date.toISOString());
+      assert.ok(ret instanceof Date);
+      assert.notEqual(ret, date);
+      assert.equal(ret.getTime(), date.getTime());
+    });
+  });
+
   describe('unknown parsing', () => {
     it('should return the unknown value as is', () => {
       const schema = z.unknown();
@@ -405,6 +430,14 @@ describe('Zod Parsing', () => {
       );
       assert.deepEqual((err as z.ValidationError).path, ['person', 'friends', 1, 'cars', 1, 'year']);
     });
+
+    it('should convert string dates to dates', () => {
+      const schema = z.object({ value: z.date() });
+      const date = new Date();
+      const ret = schema.parse({ value: date.toISOString() });
+      assert.ok(ret.value instanceof Date);
+      assert.equal(ret.value.getTime(), date.getTime());
+    });
   });
 
   describe('object utility parsing', () => {
@@ -527,6 +560,14 @@ describe('Zod Parsing', () => {
         key3: {},
       });
     });
+
+    it('should convert inner date strings type', () => {
+      const schema = z.record(z.date());
+      const date = new Date();
+      const ret = schema.parse({ a: date.toISOString() });
+      assert.ok(ret.a instanceof Date);
+      assert.equal(ret.a.getTime(), date.getTime());
+    });
   });
 
   describe('array parsing', () => {
@@ -628,6 +669,15 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'error at [0].key - expected type to be number but got string');
       assert.deepEqual((err as z.ValidationError).path, [0, 'key']);
+    });
+
+    it('should convert date strings', () => {
+      const schema = z.array(z.date());
+      const date = new Date();
+      const ret = schema.parse([date.toISOString()]);
+      assert.equal(ret.length, 1);
+      assert.ok(ret[0] instanceof Date);
+      assert.equal(ret[0].getTime(), date.getTime());
     });
   });
 
@@ -877,6 +927,14 @@ describe('Zod Parsing', () => {
     it('should fail if trying to create an intersection of a tuple type', () => {
       const err = catchError(z.intersection)(z.tuple([]), z.object({}));
       assert.equal(err.message, 'tuple intersection not supported');
+    });
+
+    it('should convert date strings', () => {
+      const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.object({ c: z.date() }) }));
+      const date = new Date();
+      const ret = schema.parse({ a: 'hello', b: { c: date.toISOString() } });
+      assert.ok(ret.b.c instanceof Date);
+      assert.equal(ret.b.c.getTime(), date.getTime());
     });
   });
 

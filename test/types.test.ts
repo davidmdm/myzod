@@ -66,6 +66,7 @@ describe('Types test', () => {
       j: z.pick(z.object({ k: z.string(), l: z.string().nullable() }), ['l']),
       m: z.omit(z.intersection(z.object({ n: z.string() }), z.object({ o: z.literal('hello') })), ['n']),
       p: z.enum(Color),
+      q: z.date(),
     });
 
     const x: AssertEqual<
@@ -85,6 +86,7 @@ describe('Types test', () => {
         j: { l: string | null };
         m: { o: 'hello' };
         p: Color;
+        q: Date;
       }
     > = true;
     x;

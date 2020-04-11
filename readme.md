@@ -78,6 +78,7 @@ Reference Types
 - [tuple](#tuple)
 - [record](#record)
 - [enum](#enum)
+- [date](#date)
 
 Logical Types
 
@@ -414,6 +415,20 @@ const value: string = 'some string variable';
 if (colorSchema.check(value)) {
   // value's type is Color within this if block
 }
+```
+
+#### Date
+
+the myzod.date function creates a date schema. Values that will be successfully parsed by this schema are
+Javascript Date instances and valid string representations of dates. The returned parse Date will be an instance of Date.
+
+```typescript
+const schema = myzod.date();
+type Schema = myzod.Infer<typeof schema>; // => Date
+
+const date = new Date();
+schema.parse(date); // returns date
+schema.parse(date.toISOString()); // returns a date instance equal to date
 ```
 
 #### Union

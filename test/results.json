@@ -1,6 +1,6 @@
-StringType: 8.815ms
-ArrayType: 24.762ms
-simple object parse: 357.217ms
-record of record type: 138.053ms
-object intersection type: 249.259ms
-record intersection type: 534.383ms
+StringType: 6.912ms
+ArrayType: 32.157ms
+simple object parse: 352.467ms
+record of record type: 155.182ms
+object intersection type: 245.996ms
+record intersection type: 518.754ms
