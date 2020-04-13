@@ -963,6 +963,48 @@ describe('Zod Parsing', () => {
       assert.ok(ret.b.c instanceof Date);
       assert.equal(ret.b.c.getTime(), date.getTime());
     });
+
+    it('should intersect recursive types', () => {
+      type Person = {
+        name: string;
+        friends: Person[];
+      };
+
+      type Category = {
+        name: string;
+        subCategories: Category[];
+      };
+
+      const personSchema: z.Type<Person> = z.object({
+        name: z.string(),
+        friends: z.array(z.lazy(() => personSchema)),
+      });
+
+      const categorySchema: z.Type<Category> = z.object({
+        name: z.string(),
+        subCategories: z.array(z.lazy(() => categorySchema)),
+      });
+
+      const schema = personSchema.and(categorySchema);
+
+      const ret = schema.parse({
+        name: 'David',
+        friends: [
+          { name: 'Alex', friends: [] },
+          { name: 'Joshua', friends: [] },
+        ],
+        subCategories: [],
+      });
+
+      assert.deepEqual(ret, {
+        name: 'David',
+        friends: [
+          { name: 'Alex', friends: [] },
+          { name: 'Joshua', friends: [] },
+        ],
+        subCategories: [],
+      });
+    });
   });
 
   describe('enum parsing', () => {

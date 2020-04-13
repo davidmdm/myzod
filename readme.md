@@ -88,6 +88,10 @@ Logical Types
 - [pick](#pick)
 - [omit](#omit)
 
+Recursive Schemas
+
+- [lazy](#lazy)
+
 ### myzod.Type<T>
 
 All myzod schemas extend the generic myzod.Type class, and as such inherit these methods:
@@ -541,4 +545,20 @@ const personSchema = myzod.object({
 const nameSchema = myzod.omit(personSchema, ['email', 'age']);
 
 type Named = myzod.Infer<typeof nameSchema>; // => { name: string; lastName: string; }
+```
+
+#### Lazy
+
+The myzod.lazy function takes a function that returns a schema and lazily evaluates it at parse. The advantage with this approach is that you can create schemas that reference themselves. Unfortunately typescript cannot resolve this type and it will be the user's responsibility to provide the corresponding myzod type. Fortunately if the user's provided type is incompatible with the given schema it will fail to compile so there is some hope.
+
+```typescript
+type Person = {
+  name: string;
+  friends: Person[];
+};
+
+const personSchema: z.Type<Person> = myzod.object({
+  name: myzod.string(),
+  friends: myzod.array(myzod.lazy(() => personSchema)),
+});
 ```
