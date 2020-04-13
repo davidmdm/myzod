@@ -1394,4 +1394,30 @@ describe('Zod Parsing', () => {
       );
     });
   });
+
+  describe('lazy parsing', () => {
+    it('should parse a schema without recursion', () => {
+      const schema = z.lazy(() => z.string());
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should parse a schema recursively', () => {
+      const schema: any = z.object({
+        a: z.string(),
+        b: z.lazy(() => schema).optional(),
+      });
+      const ret = schema.parse({ a: 'hello', b: { a: 'world' } });
+      assert.deepEqual(ret, { a: 'hello', b: { a: 'world' } });
+    });
+
+    it('should fail when value does not match', () => {
+      const schema: any = z.object({
+        a: z.string(),
+        b: z.lazy(() => schema).optional(),
+      });
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: { a: 'world', b: { a: 42 } } });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error parsing object at path: "b.b.a" - expected type to be string but got number');
+    });
+  });
 });

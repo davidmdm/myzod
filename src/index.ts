@@ -52,7 +52,6 @@ type Eval<T> = T extends any[] | Date ? T : { [Key in keyof T]: T[Key] } & {};
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
-const requiredKeysSymbol = Symbol.for('requiredKeys');
 const shapekeysSymbol = Symbol.for('shapeKeys');
 const coercionTypeSybol = Symbol.for('coersion');
 
@@ -212,6 +211,14 @@ class UnknownType extends Type<unknown> {
   }
 }
 
+function unwrapOptionalType(type: AnyType): AnyType {
+  if (type instanceof OptionalType) {
+    //@ts-ignore
+    return unwrapOptionalType(type.schema);
+  }
+  return type;
+}
+
 class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
   constructor(private readonly schema: T) {
     super();
@@ -219,11 +226,12 @@ class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
     (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
     (this as any)[allowUnknownSymbol] = (this.schema as any)[allowUnknownSymbol];
   }
-  parse(value: unknown): Infer<T> | undefined {
+  parse(value: unknown, opts?: any): Infer<T> | undefined {
     if (value === undefined) {
       return undefined;
     }
-    return this.schema.parse(value);
+    //@ts-ignore
+    return this.schema.parse(value, opts);
   }
 }
 
@@ -289,20 +297,18 @@ type DeepPartialShape<T extends ObjectShape> = {
     : OptionalType<T[key]>;
 };
 
+function isPathMsgType(type: AnyType): boolean {
+  return (
+    type instanceof ObjectType || type instanceof ArrayType || type instanceof RecordType || type instanceof LazyType
+  );
+}
+
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
     const keys = Object.keys(this.objectShape);
     (this as any)[allowUnknownSymbol] = !!opts?.allowUnknown;
     (this as any)[shapekeysSymbol] = keys;
-    (this as any)[requiredKeysSymbol] = keys.filter(key => {
-      const keySchema = this.objectShape[key];
-      const isUndefined = keySchema instanceof UndefinedType;
-      const unionOfUndefined =
-        keySchema instanceof UnionType &&
-        (keySchema as any).schemas.some((schema: AnyType) => schema instanceof UndefinedType);
-      return !isUndefined && !unionOfUndefined;
-    });
     (this as any)[coercionTypeSybol] = Object.values(this.objectShape).some(
       schema => (schema as any)[coercionTypeSybol]
     );
@@ -343,13 +349,13 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
           throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
         }
         if (convVal) {
-          if (schema instanceof ObjectType || schema instanceof ArrayType || schema instanceof RecordType) {
+          if (schema instanceof OptionalType ? isPathMsgType(unwrapOptionalType(schema)) : isPathMsgType(schema)) {
             convVal[key] = schema.parse((value as any)[key], { suppressPathErrMsg: true });
           } else {
             convVal[key] = schema.parse((value as any)[key]);
           }
         } else {
-          if (schema instanceof ObjectType || schema instanceof ArrayType || schema instanceof RecordType) {
+          if (schema instanceof OptionalType ? isPathMsgType(unwrapOptionalType(schema)) : isPathMsgType(schema)) {
             schema.parse((value as any)[key], { suppressPathErrMsg: true });
           } else {
             schema.parse((value as any)[key]);
@@ -582,12 +588,6 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     (this as any)[allowUnknownSymbol] = !!(
       (this.left as any)[allowUnknownSymbol] || (this.right as any)[allowUnknownSymbol]
     );
-    if ((this.left as any)[requiredKeysSymbol] && (this.right as any)[requiredKeysSymbol]) {
-      //@ts-ignore
-      this[requiredKeysSymbol] = Array.from(
-        new Set<string>([...(this.left as any)[requiredKeysSymbol], ...(this.right as any)[requiredKeysSymbol]])
-      );
-    }
     if ((this.left as any)[shapekeysSymbol] && (this.right as any)[shapekeysSymbol]) {
       //@ts-ignore
       this[shapekeysSymbol] = Array.from(
@@ -609,22 +609,18 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
         return (value: unknown) => record.parse(value);
       }
       if (this.left instanceof RecordType && this.right instanceof ObjectType) {
-        (this as any)[requiredKeysSymbol] = (this.right as any)[requiredKeysSymbol];
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.left, this.right);
       }
       if (this.right instanceof RecordType && this.left instanceof ObjectType) {
-        (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.right, this.left);
       }
       // TODO Investigate why I unwrap partials in a new intersection again
       if (this.left instanceof PartialType) {
-        (this as any)[requiredKeysSymbol] = (this.right as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
       }
       if (this.right instanceof PartialType) {
-        (this as any)[requiredKeysSymbol] = (this.left as any)[requiredKeysSymbol];
         return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
       }
       if (isPickOrOmitType(this.left) || isPickOrOmitType(this.right)) {
@@ -912,6 +908,19 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
   }
 }
 
+class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
+  constructor(private readonly fn: T) {
+    super();
+  }
+  parse(value: unknown, opts?: PathOptions): Infer<ReturnType<T>> {
+    const schema = this.fn();
+    if (opts?.suppressPathErrMsg && schema instanceof ObjectType) {
+      return schema.parse(value, opts) as any;
+    }
+    return schema.parse(value);
+  }
+}
+
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
@@ -928,6 +937,7 @@ export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys:
 export const omit = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new OmitType(type, keys);
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 export const date = () => new DateType();
+export const lazy = <T extends () => AnyType>(fn: T) => new LazyType(fn);
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
