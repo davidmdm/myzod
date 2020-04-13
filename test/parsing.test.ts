@@ -1411,7 +1411,7 @@ describe('Zod Parsing', () => {
         b: z.lazy(() => schema).optional(),
       });
       const ret = schema.parse({ a: 'hello', b: { a: 'world' } });
-      assert.deepEqual(ret, { a: 'hello', b: { a: 'world' } });
+      assert.deepEqual(ret, { a: 'hello', b: { a: 'world', b: undefined } });
     });
 
     it('should fail when value does not match', () => {
@@ -1459,6 +1459,31 @@ describe('Zod Parsing', () => {
         err.message,
         'error parsing object at path: "subCategories[0].subCategories[0].subCategories" - expected an array but got null'
       );
+    });
+
+    it('should coerce values', () => {
+      type Person = {
+        name: string;
+        birthday: Date;
+        friends: Person[];
+      };
+
+      const schema: z.Type<Person> = z.object({
+        name: z.string(),
+        birthday: z.date(),
+        friends: z.array(z.lazy(() => schema)),
+      });
+
+      const date = new Date();
+
+      const ret = schema.parse({
+        name: 'David',
+        birthday: date.toISOString(),
+        friends: [{ name: 'quentin', birthday: date.toISOString(), friends: [] }],
+      });
+
+      assert.ok(ret.birthday instanceof Date);
+      assert.ok(ret.friends[0].birthday instanceof Date);
     });
   });
 });

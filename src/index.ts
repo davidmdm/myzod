@@ -888,6 +888,8 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
 class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
   constructor(private readonly fn: T) {
     super();
+    // Since we can't know what the schema is we can't assume its not a coersionType and we need to disable the optimization
+    (this as any)[coercionTypeSybol] = true;
   }
   parse(value: unknown, opts?: PathOptions): Infer<ReturnType<T>> {
     const schema = this.fn();
