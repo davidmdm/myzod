@@ -1,4 +1,4 @@
-abstract class Type<T> {
+export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
   optional(): OptionalType<Type<T>> {
@@ -211,14 +211,6 @@ class UnknownType extends Type<unknown> {
   }
 }
 
-function unwrapOptionalType(type: AnyType): AnyType {
-  if (type instanceof OptionalType) {
-    //@ts-ignore
-    return unwrapOptionalType(type.schema);
-  }
-  return type;
-}
-
 class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
   constructor(private readonly schema: T) {
     super();
@@ -297,12 +289,6 @@ type DeepPartialShape<T extends ObjectShape> = {
     : OptionalType<T[key]>;
 };
 
-function isPathMsgType(type: AnyType): boolean {
-  return (
-    type instanceof ObjectType || type instanceof ArrayType || type instanceof RecordType || type instanceof LazyType
-  );
-}
-
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
     super();
@@ -339,7 +325,6 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
       }
     }
 
-    //@ts-ignore
     const convVal: any = (this as any)[coercionTypeSybol] ? (allowUnknown ? { ...value } : {}) : undefined;
 
     for (const key of keys) {
@@ -349,17 +334,9 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
           throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
         }
         if (convVal) {
-          if (schema instanceof OptionalType ? isPathMsgType(unwrapOptionalType(schema)) : isPathMsgType(schema)) {
-            convVal[key] = schema.parse((value as any)[key], { suppressPathErrMsg: true });
-          } else {
-            convVal[key] = schema.parse((value as any)[key]);
-          }
+          convVal[key] = schema.parse((value as any)[key], { suppressPathErrMsg: true });
         } else {
-          if (schema instanceof OptionalType ? isPathMsgType(unwrapOptionalType(schema)) : isPathMsgType(schema)) {
-            schema.parse((value as any)[key], { suppressPathErrMsg: true });
-          } else {
-            schema.parse((value as any)[key]);
-          }
+          schema.parse((value as any)[key], { suppressPathErrMsg: true });
         }
       } catch (err) {
         const path = err.path ? [key, ...err.path] : [key];
@@ -452,7 +429,7 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     super();
     (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
     this._parse =
-      this.schema instanceof ObjectType || this.schema instanceof ArrayType
+      this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
         ? (elem: unknown) => (this.schema.parse as any)(elem, { suppressPathErrMsg: true })
         : (elem: unknown) => this.schema.parse(elem);
   }
@@ -947,6 +924,7 @@ export { undefinedValue as undefined, nullValue as null, enumValue as enum };
 
 // Support default imports
 export default {
+  Type,
   string,
   boolean,
   number,
