@@ -343,19 +343,13 @@ describe('Zod Parsing', () => {
     it('should not allow null when optional schema', () => {
       const err = catchError(optionalSchema.parse.bind(optionalSchema))(null);
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
-        err.message,
-        'No union satisfied:\n  expected type to be string but got null\n  expected type to be undefined but got null'
-      );
+      assert.equal(err.message, 'expected type to be string but got null');
     });
 
     it('should not allow undefined when nullable schema', () => {
       const err = catchError(nullableSchema.parse.bind(nullableSchema))(undefined);
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
-        err.message,
-        'No union satisfied:\n  expected type to be string but got undefined\n  expected type to be null but got undefined'
-      );
+      assert.equal(err.message, 'expected type to be string but got undefined');
     });
   });
 
@@ -531,10 +525,7 @@ describe('Zod Parsing', () => {
       const schema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) }).partial({ deep: true });
       const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
-        err.message,
-        'error parsing object at path: "b" - No union satisfied:\n  unexpected keys on object: ["f"]\n  expected type to be undefined but got object'
-      );
+      assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
   });
 
@@ -853,10 +844,7 @@ describe('Zod Parsing', () => {
       const schema = z.intersection(z.partial(z.object({ a: z.string() })), z.partial(z.object({ b: z.number() })));
       const err = catchError(schema.parse.bind(schema))({ a: 3 });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
-        err.message,
-        'error parsing object at path: "a" - No union satisfied:\n  expected type to be string but got number\n  expected type to be undefined but got number'
-      );
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
     });
 
     it('should intersect two picked types', () => {
@@ -1026,7 +1014,7 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(
         err.message,
-        'error parsing object at path: "a" - No union satisfied:\n  expected string to match pattern /hello/ but did not\n  expected type to be undefined but got string'
+        'error parsing object at path: "a" - expected string to match pattern /hello/ but did not'
       );
     });
 
@@ -1070,10 +1058,7 @@ describe('Zod Parsing', () => {
       const schema = z.partial(innerSchema, { deep: true });
       const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
-        err.message,
-        'error parsing object at path: "b" - No union satisfied:\n  unexpected keys on object: ["f"]\n  expected type to be undefined but got object'
-      );
+      assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
 
     xit('should pass with empty object for object unions partial', () => {

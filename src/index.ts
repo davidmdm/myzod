@@ -1,11 +1,11 @@
 abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
-  optional(): UnionType<[Type<T>, UndefinedType]> {
-    return new UnionType([this, new UndefinedType()]);
+  optional(): OptionalType<Type<T>> {
+    return new OptionalType(this);
   }
-  nullable(): UnionType<[Type<T>, NullType]> {
-    return new UnionType([this, new NullType()]);
+  nullable(): NullableType<Type<T>> {
+    return new NullableType(this);
   }
   and<K extends AnyType>(schema: K): IntersectionType<Type<T>, K> {
     return new IntersectionType(this, schema);
@@ -212,6 +212,36 @@ class UnknownType extends Type<unknown> {
   }
 }
 
+class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
+  constructor(private readonly schema: T) {
+    super();
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
+    (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
+    (this as any)[allowUnknownSymbol] = (this.schema as any)[allowUnknownSymbol];
+  }
+  parse(value: unknown): Infer<T> | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    return this.schema.parse(value);
+  }
+}
+
+class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
+  constructor(private readonly schema: T) {
+    super();
+    (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
+    (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
+    (this as any)[allowUnknownSymbol] = (this.schema as any)[allowUnknownSymbol];
+  }
+  parse(value: unknown): Infer<T> | null {
+    if (value === null) {
+      return null;
+    }
+    return this.schema.parse(value);
+  }
+}
+
 // Non Primitive types
 
 class DateType extends Type<Date> {
@@ -255,8 +285,8 @@ type ToUnion<T extends any[]> = T[number];
 type PartialShape<T extends ObjectShape> = { [key in keyof T]: UnionType<[T[key], UndefinedType]> };
 type DeepPartialShape<T extends ObjectShape> = {
   [key in keyof T]: T[key] extends ObjectType<infer K>
-    ? UnionType<[ObjectType<DeepPartialShape<K>>, UndefinedType]>
-    : UnionType<[T[key], UndefinedType]>;
+    ? OptionalType<ObjectType<DeepPartialShape<K>>>
+    : OptionalType<T[key]>;
 };
 
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
