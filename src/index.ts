@@ -1,17 +1,15 @@
 export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
+  abstract and<K extends AnyType>(schema: K): AnyType;
+  or<K extends AnyType>(schema: K): UnionType<[Type<T>, K]> {
+    return new UnionType([this, schema]);
+  }
   optional(): OptionalType<Type<T>> {
     return new OptionalType(this);
   }
   nullable(): NullableType<Type<T>> {
     return new NullableType(this);
-  }
-  and<K extends AnyType>(schema: K): IntersectionType<Type<T>, K> {
-    return new IntersectionType(this, schema);
-  }
-  or<K extends AnyType>(schema: K): UnionType<[Type<T>, K]> {
-    return new UnionType([this, schema]);
   }
 }
 
@@ -100,6 +98,9 @@ class StringType extends Type<string> {
     }
     return value;
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
   pattern(regexp: RegExp): this {
     this.opts.pattern = regexp;
     return this;
@@ -127,6 +128,9 @@ class BooleanType extends Type<boolean> {
       throw new ValidationError('expected type to be boolean but got ' + typeOf(value));
     }
     return value;
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -157,6 +161,9 @@ class NumberType extends Type<number> {
     }
     return value;
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
   min(x: number): this {
     this.opts.min = x;
     return this;
@@ -179,6 +186,9 @@ class UndefinedType extends Type<undefined> {
     }
     return value;
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 class NullType extends Type<null> {
@@ -187,6 +197,9 @@ class NullType extends Type<null> {
       throw new ValidationError('expected type to be null but got ' + typeOf(value));
     }
     return value;
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -203,11 +216,17 @@ class LiteralType<T extends Literal> extends Type<T> {
     }
     return value as T;
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 class UnknownType extends Type<unknown> {
   parse(value: unknown): unknown {
     return value;
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -225,6 +244,9 @@ class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
     //@ts-ignore
     return this.schema.parse(value, opts);
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
@@ -239,6 +261,9 @@ class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
       return null;
     }
     return this.schema.parse(value);
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -261,6 +286,9 @@ class DateType extends Type<Date> {
       throw new ValidationError('expected type Date but got ' + typeOf(value));
     }
     return value;
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -287,6 +315,16 @@ type DeepPartialShape<T extends ObjectShape> = {
   [key in keyof T]: T[key] extends ObjectType<infer K>
     ? OptionalType<ObjectType<DeepPartialShape<K>>>
     : OptionalType<T[key]>;
+};
+
+type MergeShapes<T extends ObjectShape, K extends ObjectShape> = {
+  [key in keyof (T & K)]: key extends keyof T
+    ? key extends keyof K
+      ? IntersectionType<T[key], K[key]>
+      : T[key]
+    : key extends keyof K
+    ? K[key]
+    : never;
 };
 
 class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
@@ -348,6 +386,30 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     }
     return convVal || (value as any);
   }
+
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
+
+  // and<K extends AnyType>(
+  //   schema: K
+  // ): K extends ObjectType<infer L> ? ObjectType<MergeShapes<T, L>> : IntersectionType<this, K> {
+  //   if (schema instanceof ObjectType) {
+  //     const keySet = new Set<string>([...(this as any)[shapekeysSymbol], ...(schema as any)[shapekeysSymbol]]);
+  //     const intersectShape = Array.from(keySet).reduce<Record<string, AnyType>>((acc, key) => {
+  //       if (this.objectShape[key] && schema.objectShape[key]) {
+  //         acc[key] = new IntersectionType(this.objectShape[key], schema.objectShape[key]);
+  //       } else if (this.objectShape[key]) {
+  //         acc[key] = this.objectShape[key];
+  //       } else {
+  //         acc[key] = schema.objectShape[key];
+  //       }
+  //       return acc;
+  //     }, {});
+  //     return new ObjectType(intersectShape) as any;
+  //   }
+  //   return new IntersectionType(this, schema) as any;
+  // }
 
   pick<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Pick<T, ToUnion<typeof keys>>>> {
     const pickedShape = keys.reduce<any>((acc, key) => {
@@ -413,6 +475,9 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
       }
     }
     return convValue || (value as any);
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -497,6 +562,9 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     this.opts.unique = value;
     return this;
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 type InferTuple<T extends [AnyType, ...AnyType[]] | []> = {
@@ -529,6 +597,9 @@ class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<InferTuple<
     }
     return convValue || (value as any);
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 type InferTupleUnion<T extends any[]> = Infer<T[number]>;
@@ -551,6 +622,9 @@ class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
       }
     }
     throw new ValidationError('No union satisfied:\n  ' + errors.join('\n  '));
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -637,6 +711,10 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
     return this._parse(value, opts);
   }
 
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
+
   private parseObjectIntersection(value: any, opts?: PathOptions): any {
     const parsingOptions = { suppressPathErrMsg: opts?.suppressPathErrMsg, allowUnknown: true };
     if ((this as any)[coercionTypeSybol]) {
@@ -693,6 +771,9 @@ class EnumType<T> extends Type<ValueOf<T>> {
   check(value: unknown): value is ValueOf<T> {
     return this.values.includes(value);
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 type DeepPartial<T> = { [key in keyof T]?: T[key] extends Object ? Eval<DeepPartial<T[key]>> : T[key] };
@@ -746,6 +827,9 @@ class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
   }
   parse(value: unknown): K extends { deep: true } ? Eval<DeepPartial<Infer<T>>> : Partial<Infer<T>> {
     return this.schema.parse(value);
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
@@ -826,6 +910,9 @@ class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<Pick<In
     }
     return this.schema.parse(value);
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 function createOmittedSchema(schema: AnyType, omittedKeys: any[]): AnyType {
@@ -883,6 +970,9 @@ class OmitType<T extends AnyType, K extends keyof Infer<T>> extends Type<Omit<In
     }
     return this.schema.parse(value);
   }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
 }
 
 class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
@@ -897,6 +987,9 @@ class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
       return schema.parse(value, opts) as any;
     }
     return schema.parse(value);
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
   }
 }
 
