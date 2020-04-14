@@ -527,6 +527,23 @@ describe('Zod Parsing', () => {
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
+
+    it('should return a new ObjectType when "and" with other object schema', () => {
+      const schema = z.object({}).and(z.object({}));
+      assert.ok(typeof schema.omit === 'function');
+      assert.ok(typeof schema.pick === 'function');
+      assert.ok(typeof schema.partial === 'function');
+    });
+
+    it('should return a new IntersectionType when "and" with non object schema', () => {
+      const schema = z.object({}).and(z.array(z.string()));
+      //@ts-ignore
+      assert.ok(typeof schema.omit === 'undefined');
+      //@ts-ignore
+      assert.ok(typeof schema.pick === 'undefined');
+      //@ts-ignore
+      assert.ok(typeof schema.partial === 'undefined');
+    });
   });
 
   describe('record parsing', () => {
@@ -831,7 +848,7 @@ describe('Zod Parsing', () => {
       const schema = z.intersection(recordA, recordB);
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2, b: 'string', c: true } });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "key" - unexpected keys on object ["c"]');
+      assert.equal(err.message, 'error parsing record at path "key" - unexpected keys on object: ["c"]');
     });
 
     it('should parse the intersection of partials objects', () => {
@@ -1079,7 +1096,7 @@ describe('Zod Parsing', () => {
       const schema = z.partial(schemaA.and(schemaB));
       const err = catchError(schema.parse.bind(schema))({ d: 'hey' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["d"]');
+      assert.equal(err.message, 'unexpected keys on object: ["d"]');
     });
 
     it('should make the values of a record optional', () => {

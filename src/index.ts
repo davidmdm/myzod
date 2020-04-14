@@ -1,7 +1,7 @@
 export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
-  abstract and<K extends AnyType>(schema: K): AnyType;
+  abstract and<K extends AnyType>(schema: K): any;
   or<K extends AnyType>(schema: K): UnionType<[Type<T>, K]> {
     return new UnionType([this, schema]);
   }
@@ -387,29 +387,33 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     return convVal || (value as any);
   }
 
-  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-    return new IntersectionType(this, schema);
-  }
-
-  // and<K extends AnyType>(
-  //   schema: K
-  // ): K extends ObjectType<infer L> ? ObjectType<MergeShapes<T, L>> : IntersectionType<this, K> {
-  //   if (schema instanceof ObjectType) {
-  //     const keySet = new Set<string>([...(this as any)[shapekeysSymbol], ...(schema as any)[shapekeysSymbol]]);
-  //     const intersectShape = Array.from(keySet).reduce<Record<string, AnyType>>((acc, key) => {
-  //       if (this.objectShape[key] && schema.objectShape[key]) {
-  //         acc[key] = new IntersectionType(this.objectShape[key], schema.objectShape[key]);
-  //       } else if (this.objectShape[key]) {
-  //         acc[key] = this.objectShape[key];
-  //       } else {
-  //         acc[key] = schema.objectShape[key];
-  //       }
-  //       return acc;
-  //     }, {});
-  //     return new ObjectType(intersectShape) as any;
-  //   }
-  //   return new IntersectionType(this, schema) as any;
+  // and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+  //   return new IntersectionType(this, schema);
   // }
+
+  and<K extends AnyType>(
+    schema: K
+  ): K extends ObjectType<any> // If I infer in the first clause it create instantiatore errors with DeepPartialShape in typescript versions <= 3.8
+    ? K extends ObjectType<infer L>
+      ? ObjectType<Eval<MergeShapes<T, L>>>
+      : IntersectionType<this, K>
+    : IntersectionType<this, K> {
+    if (schema instanceof ObjectType) {
+      const keySet = new Set<string>([...(this as any)[shapekeysSymbol], ...(schema as any)[shapekeysSymbol]]);
+      const intersectShape = Array.from(keySet).reduce<Record<string, AnyType>>((acc, key) => {
+        if (this.objectShape[key] && schema.objectShape[key]) {
+          acc[key] = new IntersectionType(this.objectShape[key], schema.objectShape[key]);
+        } else if (this.objectShape[key]) {
+          acc[key] = this.objectShape[key];
+        } else {
+          acc[key] = schema.objectShape[key];
+        }
+        return acc;
+      }, {});
+      return new ObjectType(intersectShape) as any;
+    }
+    return new IntersectionType(this, schema) as any;
+  }
 
   pick<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Pick<T, ToUnion<typeof keys>>>> {
     const pickedShape = keys.reduce<any>((acc, key) => {
