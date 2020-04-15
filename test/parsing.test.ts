@@ -1022,6 +1022,18 @@ describe('Zod Parsing', () => {
         subCategories: [],
       });
     });
+
+    it('should intersect two object arrays', () => {
+      const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+      const ret = schema.parse([
+        { a: 'hello', b: 'world' },
+        { a: 'number', b: '42' },
+      ]);
+      assert.deepEqual(ret, [
+        { a: 'hello', b: 'world' },
+        { a: 'number', b: '42' },
+      ]);
+    });
   });
 
   describe('enum parsing', () => {

@@ -16,9 +16,19 @@ describe('Parsing Benchmarks', { tolerance: 0.25 }, () => {
   });
 
   describe('Array', () => {
-    const schema = z.array(z.string());
-    const testData = ['hello', ' ', 'world', '!'];
-    it('String Array', () => schema.parse(testData));
+    const strArrSchema = z.array(z.string());
+    const stringArrayData = ['hello', ' ', 'world', '!'];
+    it('String Array', () => strArrSchema.parse(stringArrayData));
+
+    const objArrInterSchema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+
+    // type S = z.Infer<typeof objArrInterSchema>;
+
+    const objInterSectonArrayData = [
+      { a: 'hello', b: 'world' },
+      { a: 'number', b: '42' },
+    ];
+    it('intersection of two object arrays', () => objArrInterSchema.parse(objInterSectonArrayData));
   });
 
   describe('Object', () => {

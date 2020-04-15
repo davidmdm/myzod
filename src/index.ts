@@ -489,16 +489,17 @@ type ArrayOptions = Partial<{
 }>;
 
 class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
-  private readonly _parse: (value: unknown, parseOptions?: PathOptions) => any;
+  private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions) => any;
   constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
     super();
     (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
-        ? (elem: unknown) => (this.schema.parse as any)(elem, { suppressPathErrMsg: true })
+        ? (elem: unknown, parseOptions?: ObjectOptions) =>
+            (this.schema.parse as any)(elem, { allowUnknown: parseOptions?.allowUnknown, suppressPathErrMsg: true })
         : (elem: unknown) => this.schema.parse(elem);
   }
-  parse(value: unknown, parseOptions?: PathOptions): Infer<T>[] {
+  parse(value: unknown, parseOptions?: PathOptions & ObjectOptions): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
     }
@@ -534,7 +535,7 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
         if (convValue) {
           convValue[i] = this._parse(value[i]);
         } else {
-          this._parse(value[i]);
+          this._parse(value[i], parseOptions);
         }
       } catch (err) {
         const path = err.path ? [i, ...err.path] : [i];
@@ -684,6 +685,26 @@ class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<I
               ...this.right.parse(value, { allowUnknown: true }),
             };
           }
+          //@ts-ignore
+          this.left.parse(value, { allowUnknown: true });
+          //@ts-ignore
+          this.right.parse(value, { allowUnknown: true });
+          return value as any;
+        };
+      }
+      if (
+        this.left instanceof ArrayType &&
+        this.right instanceof ArrayType &&
+        (this.left as any).schema instanceof ObjectType &&
+        (this.right as any).schema instanceof ObjectType
+      ) {
+        if ((this as any)[coercionTypeSybol]) {
+          // todo best effort? Can figure something out if only one subschema is coerced. seems annoying though.
+          throw new Error(
+            'cannot create generic intersection of two object arrays containing coerced values. Try creating intersection via "and"'
+          );
+        }
+        return (value: unknown) => {
           //@ts-ignore
           this.left.parse(value, { allowUnknown: true });
           //@ts-ignore

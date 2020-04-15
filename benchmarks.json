@@ -8,6 +8,14 @@
         "bestElapsed": 100,
         "passed": true,
         "error": null
+      },
+      "intersection of two object arrays": {
+        "ratio": 1.048,
+        "elapsed": 391,
+        "iterationsPerSecond": 2557544,
+        "bestElapsed": 373,
+        "passed": true,
+        "error": null
       }
     },
     "Intersections": {

@@ -39,13 +39,13 @@ describe('Types test', () => {
     x;
   });
 
-  it('optional primitive', () => {
+  it('optional primitive - number', () => {
     const schema = z.number().optional();
     const x: AssertEqual<z.Infer<typeof schema>, number | undefined> = true;
     x;
   });
 
-  it('optional primitive', () => {
+  it('optional primitive - string', () => {
     const schema = z.string().optional();
     const x: AssertEqual<z.Infer<typeof schema>, string | undefined> = true;
     x;
