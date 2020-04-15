@@ -16,19 +16,29 @@ describe('Parsing Benchmarks', { tolerance: 0.25 }, () => {
   });
 
   describe('Array', () => {
-    const strArrSchema = z.array(z.string());
-    const stringArrayData = ['hello', ' ', 'world', '!'];
-    it('String Array', () => strArrSchema.parse(stringArrayData));
+    (() => {
+      const schema = z.array(z.string());
+      const data = ['hello', ' ', 'world', '!'];
+      it('String Array', () => schema.parse(data));
+    })();
 
-    const objArrInterSchema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+    (() => {
+      const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+      const data = [
+        { a: 'hello', b: 'world' },
+        { a: 'number', b: '42' },
+      ];
+      it('intersection of two object arrays', () => schema.parse(data));
+    })();
 
-    // type S = z.Infer<typeof objArrInterSchema>;
-
-    const objInterSectonArrayData = [
-      { a: 'hello', b: 'world' },
-      { a: 'number', b: '42' },
-    ];
-    it('intersection of two object arrays', () => objArrInterSchema.parse(objInterSectonArrayData));
+    (() => {
+      const schema = z.intersection(z.array(z.object({ a: z.string() })), z.array(z.object({ b: z.string() })));
+      const data = [
+        { a: 'hello', b: 'world' },
+        { a: 'number', b: '42' },
+      ];
+      it('generalized intersection of two object arrays', () => schema.parse(data));
+    })();
   });
 
   describe('Object', () => {
@@ -63,18 +73,18 @@ describe('Parsing Benchmarks', { tolerance: 0.25 }, () => {
   });
 
   describe('Intersections', () => {
-    describe('Object Intersections', () => {
+    (() => {
       const schema = z.object({ a: z.string() }).and(z.object({ b: z.number() }));
       const testData = { a: 'hello', b: 42 };
-      it('runner', () => schema.parse(testData));
-    });
+      it('Object Intersections', () => schema.parse(testData));
+    })();
 
-    describe('Object Intersections', () => {
+    (() => {
       const recordA = z.record(z.object({ a: z.string() }));
       const recordB = z.record(z.object({ b: z.number() }));
       const schema = recordA.and(recordB);
       const testData = { one: { a: 'hello', b: 1 }, two: { a: 'world', b: 2 } };
-      it('runner', () => schema.parse(testData));
-    });
+      it('object record intersections', () => schema.parse(testData));
+    })();
   });
 });

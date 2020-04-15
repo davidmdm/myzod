@@ -563,8 +563,21 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     this.opts.unique = value;
     return this;
   }
-  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-    return new IntersectionType(this, schema);
+  and<K extends AnyType>(
+    schema: K
+  ): K extends ArrayType<any>
+    ? K extends ArrayType<infer L>
+      ? L extends ObjectType<infer O1>
+        ? T extends ObjectType<infer O2>
+          ? ArrayType<ObjectType<MergeShapes<O1, O2>>>
+          : ArrayType<IntersectionType<T, L>>
+        : ArrayType<IntersectionType<T, L>>
+      : IntersectionType<this, K>
+    : IntersectionType<this, K> {
+    if (schema instanceof ArrayType) {
+      return new ArrayType(this.schema.and(schema.schema)) as any;
+    }
+    return new IntersectionType(this, schema) as any;
   }
 }
 
