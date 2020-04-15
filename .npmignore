@@ -5,3 +5,5 @@ coverage
 .tsconfig.json
 .prettierrc.json
 src
+
+benchmarks.json

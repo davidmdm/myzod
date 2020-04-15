@@ -387,10 +387,6 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     return convVal || (value as any);
   }
 
-  // and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-  //   return new IntersectionType(this, schema);
-  // }
-
   and<K extends AnyType>(
     schema: K
   ): K extends ObjectType<any> // If I infer in the first clause it create instantiatore errors with DeepPartialShape in typescript versions <= 3.8
