@@ -1,51 +1,11 @@
 {
   "Parsing Benchmarks": {
-    "String": {
-      "no validations": {
-        "ratio": 1.1041666666666667,
-        "elapsed": 53,
-        "iterationsPerSecond": 18867924,
-        "bestElapsed": 48,
-        "passed": true,
-        "error": null
-      }
-    },
-    "Number": {
-      "no validations": {
-        "ratio": 1.1411764705882352,
-        "elapsed": 97,
-        "iterationsPerSecond": 10309278,
-        "bestElapsed": 85,
-        "passed": true,
-        "error": null
-      }
-    },
     "Array": {
       "String Array": {
-        "ratio": 1.08,
-        "elapsed": 108,
-        "iterationsPerSecond": 9259259,
+        "ratio": 1.12,
+        "elapsed": 112,
+        "iterationsPerSecond": 8928571,
         "bestElapsed": 100,
-        "passed": true,
-        "error": null
-      }
-    },
-    "Object": {
-      "regular object": {
-        "ratio": 1.0583090379008746,
-        "elapsed": 363,
-        "iterationsPerSecond": 2754820,
-        "bestElapsed": 343,
-        "passed": true,
-        "error": null
-      }
-    },
-    "Records": {
-      "record of record": {
-        "ratio": 1.0441176470588236,
-        "elapsed": 213,
-        "iterationsPerSecond": 4694835,
-        "bestElapsed": 204,
         "passed": true,
         "error": null
       }
@@ -53,13 +13,53 @@
     "Intersections": {
       "Object Intersections": {
         "runner": {
-          "ratio": 1.0554272517321017,
-          "elapsed": 457,
-          "iterationsPerSecond": 2188183,
+          "ratio": 1.085,
+          "elapsed": 470,
+          "iterationsPerSecond": 2127659,
           "bestElapsed": 433,
           "passed": true,
           "error": null
         }
+      }
+    },
+    "Number": {
+      "no validations": {
+        "ratio": 1.035,
+        "elapsed": 88,
+        "iterationsPerSecond": 11363636,
+        "bestElapsed": 85,
+        "passed": true,
+        "error": null
+      }
+    },
+    "Object": {
+      "regular object": {
+        "ratio": 1.16,
+        "elapsed": 398,
+        "iterationsPerSecond": 2512562,
+        "bestElapsed": 343,
+        "passed": true,
+        "error": null
+      }
+    },
+    "Records": {
+      "record of record": {
+        "ratio": 1.127,
+        "elapsed": 230,
+        "iterationsPerSecond": 4347826,
+        "bestElapsed": 204,
+        "passed": true,
+        "error": null
+      }
+    },
+    "String": {
+      "no validations": {
+        "ratio": 1.083,
+        "elapsed": 52,
+        "iterationsPerSecond": 19230769,
+        "bestElapsed": 48,
+        "passed": true,
+        "error": null
       }
     }
   }
