@@ -1,4 +1,8 @@
+import assert from 'assert';
+import { inspect } from 'util';
+
 import * as z from '../src';
+import { ObjectType, ObjectShape, StringType, NumberType, RecordType, ArrayType } from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
@@ -194,5 +198,70 @@ describe('Types test', () => {
     );
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
     x;
+  });
+
+  describe('Recursive intersection', () => {
+    const object1 = z.object({ a: z.string() });
+    const record1 = z.record(object1);
+    const arr1 = z.array(record1);
+    const schema1 = z.object({
+      o: object1,
+      r: record1,
+      a: arr1,
+    });
+    const object2 = z.object({ b: z.number() });
+    const record2 = z.record(object2);
+    const arr2 = z.array(record2);
+    const schema2 = z.object({
+      o: object2,
+      r: record2,
+      a: arr2,
+    });
+    const schema = schema1.and(schema2);
+
+    it('typeof schema conditional inference', () => {
+      const x: AssertEqual<
+        typeof schema,
+        ObjectType<{
+          o: ObjectType<{ a: StringType; b: NumberType }>;
+          r: RecordType<ObjectType<{ a: StringType; b: NumberType }>>;
+          a: ArrayType<RecordType<ObjectType<{ a: StringType; b: NumberType }>>>;
+        }>
+      > = true;
+      x;
+    });
+
+    it('Infered typeof schema conditional inference', () => {
+      const x: AssertEqual<
+        z.Infer<typeof schema>,
+        {
+          o: { a: string; b: number };
+          r: Record<string, { a: string; b: number }>;
+          a: Record<string, { a: string; b: number }>[];
+        }
+      > = true;
+      x;
+    });
+
+    it('runtime - should recursivle create new Object Types inside object intersection', () => {
+      assert.ok(schema instanceof ObjectType);
+      const shape: ObjectShape = (schema as any).objectShape;
+
+      assert.ok(shape.o instanceof ObjectType);
+      const innerShape: ObjectShape = (shape.o as any).objectShape;
+      assert.ok(innerShape.a instanceof StringType);
+      assert.ok(innerShape.b instanceof NumberType);
+
+      assert.ok(shape.r instanceof RecordType);
+      assert.deepEqual((shape.r as any).schema, shape.o);
+
+      assert.ok(shape.a instanceof ArrayType);
+
+      // for some reason deepEqual fails... Maybe it doesn't like symbols? Infinite Hidden inspection works so I am ok with
+      // This as a test for deep equality
+      // assert.deepEqual((shape.a as any).schema, shape.r);
+      //@ts-ignore
+      assert.equal(inspect(shape.a.schema, true, Infinity), inspect(shape.r, true, Infinity));
+    });
   });
 });

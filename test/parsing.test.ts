@@ -1,5 +1,7 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
+import { ObjectType,  RecordType,  } from '../src/types';
+
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -530,9 +532,7 @@ describe('Zod Parsing', () => {
 
     it('should return a new ObjectType when "and" with other object schema', () => {
       const schema = z.object({}).and(z.object({}));
-      assert.ok(typeof schema.omit === 'function');
-      assert.ok(typeof schema.pick === 'function');
-      assert.ok(typeof schema.partial === 'function');
+      assert.ok(schema instanceof ObjectType);
     });
 
     it('should return a new IntersectionType when "and" with non object schema', () => {
@@ -616,13 +616,11 @@ describe('Zod Parsing', () => {
       assert.equal(ret.a.getTime(), date.getTime());
     });
 
-    // Here I can't really test via internal methods... So just log and ignore test
-    // for now... Maybe if I split into files I can make RecordType available internally
-    xit('the and of two records should return a record', () => {
+    it('the and of two records should return a record', () => {
       const r1 = z.record(z.object({ a: z.string() }));
       const r2 = z.record(z.object({ b: z.string() }));
       const schema = r1.and(r2);
-      console.log(schema);
+      assert.ok(schema instanceof RecordType);
     });
   });
 
