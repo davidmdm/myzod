@@ -8,7 +8,7 @@
     "test": "nyc mocha \"test/**/*test.ts\"",
     "build": "rm -rf ./libs && tsc",
     "pub": "npm t && npm run build && npm publish",
-    "bench": "find test -path '*.benchmark.ts' | xargs bench"
+    "bench": "find test -path '*.benchmark.ts' | xargs benchmonkey"
   },
   "keywords": [
     "typescript",
@@ -27,7 +27,7 @@
     "@types/benchmark": "^1.0.31",
     "@types/mocha": "^7.0.2",
     "@types/node": "^13.11.1",
-    "benchmonkey": "0.0.5",
+    "benchmonkey": "0.0.7",
     "mocha": "^7.1.1",
     "nyc": "^15.0.1",
     "prettier": "^2.0.4",
@@ -58,7 +58,7 @@
     "timeout": 5000,
     "exit": true
   },
-  "benchRunner": {
+  "benchmonkey": {
     "require": [
       "ts-node/register"
     ]

@@ -2,84 +2,102 @@
   "Parsing Benchmarks": {
     "Array": {
       "String Array": {
-        "ratio": 1.087,
-        "elapsed": 112,
-        "iterationsPerSecond": 8928571,
-        "bestElapsed": 103,
+        "ratio": 1.053,
+        "elapsed": 120,
+        "iterationsPerSecond": 8333333,
+        "bestIterationsPerSecond": 8333333,
+        "bestElapsed": 120,
         "passed": true,
         "error": null
       },
       "generalized intersection of two object arrays": {
-        "ratio": 1.073,
-        "elapsed": 426,
-        "iterationsPerSecond": 2347417,
-        "bestElapsed": 397,
+        "ratio": 1.048,
+        "elapsed": 437,
+        "iterationsPerSecond": 2288329,
+        "bestIterationsPerSecond": 2288329,
+        "bestElapsed": 437,
         "passed": true,
         "error": null
       },
       "intersection of two object arrays": {
-        "ratio": 1.071,
-        "elapsed": 453,
-        "iterationsPerSecond": 2207505,
-        "bestElapsed": 423,
+        "ratio": 1.098,
+        "elapsed": 481,
+        "iterationsPerSecond": 2079002,
+        "bestIterationsPerSecond": 2079002,
+        "bestElapsed": 481,
         "passed": true,
         "error": null
       }
     },
     "Intersections": {
+      "Generalized Object Intersection": {
+        "ratio": 1.413,
+        "elapsed": 356,
+        "iterationsPerSecond": 2808988,
+        "bestIterationsPerSecond": 2808988,
+        "bestElapsed": 356,
+        "passed": true,
+        "error": null
+      },
       "Object Intersections": {
-        "ratio": 1.042,
-        "elapsed": 274,
-        "iterationsPerSecond": 3649635,
-        "bestElapsed": 263,
+        "ratio": 1.389,
+        "elapsed": 282,
+        "iterationsPerSecond": 3546099,
+        "bestIterationsPerSecond": 3546099,
+        "bestElapsed": 282,
         "passed": true,
         "error": null
       },
       "object record intersections": {
-        "ratio": 1,
-        "elapsed": 460,
-        "iterationsPerSecond": 2173913,
-        "bestElapsed": 460,
+        "ratio": 1.022,
+        "elapsed": 472,
+        "iterationsPerSecond": 2118644,
+        "bestIterationsPerSecond": 2118644,
+        "bestElapsed": 472,
         "passed": true,
         "error": null
       }
     },
     "Number": {
       "no validations": {
-        "ratio": 0.926,
-        "elapsed": 88,
-        "iterationsPerSecond": 11363636,
-        "bestElapsed": 88,
+        "ratio": 1.135,
+        "elapsed": 101,
+        "iterationsPerSecond": 9900990,
+        "bestIterationsPerSecond": 9900990,
+        "bestElapsed": 101,
         "passed": true,
         "error": null
       }
     },
     "Object": {
       "regular object": {
-        "ratio": 1.02,
-        "elapsed": 417,
-        "iterationsPerSecond": 2398081,
-        "bestElapsed": 409,
+        "ratio": 0.993,
+        "elapsed": 436,
+        "iterationsPerSecond": 2293577,
+        "bestIterationsPerSecond": 2293577,
+        "bestElapsed": 436,
         "passed": true,
         "error": null
       }
     },
     "Records": {
       "record of record": {
-        "ratio": 0.983,
-        "elapsed": 234,
-        "iterationsPerSecond": 4273504,
-        "bestElapsed": 234,
+        "ratio": 1.089,
+        "elapsed": 268,
+        "iterationsPerSecond": 3731343,
+        "bestIterationsPerSecond": 3731343,
+        "bestElapsed": 268,
         "passed": true,
         "error": null
       }
     },
     "String": {
       "no validations": {
-        "ratio": 0.939,
-        "elapsed": 46,
-        "iterationsPerSecond": 21739130,
-        "bestElapsed": 46,
+        "ratio": 1.277,
+        "elapsed": 60,
+        "iterationsPerSecond": 16666666,
+        "bestIterationsPerSecond": 16666666,
+        "bestElapsed": 60,
         "passed": true,
         "error": null
       }
