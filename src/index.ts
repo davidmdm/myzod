@@ -53,6 +53,34 @@ const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
 const coercionTypeSybol = Symbol.for('coersion');
 
+type IntersectionResult<T extends AnyType, K extends AnyType> =
+  //
+  T extends ObjectType<any>
+    ? K extends ObjectType<any>
+      ? T extends ObjectType<infer Shape1>
+        ? K extends ObjectType<infer Shape2>
+          ? ObjectType<Eval<MergeShapes<Shape1, Shape2>>>
+          : IntersectionType<T, K>
+        : IntersectionType<T, K>
+      : IntersectionType<T, K>
+    : T extends ArrayType<any>
+    ? K extends ArrayType<any>
+      ? T extends ArrayType<infer S1>
+        ? K extends ArrayType<infer S2>
+          ? ArrayType<IntersectionResult<S1, S2>>
+          : IntersectionType<T, K>
+        : IntersectionType<T, K>
+      : IntersectionType<T, K> //
+    : T extends RecordType<any>
+    ? K extends RecordType<any>
+      ? T extends RecordType<infer S1>
+        ? K extends RecordType<infer S2>
+          ? RecordType<IntersectionResult<S1, S2>>
+          : IntersectionType<T, K>
+        : IntersectionType<T, K>
+      : IntersectionType<T, K>
+    : IntersectionType<T, K>;
+
 // Primitives
 
 type StringOptions = Partial<{
@@ -387,13 +415,7 @@ class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> 
     return convVal || (value as any);
   }
 
-  and<K extends AnyType>(
-    schema: K
-  ): K extends ObjectType<any> // If I infer in the first clause it create instantiatore errors with DeepPartialShape in typescript versions <= 3.8
-    ? K extends ObjectType<infer L>
-      ? ObjectType<Eval<MergeShapes<T, L>>>
-      : IntersectionType<this, K>
-    : IntersectionType<this, K> {
+  and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
     if (schema instanceof ObjectType) {
       const keySet = new Set<string>([...(this as any)[shapekeysSymbol], ...(schema as any)[shapekeysSymbol]]);
       const intersectShape = Array.from(keySet).reduce<Record<string, AnyType>>((acc, key) => {
@@ -439,11 +461,8 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
     (this as any)[coercionTypeSybol] = (schema as any)[coercionTypeSybol];
 
     this._parse = (() => {
-      if (this.schema instanceof ObjectType) {
-        return (value: unknown, opts?: PathOptions & ObjectOptions) =>
-          //@ts-ignore
-          this.schema.parse(value, { allowUnknown: opts?.allowUnknown, suppressPathErrMsg: true });
-      } else if (
+      if (
+        this.schema instanceof ObjectType ||
         this.schema instanceof ArrayType ||
         this.schema instanceof RecordType ||
         this.schema instanceof IntersectionType
@@ -476,8 +495,11 @@ class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>> {
     }
     return convValue || (value as any);
   }
-  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-    return new IntersectionType(this, schema);
+  and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
+    if (schema instanceof RecordType) {
+      return new RecordType(this.schema.and(schema.schema)) as any;
+    }
+    return new IntersectionType(this, schema) as any;
   }
 }
 
@@ -563,17 +585,7 @@ class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     this.opts.unique = value;
     return this;
   }
-  and<K extends AnyType>(
-    schema: K
-  ): K extends ArrayType<any>
-    ? K extends ArrayType<infer L>
-      ? L extends ObjectType<infer O1>
-        ? T extends ObjectType<infer O2>
-          ? ArrayType<ObjectType<MergeShapes<O1, O2>>>
-          : ArrayType<IntersectionType<T, L>>
-        : ArrayType<IntersectionType<T, L>>
-      : IntersectionType<this, K>
-    : IntersectionType<this, K> {
+  and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
     if (schema instanceof ArrayType) {
       return new ArrayType(this.schema.and(schema.schema)) as any;
     }

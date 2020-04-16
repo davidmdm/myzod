@@ -615,6 +615,15 @@ describe('Zod Parsing', () => {
       assert.ok(ret.a instanceof Date);
       assert.equal(ret.a.getTime(), date.getTime());
     });
+
+    // Here I can't really test via internal methods... So just log and ignore test
+    // for now... Maybe if I split into files I can make RecordType available internally
+    xit('the and of two records should return a record', () => {
+      const r1 = z.record(z.object({ a: z.string() }));
+      const r2 = z.record(z.object({ b: z.string() }));
+      const schema = r1.and(r2);
+      console.log(schema);
+    });
   });
 
   describe('array parsing', () => {
@@ -1034,6 +1043,28 @@ describe('Zod Parsing', () => {
         { a: 'number', b: '42' },
       ]);
     });
+
+    it('should fail if key is missing from intersect two object arrays', () => {
+      const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+      const err = catchError(schema.parse.bind(schema))([{ a: 'hello', b: 'world' }, { a: 'number' }]);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error at [1].b - expected type to be string but got undefined');
+    });
+
+    it('should fail if unknown key in intersect two object arrays', () => {
+      const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+      const err = catchError(schema.parse.bind(schema))([
+        { a: 'hello', b: 'world' },
+        { a: 'number', b: '42', c: 'hammock' },
+      ]);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error at [1] - unexpected keys on object: ["c"]');
+    });
+
+    it('and of two arrays should return an array type', () => {
+      const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
+      assert.equal(typeof schema.unique, 'function');
+    });
   });
 
   describe('enum parsing', () => {
@@ -1132,9 +1163,9 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
 
-    xit('should pass with empty object for object unions partial', () => {
+    it('should pass with empty object for object unions partial', () => {
       const schema = z.partial(z.object({ a: z.number() }).or(z.object({ b: z.string() })));
-      assert.deepEqual(schema.parse({}), { a: undefined, b: undefined });
+      assert.deepEqual(schema.parse({}), {});
     });
   });
 
