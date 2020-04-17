@@ -1,7 +1,6 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import { ObjectType,  RecordType,  } from '../src/types';
-
+import { ObjectType, RecordType } from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -129,6 +128,18 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'predicate error message');
     });
+
+    it('should "and" with another type', () => {
+      const schema = z.boolean().and(z.boolean().or(z.string()));
+      assert.equal(schema.parse(true), true);
+    });
+
+    it('should fail "and" with another type', () => {
+      const schema = z.boolean().and(z.boolean().or(z.string()));
+      const err = catchError(schema.parse.bind(schema))('hello');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be boolean but got string');
+    });
   });
 
   describe('boolean parsing', () => {
@@ -224,6 +235,18 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))('5');
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected number to be greater than or equal to 42 but got 5');
+    });
+
+    it('should "and" with another schema', () => {
+      const schema = z.number().and(z.number().or(z.string()));
+      assert.equal(schema.parse(42), 42);
+    });
+
+    it('should fail "and" with another schema', () => {
+      const schema = z.number().and(z.number().or(z.string()));
+      const err = catchError(schema.parse.bind(schema))('5');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be number but got string');
     });
   });
 

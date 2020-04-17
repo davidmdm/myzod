@@ -129,24 +129,17 @@ export class StringType extends Type<string> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  pattern(regexp: RegExp): this {
-    this.opts.pattern = regexp;
-    return this;
+  pattern(regexp: RegExp): StringType {
+    return new StringType({ ...this.opts, pattern: regexp });
   }
-  min(x: number): this {
-    this.opts.min = x;
-    return this;
+  min(x: number): StringType {
+    return new StringType({ ...this.opts, min: x });
   }
-  max(x: number): this {
-    this.opts.max = x;
-    return this;
+  max(x: number): StringType {
+    return new StringType({ ...this.opts, max: x });
   }
-  predicate(fn: StringOptions['predicate'], errMsg?: string): this {
-    this.opts.predicate = fn;
-    if (errMsg) {
-      this.opts.predicateErrMsg = errMsg;
-    }
-    return this;
+  predicate(fn: StringOptions['predicate'], errMsg?: string): StringType {
+    return new StringType({ ...this.opts, predicate: fn, predicateErrMsg: errMsg || this.opts.predicateErrMsg });
   }
 }
 
@@ -192,18 +185,14 @@ export class NumberType extends Type<number> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  min(x: number): this {
-    this.opts.min = x;
-    return this;
+  min(x: number): NumberType {
+    return new NumberType({ ...this.opts, min: x });
   }
-  max(x: number): this {
-    this.opts.max = x;
-    return this;
+  max(x: number): NumberType {
+    return new NumberType({ ...this.opts, max: x });
   }
-  coerce(value?: boolean): this {
-    this.opts.coerce = typeof value === 'undefined' ? true : value;
-    (this as any)[coercionTypeSybol] = this.opts.coerce;
-    return this;
+  coerce(value?: boolean): NumberType {
+    return new NumberType({ ...this.opts, coerce: value !== undefined ? value : true });
   }
 }
 
@@ -570,21 +559,17 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     }
     return convValue || value;
   }
-  length(value: number): this {
-    this.opts.length = value;
-    return this;
+  length(value: number): ArrayType<T> {
+    return new ArrayType(this.schema, { ...this.opts, length: value });
   }
-  min(value: number): this {
-    this.opts.min = value;
-    return this;
+  min(value: number): ArrayType<T> {
+    return new ArrayType(this.schema, { ...this.opts, min: value });
   }
-  max(value: number): this {
-    this.opts.max = value;
-    return this;
+  max(value: number): ArrayType<T> {
+    return new ArrayType(this.schema, { ...this.opts, max: value });
   }
-  unique(value: boolean = true): this {
-    this.opts.unique = value;
-    return this;
+  unique(value: boolean = true): ArrayType<T> {
+    return new ArrayType(this.schema, { ...this.opts, unique: value });
   }
   and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
     if (schema instanceof ArrayType) {
