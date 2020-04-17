@@ -45,7 +45,7 @@ function prettyPrintPath(path: (number | string)[]): string {
   }, '');
 }
 
-type Eval<T> = T extends any[] | Date ? T : { [Key in keyof T]: T[Key] } & {};
+export type Eval<T> = T extends any[] | Date ? T : { [Key in keyof T]: T[Key] } & {};
 export type AnyType = Type<any>;
 export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
@@ -53,7 +53,7 @@ const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
 const coercionTypeSybol = Symbol.for('coersion');
 
-type IntersectionResult<T extends AnyType, K extends AnyType> =
+export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
   T extends ObjectType<any>
     ? K extends ObjectType<any>
@@ -324,9 +324,9 @@ type RequiredKeys<T extends ObjectShape> = Exclude<keyof T, OptionalKeys<T>>;
 type InferObjectShape<T extends ObjectShape> = { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
   { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
 
-type ToUnion<T extends any[]> = T[number];
-type PartialShape<T extends ObjectShape> = { [key in keyof T]: UnionType<[T[key], UndefinedType]> };
-type DeepPartialShape<T extends ObjectShape> = {
+export type ToUnion<T extends any[]> = T[number];
+export type PartialShape<T extends ObjectShape> = { [key in keyof T]: UnionType<[T[key], UndefinedType]> };
+export type DeepPartialShape<T extends ObjectShape> = {
   [key in keyof T]: T[key] extends ObjectType<infer K>
     ? OptionalType<ObjectType<DeepPartialShape<K>>>
     : OptionalType<T[key]>;
@@ -662,15 +662,6 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
       if (this.left instanceof TupleType || this.right instanceof TupleType) {
         throw new Error('tuple intersection not supported');
       }
-      if (this.left instanceof ObjectType && this.right instanceof ObjectType) {
-        return (value: unknown, opts?: PathOptions) => this.parseObjectIntersection(value, opts);
-      }
-      if (this.left instanceof RecordType && this.right instanceof RecordType) {
-        const leftSchema: Type<any> = (this.left as any).schema;
-        const rightSchema: Type<any> = (this.right as any).schema;
-        const record = new RecordType(leftSchema.and(rightSchema));
-        return (value: unknown) => record.parse(value);
-      }
       if (this.left instanceof RecordType && this.right instanceof ObjectType) {
         //@ts-ignore
         return (value: unknown) => this.parseRecordObjectIntersection(value, this.left, this.right);
@@ -703,26 +694,6 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
           return value as any;
         };
       }
-      if (
-        this.left instanceof ArrayType &&
-        this.right instanceof ArrayType &&
-        (this.left as any).schema instanceof ObjectType &&
-        (this.right as any).schema instanceof ObjectType
-      ) {
-        if ((this as any)[coercionTypeSybol]) {
-          // todo best effort? Can figure something out if only one subschema is coerced. seems annoying though.
-          throw new Error(
-            'cannot create generic intersection of two object arrays containing coerced values. Try creating intersection via "and"'
-          );
-        }
-        return (value: unknown) => {
-          //@ts-ignore
-          this.left.parse(value, { allowUnknown: true });
-          //@ts-ignore
-          this.right.parse(value, { allowUnknown: true });
-          return value as any;
-        };
-      }
       return (value: unknown) => {
         this.left.parse(value);
         this.right.parse(value);
@@ -745,19 +716,6 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
-  }
-
-  private parseObjectIntersection(value: any, opts?: PathOptions): any {
-    const parsingOptions = { suppressPathErrMsg: opts?.suppressPathErrMsg, allowUnknown: true };
-    if ((this as any)[coercionTypeSybol]) {
-      return {
-        ...((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions),
-        ...((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions),
-      };
-    }
-    ((this.left as unknown) as ObjectType<any>).parse(value, parsingOptions);
-    ((this.right as unknown) as ObjectType<any>).parse(value, parsingOptions);
-    return value;
   }
 
   private parseRecordObjectIntersection(value: any, recordSchema: RecordType<any>, objectSchema: ObjectType<any>): any {

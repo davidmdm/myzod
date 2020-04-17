@@ -829,7 +829,7 @@ describe('Zod Parsing', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() }));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 3, c: true, d: false });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["c","d"]');
+      assert.equal(err.message, 'unexpected keys on object: ["c","d"]');
     });
 
     it('should reduce union types to their interseciton', () => {

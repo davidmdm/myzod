@@ -7,7 +7,6 @@ import {
   ObjectType,
   ArrayType,
   UnionType,
-  IntersectionType,
   RecordType,
   PartialType,
   PickType,
@@ -30,6 +29,10 @@ import {
   UnionOptions,
   Infer,
   PartialOpts,
+  IntersectionResult,
+  DeepPartialShape,
+  PartialShape,
+  Eval,
 } from './types';
 
 export { ValidationError, Type, Infer } from './types';
@@ -42,15 +45,28 @@ export const literal = <T extends Literal>(literal: T) => new LiteralType(litera
 export const object = <T extends ObjectShape>(shape: T, opts?: ObjectOptions) => new ObjectType(shape, opts);
 export const array = <T extends AnyType>(type: T, opts?: ArrayOptions) => new ArrayType(type, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
-export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K) => new IntersectionType(l, r);
+export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
 export const record = <T extends AnyType>(type: T) => new RecordType(type);
 export const dictionary = <T extends AnyType>(type: T) => new RecordType(union([type, undefinedValue()]));
-export const partial = <T extends AnyType, K extends PartialOpts>(type: T, opts?: K) => new PartialType(type, opts);
 export const pick = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new PickType(type, keys);
 export const omit = <T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]) => new OmitType(type, keys);
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 export const date = () => new DateType();
 export const lazy = <T extends () => AnyType>(fn: T) => new LazyType(fn);
+
+export const partial = <T extends AnyType, K extends PartialOpts>(
+  schema: T,
+  opts?: K
+): T extends ObjectType<any>
+  ? T extends ObjectType<infer Shape>
+    ? ObjectType<Eval<K extends { deep: true } ? DeepPartialShape<Shape> : PartialShape<Shape>>>
+    : never
+  : PartialType<T, K> => {
+  if (schema instanceof ObjectType) {
+    return schema.partial(opts) as any;
+  }
+  return new PartialType(schema, opts) as any;
+};
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
