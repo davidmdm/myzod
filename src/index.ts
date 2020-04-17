@@ -34,7 +34,6 @@ import {
   PartialShape,
   Eval,
   ToUnion,
-  OptionalType,
 } from './types';
 
 export { ValidationError, Type, Infer } from './types';
@@ -49,34 +48,45 @@ export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions) => new 
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
 export const record = <T extends AnyType>(schema: T) => new RecordType(schema);
-export const dictionary = <T extends AnyType>(schema: T) => new RecordType(new OptionalType(schema));
+export const dictionary = <T extends AnyType>(schema: T) => new RecordType(schema.optional());
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 export const date = () => new DateType();
 export const lazy = <T extends () => AnyType>(fn: T) => new LazyType(fn);
 
-export const partial = <T extends AnyType, K extends PartialOpts>(
+export function partial<T extends ObjectType<any>, K extends PartialOpts>(
   schema: T,
   opts?: K
-): T extends ObjectType<any>
-  ? T extends ObjectType<infer Shape>
-    ? ObjectType<Eval<K extends { deep: true } ? DeepPartialShape<Shape> : PartialShape<Shape>>>
-    : never
-  : PartialType<T, K> => {
+): T extends ObjectType<infer Shape>
+  ? ObjectType<Eval<K extends { deep: true } ? DeepPartialShape<Shape> : PartialShape<Shape>>>
+  : never;
+export function partial<T extends AnyType, K extends PartialOpts>(schema: T, opts?: K): PartialType<T, K>;
+export function partial(schema: any, opts: any): any {
   if (schema instanceof ObjectType) {
     return schema.partial(opts) as any;
   }
   return new PartialType(schema, opts) as any;
-};
+}
 
-// pick<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Pick<T, ToUnion<typeof keys>>>>
 export function pick<T extends ObjectType<any>, K extends T extends ObjectType<infer Shape> ? keyof Shape : never>(
   schema: T,
   keys: K[]
 ): T extends ObjectType<infer Shape> ? ObjectType<Eval<Pick<Shape, ToUnion<typeof keys>>>> : never;
+export function pick<T extends RecordType<any>, K extends string>(
+  schema: T,
+  keys: K[]
+): T extends RecordType<infer Schema> ? ObjectType<{ [key in ToUnion<typeof keys>]: Schema }> : never;
 export function pick<T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]): PickType<T, K>;
 export function pick(schema: any, keys: any): any {
   if (schema instanceof ObjectType) {
     return schema.pick(keys);
+  }
+  if (schema instanceof RecordType) {
+    return new ObjectType(
+      (keys as string[]).reduce<ObjectShape>((acc, key) => {
+        acc[key] = (schema as any).schema as AnyType;
+        return acc;
+      }, {})
+    );
   }
   return new PickType(schema, keys);
 }

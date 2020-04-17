@@ -1228,7 +1228,7 @@ describe('Zod Parsing', () => {
       const schema = z.pick(z.record(z.number()), ['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 1 });
       assert.equal(err instanceof z.ValidationError, true, 'Did not throw ValidationError');
-      assert.equal(err.message, 'error parsing record at path "b" - expected type to be number but got undefined');
+      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
     });
 
     it('should pass if picked object intersection type is satisfied', () => {

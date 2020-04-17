@@ -2,7 +2,7 @@ import assert from 'assert';
 import { inspect } from 'util';
 
 import * as z from '../src';
-import { ObjectType, ObjectShape, StringType, NumberType, RecordType, ArrayType } from '../src/types';
+import { ObjectType, ObjectShape, StringType, NumberType, RecordType, ArrayType, OptionalType } from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
@@ -181,6 +181,17 @@ describe('Types test', () => {
     );
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c: number; d: { e: number } } }> = true;
     x;
+
+    const assertIsOptionalOf = (schema: any, type: any) => {
+      assert.ok(schema instanceof OptionalType);
+      assert.ok(schema.schema instanceof type);
+    };
+
+    assert.ok(schema instanceof ObjectType);
+    const shape: ObjectShape = (schema as any).objectShape;
+
+    assertIsOptionalOf(shape.a, StringType);
+    assertIsOptionalOf(shape.b, ObjectType);
   });
 
   it('deep partial', () => {
@@ -198,6 +209,41 @@ describe('Types test', () => {
     );
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
     x;
+  });
+
+  describe('runtime shapes', () => {
+    it('should create a new object type from a pick of an object', () => {
+      const schema = z.pick(z.object({ a: z.string(), b: z.string() }), ['a']);
+      const x: AssertEqual<ObjectType<{ a: StringType }>, typeof schema> = true;
+      x;
+
+      assert.ok(schema instanceof ObjectType);
+      const shape: ObjectShape = (schema as any).objectShape;
+      assert.deepEqual(Object.keys(shape), ['a']);
+      assert.ok(shape.a instanceof StringType);
+    });
+
+    it('should create a new object type from a omit of an object', () => {
+      const schema = z.omit(z.object({ a: z.string(), b: z.string() }), ['a']);
+      const x: AssertEqual<ObjectType<{ b: StringType }>, typeof schema> = true;
+      x;
+
+      assert.ok(schema instanceof ObjectType);
+      const shape: ObjectShape = (schema as any).objectShape;
+      assert.deepEqual(Object.keys(shape), ['b']);
+      assert.ok(shape.b instanceof StringType);
+    });
+
+    it('should create a new objectType from the pick of a record', () => {
+      const schema = z.pick(z.record(z.string()), ['a', 'b']);
+      const x: AssertEqual<ObjectType<{ a: StringType; b: StringType }>, typeof schema> = true;
+      x;
+      assert.ok(schema instanceof ObjectType);
+      const shape: ObjectShape = (schema as any).objectShape;
+      assert.deepEqual(Object.keys(shape), ['a', 'b']);
+      assert.ok(shape.a instanceof StringType);
+      assert.ok(shape.b instanceof StringType);
+    });
   });
 
   describe('Recursive intersection', () => {
