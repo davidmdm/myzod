@@ -645,6 +645,39 @@ describe('Zod Parsing', () => {
       const schema = r1.and(r2);
       assert.ok(schema instanceof RecordType);
     });
+
+    it('should pick from a record', () => {
+      const schema = z.record(z.string()).pick(['a', 'b']);
+      const ret = schema.parse({ a: 'hello', b: 'world' });
+      assert.deepEqual(ret, { a: 'hello', b: 'world' });
+    });
+
+    it('should fail if missing keys from picked records', () => {
+      const schema = z.record(z.string()).pick(['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be string but got undefined');
+    });
+
+    it('should fail if unknown keys in picked records', () => {
+      const schema = z.record(z.string()).pick(['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: '!!!' });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+    });
+
+    it('should pick from a dictionary', () => {
+      const schema = z.dictionary(z.string()).pick(['a', 'b']);
+      assert.deepEqual(schema.parse({ a: 'hello', b: 'world' }), { a: 'hello', b: 'world' });
+      assert.deepEqual(schema.parse({}), {});
+    });
+
+    it('should fail if unknown keys in picked dictionaries', () => {
+      const schema = z.record(z.string()).pick(['a', 'b']);
+      const err = catchError(schema.parse.bind(schema))({ c: '!!!' });
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+    });
   });
 
   describe('array parsing', () => {
@@ -1333,6 +1366,33 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yo' });
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+    });
+
+    it('should pick the intersection of a record and an object correctly', () => {
+      const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
+      const ret = schema.parse({ a: 'hello', c: true });
+      assert.deepEqual(ret, { a: 'hello', c: true });
+    });
+
+    it('should fail if missing key from pick the intersection of a record and an object', () => {
+      const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be boolean but got undefined');
+    });
+
+    it('should fail if missing key from pick the intersection of a record and an object - Inverted LR', () => {
+      const schema = z.pick(z.record(z.boolean()).and(z.object({ a: z.string(), b: z.number() })), ['a', 'c']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be boolean but got undefined');
+    });
+
+    it('should fail if unknown key from pick the intersection of a record and an object', () => {
+      const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 42, c: true });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
     });
   });
 

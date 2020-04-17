@@ -425,7 +425,9 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
 
   pick<K extends keyof T>(keys: K[], opts?: ObjectOptions): ObjectType<Eval<Pick<T, ToUnion<typeof keys>>>> {
     const pickedShape = keys.reduce<any>((acc, key) => {
-      acc[key] = this.objectShape[key];
+      if (this.objectShape[key]) {
+        acc[key] = this.objectShape[key];
+      }
       return acc;
     }, {});
     return new ObjectType(pickedShape, opts);
@@ -490,6 +492,14 @@ export class RecordType<T extends AnyType> extends Type<Record<string, Infer<T>>
       return new RecordType(this.schema.and(schema.schema)) as any;
     }
     return new IntersectionType(this, schema) as any;
+  }
+  pick<K extends string>(keys: K[]): ObjectType<{ [key in ToUnion<typeof keys>]: T }> {
+    return new ObjectType(
+      (keys as string[]).reduce<any>((acc, key) => {
+        acc[key] = this.schema;
+        return acc;
+      }, {})
+    );
   }
 }
 
@@ -840,18 +850,26 @@ function isPrimitiveSchema(schema: AnyType): boolean {
 
 function createPickedSchema(schema: AnyType, pickedKeys: any[]): AnyType {
   if (schema instanceof ObjectType) {
-    const shape = (schema as any).objectShape;
-    const pickedShape = pickedKeys.reduce<any>((acc, key) => {
-      if (shape[key]) {
-        acc[key] = shape[key];
-      }
-      return acc;
-    }, {});
-    return new ObjectType(pickedShape, { allowUnknown: true });
+    return schema.pick(pickedKeys);
+  }
+  if (schema instanceof RecordType) {
+    return schema.pick(pickedKeys);
   }
   if (schema instanceof IntersectionType) {
-    const newLeft = createPickedSchema((schema as any).left, pickedKeys);
-    const newRight = createPickedSchema((schema as any).right, pickedKeys);
+    const l: AnyType = (schema as any).left;
+    const r: AnyType = (schema as any).right;
+    if (l instanceof ObjectType && r instanceof RecordType) {
+      const objectKeys = (l as any)[shapekeysSymbol] as string[];
+      const recordKeys = pickedKeys.filter(key => !objectKeys.includes(key));
+      return l.pick(pickedKeys).and(r.pick(recordKeys));
+    }
+    if (l instanceof RecordType && r instanceof ObjectType) {
+      const objectKeys = (r as any)[shapekeysSymbol] as string[];
+      const recordKeys = pickedKeys.filter(key => !objectKeys.includes(key));
+      return r.pick(pickedKeys).and(l.pick(recordKeys));
+    }
+    const newLeft = createPickedSchema(l, pickedKeys);
+    const newRight = createPickedSchema(r, pickedKeys);
     return new IntersectionType(newLeft, newRight);
   }
   if (schema instanceof PickType || schema instanceof OmitType) {
@@ -875,6 +893,7 @@ export class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<
       throw new Error('cannot instantiate a PickType with a primitive schema');
     }
     this.schema = createPickedSchema(rootSchema, pickedKeys);
+    console.log('BANANA BOAT');
     const rootShapeKeys = (rootSchema as any)[shapekeysSymbol];
     (this as any)[shapekeysSymbol] = rootShapeKeys && rootShapeKeys.filter((key: any) => pickedKeys.includes(key));
     (this as any)[coercionTypeSybol] = (this.schema as any)[coercionTypeSybol];
@@ -890,14 +909,7 @@ export class PickType<T extends AnyType, K extends keyof Infer<T>> extends Type<
         throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
       }
     }
-    // For records if the key isn't present the record won't be able to validate it.
-    if (this.schema instanceof RecordType) {
-      for (const key of this.pickedKeys) {
-        if (!(value as object).hasOwnProperty(key)) {
-          (value as any)[key] = undefined;
-        }
-      }
-    }
+
     return this.schema.parse(value);
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {

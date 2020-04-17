@@ -81,12 +81,7 @@ export function pick(schema: any, keys: any): any {
     return schema.pick(keys);
   }
   if (schema instanceof RecordType) {
-    return new ObjectType(
-      (keys as string[]).reduce<ObjectShape>((acc, key) => {
-        acc[key] = (schema as any).schema as AnyType;
-        return acc;
-      }, {})
-    );
+    return schema.pick(keys);
   }
   return new PickType(schema, keys);
 }

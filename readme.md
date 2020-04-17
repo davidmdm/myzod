@@ -389,6 +389,18 @@ type Schema = {
 };
 ```
 
+As a utility you can pick directly from a recordSchema and get an equivalent objectSchema:
+
+```typescript
+const recordSchema = z.record(z.string());
+
+type RecordType = z.Infer<typeof recordSchema>; // => { [x: string]: string }
+
+const objSchema = recordSchema.pick(['a', 'b']);
+
+type ObjType = z.Infer<typeof objSchema>; // => { a: string; b: string; }
+```
+
 As a utility for creating records whose values are by default optional, you can use the myzod.dictionary function.
 
 ```typescript
