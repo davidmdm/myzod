@@ -908,7 +908,7 @@ describe('Zod Parsing', () => {
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 123, c: 'patate' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["c"]');
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if key is missing from intersect of two picked types', () => {
@@ -934,7 +934,7 @@ describe('Zod Parsing', () => {
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["c"]');
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if missing key in intersect of two omit types', () => {
@@ -960,7 +960,7 @@ describe('Zod Parsing', () => {
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["c"]');
+      assert.equal(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if missing key in intersect of pick and omit types', () => {
@@ -986,7 +986,7 @@ describe('Zod Parsing', () => {
         .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 42, d: true });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object ["b"]');
+      assert.equal(err.message, 'unexpected keys on object: ["b"]');
     });
 
     it('should fail if missing key in intersect of pick and some other complex type', () => {
@@ -1442,7 +1442,7 @@ describe('Zod Parsing', () => {
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
     });
 
     it('should work for omit of omit', () => {
@@ -1475,7 +1475,7 @@ describe('Zod Parsing', () => {
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.equal(err.message, 'unexpected keys on object: ["a","b"]');
     });
   });
 
