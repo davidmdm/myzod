@@ -74,9 +74,9 @@ Primitive Types
 Reference Types
 
 - [object](#object)
+- [record](#record)
 - [array](#array)
 - [tuple](#tuple)
-- [record](#record)
 - [enum](#enum)
 - [date](#date)
 
@@ -319,45 +319,22 @@ const schema = myzod
 type DeeplyPartialSchema = myzod.Infer<typeof schema>; // { name?: string; birthday?: { year?: number; month?: number; date?: number; } }
 ```
 
-#### Array
+##### Key Signatures
 
-options:
-
-- length: `number` - the expected length of the array
-- min: `number` - the minimum length of the array
-- max: `number` - the maximum length of the array
-- unique: `boolean` - should the array be unique. default `false`
-
-Signature:
+In the next section myzod goes over "records" which is the simple and idiomatic way in typescript of describing an object with solely a key signature.
+However you can use key signatures directly in your object schema definitions if you like using the myzod.keySignature symbol.
 
 ```typescript
-function array(schema: Type<T>, opts?: Options);
+const scores = myzod.object({ [myzod.keySignature]: myzod.number() }); // same as: myzod.record(myzod.number());
+
+type Scores = myzod.Infer<typeof scores>; // => { [x: string]: number }
 ```
 
-Example:
-
-```typescript
-const schema = myzod.array(myzod.number()).unique();
-
-type Schema = Infer<typeof schema>; // => string[]
-
-schema.parse([1, 1, 2]); // => throws ValidationError
-```
-
-#### Tuple
-
-Tuples are similar to arrays but allow for mixed types of static length.
-Note that myzod does not support intersections of tuple types at this time.
-
-```typescript
-const schema = myzod.tuple([myzod.string(), myzod.object({ key: myzod.boolean() }), myzod.array(myzod.number())]);
-
-type Schema = Infer<typeof schema>; // => [string, { key: boolean; }, number[]];
-```
+The advantage of this approach is to mix statically known keys with a keysignature without intersecting records and objects.
 
 #### Record
 
-The record type emulates as the equivalent typescript type: `Record<string, T>`.
+The record function emulates as the equivalent typescript type: `Record<string, T>`.
 
 ```typescript
 const schema = myzod.record(myzod.string());
@@ -412,6 +389,42 @@ type Schema = Infer<typeof schema>; // => { [key: string]: string | undefined }
 
 // Note I have experienced issues with vscode type hints omitting the undefined union
 // however when running tsc it evaluates Schema as the type above.
+```
+
+#### Array
+
+options:
+
+- length: `number` - the expected length of the array
+- min: `number` - the minimum length of the array
+- max: `number` - the maximum length of the array
+- unique: `boolean` - should the array be unique. default `false`
+
+Signature:
+
+```typescript
+function array(schema: Type<T>, opts?: Options);
+```
+
+Example:
+
+```typescript
+const schema = myzod.array(myzod.number()).unique();
+
+type Schema = Infer<typeof schema>; // => string[]
+
+schema.parse([1, 1, 2]); // => throws ValidationError
+```
+
+#### Tuple
+
+Tuples are similar to arrays but allow for mixed types of static length.
+Note that myzod does not support intersections of tuple types at this time.
+
+```typescript
+const schema = myzod.tuple([myzod.string(), myzod.object({ key: myzod.boolean() }), myzod.array(myzod.number())]);
+
+type Schema = Infer<typeof schema>; // => [string, { key: boolean; }, number[]];
 ```
 
 #### Enum

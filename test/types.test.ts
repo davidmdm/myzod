@@ -2,7 +2,7 @@ import assert from 'assert';
 import { inspect } from 'util';
 
 import * as z from '../src';
-import { ObjectType, ObjectShape, StringType, NumberType, RecordType, ArrayType, OptionalType } from '../src/types';
+import { ObjectType, ObjectShape, StringType, NumberType, ArrayType, OptionalType } from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
@@ -241,6 +241,7 @@ describe('Types test', () => {
       assert.ok(schema instanceof ObjectType);
       const shape: ObjectShape = (schema as any).objectShape;
       assert.deepEqual(Object.keys(shape), ['a', 'b']);
+      assert.equal(shape[z.keySignature], undefined);
       assert.ok(shape.a instanceof StringType);
       assert.ok(shape.b instanceof StringType);
     });
@@ -270,8 +271,8 @@ describe('Types test', () => {
         typeof schema,
         ObjectType<{
           o: ObjectType<{ a: StringType; b: NumberType }>;
-          r: RecordType<ObjectType<{ a: StringType; b: NumberType }>>;
-          a: ArrayType<RecordType<ObjectType<{ a: StringType; b: NumberType }>>>;
+          r: ObjectType<{ [z.keySignature]: ObjectType<{ a: StringType; b: NumberType }> }>;
+          a: ArrayType<ObjectType<{ [z.keySignature]: ObjectType<{ a: StringType; b: NumberType }> }>>;
         }>
       > = true;
       x;
@@ -298,14 +299,10 @@ describe('Types test', () => {
       assert.ok(innerShape.a instanceof StringType);
       assert.ok(innerShape.b instanceof NumberType);
 
-      assert.ok(shape.r instanceof RecordType);
-      assert.deepEqual((shape.r as any).schema, shape.o);
-
+      assert.ok(shape.r instanceof ObjectType);
+      //@ts-ignore
+      assert.equal(inspect(shape.r.objectShape[z.keySignature], true, Infinity), inspect(shape.o, true, Infinity));
       assert.ok(shape.a instanceof ArrayType);
-
-      // for some reason deepEqual fails... Maybe it doesn't like symbols? Infinite Hidden inspection works so I am ok with
-      // This as a test for deep equality
-      // assert.deepEqual((shape.a as any).schema, shape.r);
       //@ts-ignore
       assert.equal(inspect(shape.a.schema, true, Infinity), inspect(shape.r, true, Infinity));
     });

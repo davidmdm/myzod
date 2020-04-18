@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import { ObjectType, RecordType } from '../src/types';
+import { ObjectType, ObjectShape } from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -593,14 +593,14 @@ describe('Zod Parsing', () => {
       const schema = z.record(z.boolean());
       const err = catchError(schema.parse.bind(schema))({ a: 'true', b: false });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "a" - expected type to be boolean but got string');
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be boolean but got string');
     });
 
     it('should give meaningful error messages for object records with nested errors', () => {
       const schema = z.record(z.object({ a: z.object({ b: z.boolean() }) }));
       const err = catchError(schema.parse.bind(schema))({ key: { a: { b: 'hello' } } });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "key.a.b" - expected type to be boolean but got string');
+      assert.equal(err.message, 'error parsing object at path: "key.a.b" - expected type to be boolean but got string');
       assert.deepEqual((err as z.ValidationError).path, ['key', 'a', 'b']);
     });
 
@@ -608,7 +608,7 @@ describe('Zod Parsing', () => {
       const schema = z.record(z.boolean());
       const err = catchError(schema.parse.bind(schema))({ a: undefined, b: false });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "a" - expected type to be boolean but got undefined');
+      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be boolean but got undefined');
     });
 
     it('should pass if a key is present on object but value is undefined if using dictionary', () => {
@@ -639,11 +639,14 @@ describe('Zod Parsing', () => {
       assert.equal(ret.a.getTime(), date.getTime());
     });
 
-    it('the and of two records should return a record', () => {
+    it('the and of two records should return a ObjectType', () => {
       const r1 = z.record(z.object({ a: z.string() }));
       const r2 = z.record(z.object({ b: z.string() }));
       const schema = r1.and(r2);
-      assert.ok(schema instanceof RecordType);
+      assert.ok(schema instanceof ObjectType);
+      const shape: ObjectShape = (schema as any).objectShape;
+      assert.deepEqual(Object.keys(shape), []);
+      assert.ok(shape[z.keySignature] instanceof ObjectType);
     });
 
     it('should pick from a record', () => {
@@ -902,7 +905,7 @@ describe('Zod Parsing', () => {
       const schema = z.intersection(recordA, recordB);
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2 } });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "key.b" - expected type to be string but got undefined');
+      assert.equal(err.message, 'error parsing object at path: "key.b" - expected type to be string but got undefined');
     });
 
     it('should fail if the value contains object keys not in Record<object> intersection', () => {
@@ -911,7 +914,7 @@ describe('Zod Parsing', () => {
       const schema = z.intersection(recordA, recordB);
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2, b: 'string', c: true } });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing record at path "key" - unexpected keys on object: ["c"]');
+      assert.equal(err.message, 'error parsing object at path: "key" - unexpected keys on object: ["c"]');
     });
 
     it('should parse the intersection of partials objects', () => {
@@ -1284,24 +1287,6 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
     });
 
-    it('should fail on construction of primitive schema if root is primitive', () => {
-      // @ts-ignore
-      for (const type of [z.string, z.boolean, z.undefined, z.unknown, z.null, z.number]) {
-        const err = catchError(z.pick)(type(), ['a']);
-        assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
-      }
-    });
-
-    it('should fail on construction of intesection of primitive schemas', () => {
-      const err = catchError(z.pick)(z.string().and(z.string().optional()), ['a']);
-      assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
-    });
-
-    it('should fail on construction of union of only primitive schemas', () => {
-      const err = catchError(z.pick)(z.string().or(z.boolean()).or(z.number()), []);
-      assert.equal(err.message, 'cannot instantiate a PickType with a primitive schema');
-    });
-
     it('should pass for pick of pick', () => {
       const schema = z.pick(
         z.pick(
@@ -1397,24 +1382,6 @@ describe('Zod Parsing', () => {
   });
 
   describe('omit parsing', () => {
-    it('should fail on construction of primitive schema if root is primitive', () => {
-      // @ts-ignore
-      for (const type of [z.string, z.boolean, z.undefined, z.unknown, z.null, z.number]) {
-        const err = catchError(z.omit)(type(), ['a']);
-        assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
-      }
-    });
-
-    it('should fail on construction of intesection of primitive schemas', () => {
-      const err = catchError(z.omit)(z.string().and(z.string().optional()), ['a']);
-      assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
-    });
-
-    it('should fail on construction of union of only primitive schemas', () => {
-      const err = catchError(z.omit)(z.string().or(z.boolean()).or(z.number()), []);
-      assert.equal(err.message, 'cannot instantiate a OmitType with a primitive schema');
-    });
-
     it('should pass if value satisfies schema and omits indicated keys', () => {
       const schema = z.omit(z.object({ a: z.string(), b: z.string() }), ['b']);
       const ret = schema.parse({ a: 'hello' });
@@ -1434,29 +1401,6 @@ describe('Zod Parsing', () => {
       assert.deepEqual(ret, { a: 'hello' });
     });
 
-    it('should pass if record does not contain omitted fields', () => {
-      const schema = z.omit(z.record(z.string()), ['b']);
-      const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
-    });
-
-    it('should fail if record does contain omitted fields', () => {
-      const schema = z.omit(z.record(z.string()), ['b']);
-      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
-    });
-
-    it('should fail key is in record intersection', () => {
-      const schema = z.omit(z.record(z.object({ a: z.string() }).and(z.record(z.object({ b: z.string() })))), ['b']);
-      const err = catchError(schema.parse.bind(schema))({
-        a: { a: 'hello', b: 'world' },
-        b: { a: 'hello', b: 'world' },
-      });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
-    });
-
     it('should pass if omitted key is not present in record of object intersection', () => {
       const record = z.record(z.string());
       const obj = z.object({ b: z.number() });
@@ -1466,11 +1410,11 @@ describe('Zod Parsing', () => {
       assert.deepEqual(ret, { a: 'hello' });
     });
 
-    it('should fail if key is present in record object intersection', () => {
+    it('should default to keysignature', () => {
       const schema = z.omit(z.record(z.string()).and(z.object({ b: z.number() })), ['b']);
       const err = catchError(schema.parse.bind(schema))({ b: 123 });
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be string but got number');
     });
 
     it('should omit a key from a picked type', () => {

@@ -7,10 +7,7 @@ import {
   ObjectType,
   ArrayType,
   UnionType,
-  RecordType,
   PartialType,
-  PickType,
-  OmitType,
   TupleType,
   DateType,
   LazyType,
@@ -27,16 +24,17 @@ import {
   StringOptions,
   ArrayOptions,
   UnionOptions,
-  Infer,
   PartialOpts,
   IntersectionResult,
   DeepPartialShape,
   PartialShape,
   Eval,
   ToUnion,
+  keySignature,
+  StringTypes,
 } from './types';
 
-export { ValidationError, Type, Infer } from './types';
+export { ValidationError, Type, Infer, keySignature } from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
@@ -47,8 +45,8 @@ export const object = <T extends ObjectShape>(shape: T, opts?: ObjectOptions) =>
 export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions) => new ArrayType(schema, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
-export const record = <T extends AnyType>(schema: T) => new RecordType(schema);
-export const dictionary = <T extends AnyType>(schema: T) => new RecordType(schema.optional());
+export const record = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema });
+export const dictionary = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema.optional() });
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 export const date = () => new DateType();
 export const lazy = <T extends () => AnyType>(fn: T) => new LazyType(fn);
@@ -67,35 +65,39 @@ export function partial(schema: any, opts: any): any {
   return new PartialType(schema, opts) as any;
 }
 
-export function pick<T extends ObjectType<any>, K extends T extends ObjectType<infer Shape> ? keyof Shape : never>(
+export function pick<
+  T extends ObjectType<any>,
+  K extends T extends ObjectType<infer Shape>
+    ? Shape extends { [keySignature]: AnyType }
+      ? string
+      : StringTypes<keyof Shape>
+    : never
+>(
   schema: T,
   keys: K[]
-): T extends ObjectType<infer Shape> ? ObjectType<Eval<Pick<Shape, ToUnion<typeof keys>>>> : never;
-export function pick<T extends RecordType<any>, K extends string>(
-  schema: T,
-  keys: K[]
-): T extends RecordType<infer Schema> ? ObjectType<{ [key in ToUnion<typeof keys>]: Schema }> : never;
-export function pick<T extends AnyType, K extends keyof Infer<T>>(type: T, keys: K[]): PickType<T, K>;
-export function pick(schema: any, keys: any): any {
-  if (schema instanceof ObjectType) {
-    return schema.pick(keys);
-  }
-  if (schema instanceof RecordType) {
-    return schema.pick(keys);
-  }
-  return new PickType(schema, keys);
+): T extends ObjectType<infer Shape>
+  ? ObjectType<
+      Eval<
+        Pick<Shape, Extract<StringTypes<keyof Shape>, ToUnion<typeof keys>>> &
+          (Shape extends { [keySignature]: AnyType }
+            ? Shape extends { [keySignature]: infer KeySig }
+              ? { [key in Exclude<ToUnion<typeof keys>, keyof Shape>]: KeySig }
+              : {}
+            : {})
+      >
+    >
+  : never {
+  return schema.pick(keys) as any;
 }
 
-export function omit<T extends ObjectType<any>, K extends T extends ObjectType<infer Shape> ? keyof Shape : never>(
+export function omit<
+  T extends ObjectType<any>,
+  K extends T extends ObjectType<infer Shape> ? StringTypes<keyof Shape> : never
+>(
   schema: T,
   keys: K[]
-): T extends ObjectType<infer Shape> ? ObjectType<Eval<Omit<Shape, ToUnion<typeof keys>>>> : never;
-export function omit<T extends AnyType, K extends keyof Infer<T>>(schema: T, keys: K[]): OmitType<T, K>;
-export function omit(schema: any, keys: any): any {
-  if (schema instanceof ObjectType) {
-    return schema.omit(keys);
-  }
-  return new OmitType(schema, keys);
+): T extends ObjectType<infer Shape> ? ObjectType<Eval<Omit<Shape, ToUnion<typeof keys>>>> : never {
+  return schema.omit(keys) as any;
 }
 
 const undefinedValue = () => new UndefinedType();
@@ -127,4 +129,12 @@ export default {
   null: nullValue,
   enum: enumValue,
   ValidationError,
+  keySignature,
 };
+
+// type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
+
+// const schema = object({ a: string(), b: number(), [keySignature]: boolean() }).omit(['a']);
+
+// const x: Infer<typeof schema> = { a: 1 };
+// x;
