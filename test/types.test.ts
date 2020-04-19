@@ -224,7 +224,7 @@ describe('Types test', () => {
 
     it('should not double wrap optional types in dictionaries', () => {
       const schema = z.dictionary(z.string().optional());
-      const x: AssertEqual<ObjectType<{ [z.keySignature]: OptionalType<z.Type<string>> }>, typeof schema> = true;
+      const x: AssertEqual<ObjectType<{ [z.keySignature]: OptionalType<StringType> }>, typeof schema> = true;
       x;
 
       assert.ok(schema instanceof ObjectType);
