@@ -385,6 +385,26 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
       }
     }
 
+    if (keys.length === 0 && keySig) {
+      const convVal: any = (this as any)[coercionTypeSybol] ? {} : undefined;
+      for (const key in value) {
+        try {
+          if (convVal) {
+            convVal[key] = (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
+          } else {
+            (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
+          }
+        } catch (err) {
+          const path = err.path ? [key, ...err.path] : [key];
+          const msg = parseOpts.suppressPathErrMsg
+            ? err.message
+            : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
+          throw new ValidationError(msg, path);
+        }
+      }
+      return convVal || value;
+    }
+
     if (keySig) {
       const convVal: any = (this as any)[coercionTypeSybol] ? {} : undefined;
       for (const key in value) {
