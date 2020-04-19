@@ -32,6 +32,7 @@ import {
   ToUnion,
   keySignature,
   StringTypes,
+  OptionalType,
 } from './types';
 
 export { ValidationError, Type, Infer, keySignature } from './types';
@@ -46,7 +47,16 @@ export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions) => new 
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
 export const record = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema });
-export const dictionary = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema.optional() });
+export const dictionary = <T extends AnyType>(
+  schema: T
+): ObjectType<{
+  [keySignature]: T extends OptionalType<any> ? T : OptionalType<T>;
+}> => {
+  if (schema instanceof OptionalType) {
+    return new ObjectType({ [keySignature]: schema }) as any;
+  }
+  return new ObjectType({ [keySignature]: new OptionalType(schema) }) as any;
+};
 export const tuple = <T extends [AnyType, ...AnyType[]] | []>(schemas: T) => new TupleType(schemas);
 export const date = () => new DateType();
 export const lazy = <T extends () => AnyType>(fn: T) => new LazyType(fn);
@@ -131,10 +141,3 @@ export default {
   ValidationError,
   keySignature,
 };
-
-// type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
-
-// const schema = object({ a: string(), b: number(), [keySignature]: boolean() }).omit(['a']);
-
-// const x: Infer<typeof schema> = { a: 1 };
-// x;

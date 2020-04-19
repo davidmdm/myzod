@@ -2,7 +2,7 @@ import assert from 'assert';
 import { inspect } from 'util';
 
 import * as z from '../src';
-import { ObjectType, ObjectShape, StringType, NumberType, ArrayType, OptionalType } from '../src/types';
+import { ObjectType, ObjectShape, StringType, NumberType, ArrayType, OptionalType, AnyType } from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
@@ -212,6 +212,28 @@ describe('Types test', () => {
   });
 
   describe('runtime shapes', () => {
+    it('should return the correct shape for a dictionary', () => {
+      const schema = z.dictionary(z.string());
+      const x: AssertEqual<ObjectType<{ [z.keySignature]: OptionalType<StringType> }>, typeof schema> = true;
+      x;
+
+      type Schema = z.Infer<typeof schema>;
+      const y: AssertEqual<{ [key: string]: string | undefined }, Schema> = true;
+      y;
+    });
+
+    it('should not double wrap optional types in dictionaries', () => {
+      const schema = z.dictionary(z.string().optional());
+      const x: AssertEqual<ObjectType<{ [z.keySignature]: OptionalType<z.Type<string>> }>, typeof schema> = true;
+      x;
+
+      assert.ok(schema instanceof ObjectType);
+      const optionalWrapper: AnyType = (schema as any).objectShape[z.keySignature];
+      assert.ok(optionalWrapper instanceof OptionalType);
+      const optionalType = (optionalWrapper as any).schema;
+      assert.ok(optionalType instanceof StringType);
+    });
+
     it('should create a new object type from a pick of an object', () => {
       const schema = z.pick(z.object({ a: z.string(), b: z.string() }), ['a']);
       const x: AssertEqual<ObjectType<{ a: StringType }>, typeof schema> = true;
