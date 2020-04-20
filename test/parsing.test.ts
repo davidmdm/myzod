@@ -1059,6 +1059,24 @@ describe('Zod Parsing', () => {
       assert.deepEqual(ret, ['hello', 42]);
     });
 
+    it('should fail if intersect of two tuples is not satisfied', () => {
+      const t1 = z.tuple([z.string(), z.number()]);
+      const t2 = z.tuple([z.string()]);
+      const schema = t1.and(t2);
+      const err = catchError(schema.parse.bind(schema))(['hello']);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected tuple length to be 2 but got 1');
+    });
+
+    it('should fail if intersect of two tuples is not satisfied - typeError', () => {
+      const t1 = z.tuple([z.string(), z.number()]);
+      const t2 = z.tuple([z.string()]);
+      const schema = t1.and(t2);
+      const err = catchError(schema.parse.bind(schema))(['hello', 'world']);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
+    });
+
     it('should convert date strings', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.object({ c: z.date() }) }));
       const date = new Date();

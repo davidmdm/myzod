@@ -2,7 +2,16 @@ import assert from 'assert';
 import { inspect } from 'util';
 
 import * as z from '../src';
-import { ObjectType, ObjectShape, StringType, NumberType, ArrayType, OptionalType, AnyType } from '../src/types';
+import {
+  ObjectType,
+  ObjectShape,
+  StringType,
+  NumberType,
+  ArrayType,
+  OptionalType,
+  AnyType,
+  TupleType,
+} from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
@@ -266,6 +275,22 @@ describe('Types test', () => {
       assert.equal(shape[z.keySignature], undefined);
       assert.ok(shape.a instanceof StringType);
       assert.ok(shape.b instanceof StringType);
+    });
+
+    it('should create a tuple from the intersection of tuples', () => {
+      const t1 = z.tuple([z.object({ a: z.string() }), z.string().optional()]);
+      const t2 = z.tuple([z.object({ b: z.string() }), z.string()]);
+      const schema = t1.and(t2);
+
+      const x: AssertEqual<[{ a: string; b: string }, string], z.Infer<typeof schema>> = true;
+      x;
+
+      assert.ok(schema instanceof TupleType);
+      const schemas: AnyType[] = (schema as any).schemas;
+      const objSchema = schemas[0];
+      assert.ok(objSchema instanceof ObjectType);
+      const shape = (objSchema as any).objectShape;
+      assert.deepEqual(Object.keys(shape), ['a', 'b']);
     });
   });
 
