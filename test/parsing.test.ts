@@ -318,6 +318,21 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, `expected value to be literal "123" but got "321"`);
     });
+
+    it('should create a union of literals', () => {
+      const schema = z.literalUnion('hello', 'world');
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if value is not in union of literals', () => {
+      const schema = z.literalUnion('hello', 'world');
+      const err = catchError(schema.parse.bind(schema))(null);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'No union satisfied:\n  expected value to be literal "hello" but got null\n  expected value to be literal "world" but got null'
+      );
+    });
   });
 
   describe('date parsing', () => {

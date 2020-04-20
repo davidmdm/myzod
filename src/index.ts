@@ -46,6 +46,12 @@ export const object = <T extends ObjectShape>(shape: T, opts?: ObjectOptions) =>
 export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions) => new ArrayType(schema, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
+
+type LiteralWrapper<T extends any> = T extends Literal ? LiteralType<T> : never;
+type ToLiteralUnion<T extends Literal[]> = { [key in keyof T]: LiteralWrapper<T[key]> };
+export const literalUnion = <T extends Literal[]>(...args: T): UnionType<ToLiteralUnion<T>> =>
+  new UnionType(args.map(literal)) as any;
+
 export const record = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema });
 export const dictionary = <T extends AnyType>(
   schema: T
