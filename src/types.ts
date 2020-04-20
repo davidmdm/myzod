@@ -55,23 +55,35 @@ const coercionTypeSybol = Symbol.for('coercion');
 
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
+  // T extends AnyType
+  //   ? K extends AnyType
   T extends ObjectType<any>
     ? K extends ObjectType<any>
       ? T extends ObjectType<infer Shape1>
         ? K extends ObjectType<infer Shape2>
           ? ObjectType<Eval<MergeShapes<Shape1, Shape2>>>
-          : IntersectionType<T, K>
-        : IntersectionType<T, K>
+          : never
+        : never
       : IntersectionType<T, K>
     : T extends ArrayType<any>
     ? K extends ArrayType<any>
       ? T extends ArrayType<infer S1>
         ? K extends ArrayType<infer S2>
           ? ArrayType<IntersectionResult<S1, S2>>
-          : IntersectionType<T, K>
-        : IntersectionType<T, K>
+          : never
+        : never
       : IntersectionType<T, K> //
+    : T extends TupleType<any>
+    ? K extends TupleType<any>
+      ? T extends TupleType<infer S1>
+        ? K extends TupleType<infer S2>
+          ? TupleType<Join<S1, S2>>
+          : never
+        : never
+      : IntersectionType<T, K>
     : IntersectionType<T, K>;
+//   : never
+// : never;
 
 // Primitives
 
@@ -608,11 +620,25 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
   }
 }
 
-type InferTuple<T extends [AnyType, ...AnyType[]] | []> = {
+type IntersecWrapper<A extends any, B extends any> = A extends AnyType
+  ? B extends AnyType
+    ? IntersectionResult<A, B>
+    : never
+  : never;
+
+type JoinLeft<A extends AnyType[], B extends AnyType[]> = {
+  [idx in keyof A]: idx extends keyof B ? IntersecWrapper<A[idx], B[idx]> : A[idx];
+};
+type JoinRight<A extends AnyType[], B extends AnyType[]> = {
+  [idx in keyof B]: idx extends keyof A ? IntersecWrapper<A[idx], B[idx]> : B[idx];
+};
+type Join<A extends AnyType[], B extends AnyType[]> = JoinLeft<A, B> & JoinRight<A, B>;
+
+type InferTuple<T extends AnyType[]> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : never;
 };
 
-export class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<InferTuple<T>> {
+export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> {
   constructor(private readonly schemas: T) {
     super();
     (this as any)[coercionTypeSybol] = schemas.some(schema => (schema as any)[coercionTypeSybol]);
@@ -638,8 +664,30 @@ export class TupleType<T extends [AnyType, ...AnyType[]] | []> extends Type<Infe
     }
     return convValue || (value as any);
   }
-  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-    return new IntersectionType(this, schema);
+  and<K extends AnyType>(
+    schema: K
+  ): K extends TupleType<any>
+    ? K extends TupleType<infer Arr>
+      ? TupleType<Join<T, Arr>>
+      : never
+    : IntersectionType<this, K> {
+    if (schema instanceof TupleType) {
+      const otherSchemaArray = (schema as any).schemas;
+      const nextSchemasArray: AnyType[] = [];
+      for (let i = 0; i < Math.max(this.schemas.length, otherSchemaArray.length); i++) {
+        const current = this.schemas[i];
+        const other = otherSchemaArray[i];
+        if (current && other) {
+          nextSchemasArray.push(current.and(other));
+        } else if (current) {
+          nextSchemasArray.push(current);
+        } else {
+          nextSchemasArray.push(other);
+        }
+      }
+      return new TupleType(nextSchemasArray) as any;
+    }
+    return new IntersectionType(this, schema) as any;
   }
 }
 
