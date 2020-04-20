@@ -234,8 +234,10 @@ type Val = Infer<typeof schema>; // => 'Value'
 Sometimes we do not want to go all out and create an enum to represent a combination of literals.
 Myzod offers a utility function to avoid have to "or" multiple times over many literalTypes.
 
+##### Literals
+
 ```typescript
-const schema = myzod.literalUnion('red', 'green', 'blue');
+const schema = myzod.literals('red', 'green', 'blue');
 type Schema = myzod.Infer<typeof schema>; // => 'red' | 'green' | 'blue'
 
 // Other equivalent ways of creating the same schema:

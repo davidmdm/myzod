@@ -49,7 +49,7 @@ export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): 
 
 type LiteralWrapper<T extends any> = T extends Literal ? LiteralType<T> : never;
 type ToLiteralUnion<T extends Literal[]> = { [key in keyof T]: LiteralWrapper<T[key]> };
-export const literalUnion = <T extends Literal[]>(...args: T): UnionType<ToLiteralUnion<T>> =>
+export const literals = <T extends Literal[]>(...args: T): UnionType<ToLiteralUnion<T>> =>
   new UnionType(args.map(literal)) as any;
 
 export const record = <T extends AnyType>(schema: T) => new ObjectType({ [keySignature]: schema });

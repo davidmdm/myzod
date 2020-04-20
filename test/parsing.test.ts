@@ -320,12 +320,12 @@ describe('Zod Parsing', () => {
     });
 
     it('should create a union of literals', () => {
-      const schema = z.literalUnion('hello', 'world');
+      const schema = z.literals('hello', 'world');
       assert.equal(schema.parse('hello'), 'hello');
     });
 
     it('should fail if value is not in union of literals', () => {
-      const schema = z.literalUnion('hello', 'world');
+      const schema = z.literals('hello', 'world');
       const err = catchError(schema.parse.bind(schema))(null);
       assert.ok(err instanceof z.ValidationError);
       assert.equal(
