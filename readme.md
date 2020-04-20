@@ -160,7 +160,7 @@ options:
 options can be passed as an option object or chained from schema.
 
 ```typescript
-myzod.string({ min: 3, max: 10, patten: /^hey/ });
+myzod.string({ min: 3, max: 10, pattern: /^hey/ });
 // Same as:
 myzod.string().min(3).max(10).pattern(/^hey/);
 ```
@@ -243,7 +243,7 @@ const schema = myzod.object({ unknownYetRequiredField: myzod.unknown() });
 type Schema = Infer<typeof schema>; // => { unknownYetRequiredField: unknown }
 
 schema.parse({}); // throws a ValidationError
-schema.parse({ unkownYetRequiredField: 'hello' }); // succeeds
+schema.parse({ unknownYetRequiredField: 'hello' }); // succeeds
 ```
 
 #### Object
