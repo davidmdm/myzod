@@ -1051,9 +1051,12 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'error parsing object at path: "c" - expected type to be number but got undefined');
     });
 
-    it('should fail if trying to create an intersection of a tuple type', () => {
-      const err = catchError(z.intersection)(z.tuple([]), z.object({}));
-      assert.equal(err.message, 'tuple intersection not supported');
+    it('should intersect two tuples', () => {
+      const t1 = z.tuple([z.string(), z.number()]);
+      const t2 = z.tuple([z.string()]);
+      const schema = t1.and(t2);
+      const ret = schema.parse(['hello', 42]);
+      assert.deepEqual(ret, ['hello', 42]);
     });
 
     it('should convert date strings', () => {

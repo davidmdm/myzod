@@ -735,9 +735,6 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
     }
 
     this._parse = (() => {
-      if (this.left instanceof TupleType || this.right instanceof TupleType) {
-        throw new Error('tuple intersection not supported');
-      }
       // TODO Investigate why I unwrap partials in a new intersection again
       if (this.left instanceof PartialType) {
         return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
