@@ -51,7 +51,7 @@ export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
-const coercionTypeSybol = Symbol.for('coersion');
+const coercionTypeSybol = Symbol.for('coercion');
 
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
@@ -649,6 +649,7 @@ export type UnionOptions = { strict?: boolean };
 export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
   constructor(private readonly schemas: T, private readonly opts?: UnionOptions) {
     super();
+    (this as any)[coercionTypeSybol] = schemas.some(schema => (schema as any)[coercionTypeSybol]);
   }
   parse(value: unknown): InferTupleUnion<T> {
     const errors: string[] = [];
@@ -806,7 +807,7 @@ export class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
 export class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
   constructor(private readonly fn: T) {
     super();
-    // Since we can't know what the schema is we can't assume its not a coersionType and we need to disable the optimization
+    // Since we can't know what the schema is we can't assume its not a coercionType and we need to disable the optimization
     (this as any)[coercionTypeSybol] = true;
   }
   parse(value: unknown, opts?: PathOptions): Infer<ReturnType<T>> {

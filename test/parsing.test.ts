@@ -845,6 +845,23 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ a: 'string', b: 123, c: false });
       assert.deepEqual(ret, { a: 'string', b: 123, c: false });
     });
+
+    it('should coerce parent object if element is a union of a coerced type', () => {
+      const schema = z.object({
+        name: z.string(),
+        birthday: z.tuple([z.number(), z.number(), z.number()]).or(z.date()),
+      });
+
+      const data = { name: 'David', birthday: [1991, 7, 22] };
+      const ret = schema.parse(data);
+      assert.notEqual(ret, data);
+      assert.deepEqual(ret, data);
+
+      const ret2 = schema.parse({ name: 'David', birthday: '1991-07-22' });
+      assert.equal(ret2.name, 'David');
+      assert.ok(ret2.birthday instanceof Date);
+      assert.equal((ret2.birthday as Date).getTime(), new Date('1991-07-22').getTime());
+    });
   });
 
   describe('intersection parsing', () => {
