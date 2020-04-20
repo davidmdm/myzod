@@ -93,6 +93,7 @@ export type StringOptions = Partial<{
   max: number;
   predicate: (value: string) => boolean;
   predicateErrMsg: string;
+  valid: string[];
 }>;
 
 export class StringType extends Type<string> {
@@ -115,6 +116,9 @@ export class StringType extends Type<string> {
     }
     if (this.opts.pattern instanceof RegExp && !this.opts.pattern.test(value)) {
       throw new ValidationError(`expected string to match pattern ${this.opts.pattern} but did not`);
+    }
+    if (this.opts.valid && !this.opts.valid.includes(value)) {
+      throw new ValidationError(`expected string to be one of: ${JSON.stringify(this.opts.valid)}`);
     }
     if (this.opts.predicate) {
       try {
@@ -141,6 +145,9 @@ export class StringType extends Type<string> {
   }
   max(x: number): StringType {
     return new StringType({ ...this.opts, max: x });
+  }
+  valid(list: string[]): StringType {
+    return new StringType({ ...this.opts, valid: list });
   }
   predicate(fn: StringOptions['predicate'], errMsg?: string): StringType {
     return new StringType({ ...this.opts, predicate: fn, predicateErrMsg: errMsg || this.opts.predicateErrMsg });

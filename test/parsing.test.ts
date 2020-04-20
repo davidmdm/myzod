@@ -140,6 +140,25 @@ describe('Zod Parsing', () => {
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected type to be boolean but got string');
     });
+
+    it('should pass if value is within valid strings', () => {
+      const schema = z.string({ valid: ['hello', 'world'] });
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if value is not within valid strings', () => {
+      const schema = z.string({ valid: ['hello', 'world'] });
+      const err = catchError(schema.parse.bind(schema))('hi my dudes');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected string to be one of: ["hello","world"]');
+    });
+
+    it('should fail if value is not within valid strings - fluent syntax', () => {
+      const schema = z.string().valid(['hello', 'world']);
+      const err = catchError(schema.parse.bind(schema))('hi my dudes');
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected string to be one of: ["hello","world"]');
+    });
   });
 
   describe('boolean parsing', () => {

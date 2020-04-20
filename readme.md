@@ -154,6 +154,7 @@ options:
 - min: `number` - sets the minimum length for the string
 - max: `number` - sets the maximum length for the string
 - pattern: `RegExp` - expression string must match
+- valid: `string[]` - array of valid strings
 - predicate: `(val: string) => boolean` - predicate function to extend string validation.
 - predicateErrMsg: `string` - error message to throw in ValidationError should predicate fail
 
