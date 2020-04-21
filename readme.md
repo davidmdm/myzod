@@ -59,7 +59,13 @@ const person: Person = personSchema.parse({ ... });
 
 Type Root
 
-- [type class](#myzod.type<t>)
+- [Type<T>](#type<T>)
+  - [parse](#type<T>.parse)
+  - [try](#type<T>.try)
+  - [and](#type<T>.and)
+  - [or](#type<T>.or)
+  - [optional](#type<T>.optional)
+  - [nullable](#type<T>.nullable)
 
 Primitive Types
 
@@ -93,11 +99,11 @@ Recursive Schemas
 
 - [lazy](#lazy)
 
-### myzod.Type<T>
+### Type<T>
 
 All myzod schemas extend the generic myzod.Type class, and as such inherit these methods:
 
-#### `parse`
+#### Type<T>.parse
 
 Takes an unknown value, and returns it typed if passed validation. Otherwise throws a myzod.ValidationError
 
@@ -105,37 +111,17 @@ Takes an unknown value, and returns it typed if passed validation. Otherwise thr
 parse(value: unknown): T
 ```
 
-##### `optional`
+#### Type<T>.try
 
-Returns a new schema which is the union of the current schema and the UndefinedType schema.
-
-```typescript
-const optionalStringSchema = myzod.string().optional(); // => UnionType<[Type<string>, UndefinedType]>
-
-type StringOrUndefined = Infer<typeof optionalStringSchema>; // => string | undefined
-```
-
-##### `nullable`
-
-Returns a new schema which is the union of the current schema and the NullableType schema.
+Takes an unknown value and returns a result object with value/error properties. This api if you do not want to throw exceptions.
 
 ```typescript
-const nullableStringSchema = myzod.string().nullable();
-
-type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
+// Error will be a ValidationError on failure and null on success.
+// Value will be the parsed value on success and null on failure
+const { value, error } = schema.try(data);
 ```
 
-##### `or`
-
-Shorthand for creating union types of two schemas.
-
-```typescript
-const stringOrBoolSchema = myzod.string().or(myzod.boolean());
-
-type StringOrUndefined = Infer<typeof stringOrBoolSchema>; // => string | boolean
-```
-
-##### and
+##### Type<T>.and
 
 Shorthand for creating intersection types of two schemas.
 
@@ -146,6 +132,36 @@ const ageSchema = myzod.object({ name: myzod.number() });
 const personSchema = nameSchema.and(ageSchema); // Same as ageSchema.and(nameSchema);
 
 type Person = Infer<typeof personSchema>; // => { name: string; age: number; }
+```
+
+##### Type<T>.or
+
+Shorthand for creating union types of two schemas.
+
+```typescript
+const stringOrBoolSchema = myzod.string().or(myzod.boolean());
+
+type StringOrUndefined = Infer<typeof stringOrBoolSchema>; // => string | boolean
+```
+
+##### Type<T>.optional
+
+Returns a new schema which is a wrapped OptionalType of the current schema.
+
+```typescript
+const optionalStringSchema = myzod.string().optional(); // => OptionalType<StringType>
+
+type StringOrUndefined = Infer<typeof optionalStringSchema>; // => string | undefined
+```
+
+##### Type<T>.nullable
+
+Returns a new schema which is a wrapped NullableType of the current schema.
+
+```typescript
+const nullableStringSchema = myzod.string().nullable(); // => NullableType<StringType>
+
+type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 ```
 
 #### String

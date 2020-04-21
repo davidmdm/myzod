@@ -11,6 +11,14 @@ export abstract class Type<T> {
   nullable(): NullableType<this> {
     return new NullableType(this);
   }
+  try(value: unknown): { error: ValidationError | null; value: T | null } {
+    try {
+      const result = this.parse(value);
+      return { value: result, error: null };
+    } catch (err) {
+      return { error: err, value: null };
+    }
+  }
 }
 
 export class ValidationError extends Error {
@@ -730,7 +738,8 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
-    (this as any)[coercionTypeSymbol] = (this.left as any)[coercionTypeSymbol] || (this.right as any)[coercionTypeSymbol];
+    (this as any)[coercionTypeSymbol] =
+      (this.left as any)[coercionTypeSymbol] || (this.right as any)[coercionTypeSymbol];
     (this as any)[allowUnknownSymbol] = !!(
       (this.left as any)[allowUnknownSymbol] || (this.right as any)[allowUnknownSymbol]
     );
