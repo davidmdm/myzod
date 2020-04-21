@@ -74,6 +74,7 @@ Primitive Types
 Reference Types
 
 - [object](#object)
+  - [pick/omit/partial](#object.pick/omit/partial)
 - [record](#record)
 - [array](#array)
 - [tuple](#tuple)
@@ -164,6 +165,20 @@ options can be passed as an option object or chained from schema.
 myzod.string({ min: 3, max: 10, pattern: /^hey/ });
 // Same as:
 myzod.string().min(3).max(10).pattern(/^hey/);
+```
+
+The valid options lets you validate against a set of strings.
+
+```typescript
+const helloworld = myzod.string().valid(['hello', 'world']);
+typeof HelloWorld = myzod.Infer<typeof helloworld>; // => string
+```
+
+if however you want the stings to be typed used the [literals](#literals) helper function:
+
+```typescript
+const helloworld = myzod.literals('hello', 'world');
+typeof HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
 ```
 
 Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended using the predicate and predicateErrMsg options
@@ -295,8 +310,9 @@ const personSchema = myzod.object({
 type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
 ```
 
+#### object.pick/omit/partial
+
 The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance.
-This is more performant than creating Pick or Omit types that wrap a schema.
 
 ```typescript
 const profileSchema = myzod.object({
