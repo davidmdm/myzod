@@ -113,12 +113,16 @@ parse(value: unknown): T
 
 #### Type<T>.try
 
-Takes an unknown value and returns a result object with value/error properties. This api if you do not want to throw exceptions.
+Takes an unknown value and returns a result which will either be the parsed value or an instance of ValidationError.
+This api is useful if you do not want to throw exceptions.
 
 ```typescript
-// Error will be a ValidationError on failure and null on success.
-// Value will be the parsed value on success and null on failure
-const { value, error } = schema.try(data);
+const result = schema.try(data);
+if (result instanceof myzod.ValidationError) {
+  // handle Error
+} else {
+  // result is of type: myzod.Infer<typeof schema>
+}
 ```
 
 ##### Type<T>.and

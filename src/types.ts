@@ -11,12 +11,11 @@ export abstract class Type<T> {
   nullable(): NullableType<this> {
     return new NullableType(this);
   }
-  try(value: unknown): { error: ValidationError | null; value: T | null } {
+  try(value: unknown): T | ValidationError {
     try {
-      const result = this.parse(value);
-      return { value: result, error: null };
+      return this.parse(value);
     } catch (err) {
-      return { error: err, value: null };
+      return err;
     }
   }
 }

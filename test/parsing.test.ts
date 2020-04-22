@@ -1688,13 +1688,12 @@ describe('Zod Parsing', () => {
 });
 
 describe('Type.try', () => {
-  it('should return a value and error should be null', () => {
+  it('should return a value', () => {
     const date = new Date();
     const schema = z.object({ name: z.string(), birthday: z.date() });
-    const { value, error } = schema.try({ name: 'Bilbo', birthday: date.toISOString() });
-    assert.equal(error, null);
-    if (value === null) {
-      throw new Error('value is null');
+    const value = schema.try({ name: 'Bilbo', birthday: date.toISOString() });
+    if (value instanceof Error) {
+      throw new Error('expected value not error');
     }
     assert.deepEqual(Object.keys(value), ['name', 'birthday']);
     assert.equal(value.name, 'Bilbo');
@@ -1704,10 +1703,9 @@ describe('Type.try', () => {
 
   it('should return an error if failed', () => {
     const schema = z.object({ name: z.string(), age: z.number().min(18) });
-    const { value, error } = schema.try({ name: 'Bobby Joe', age: 12 });
-    assert.equal(value, null);
-    if (error === null) {
-      throw new Error('error should not be null');
+    const error = schema.try({ name: 'Bobby Joe', age: 12 });
+    if (!(error instanceof Error)) {
+      throw new Error('expected an error as a return value');
     }
     assert.ok(error instanceof z.ValidationError);
     assert.equal(
