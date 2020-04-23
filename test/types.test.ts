@@ -11,6 +11,7 @@ import {
   OptionalType,
   AnyType,
   TupleType,
+  NullableType,
 } from '../src/types';
 
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
@@ -221,6 +222,48 @@ describe('Types test', () => {
   });
 
   describe('runtime shapes', () => {
+    it('should wrap schema in optional type', () => {
+      const schema = z.string().optional();
+      const x: AssertEqual<z.Infer<typeof schema>, string | undefined> = true;
+      x;
+      assert.ok(schema instanceof OptionalType);
+      const innerSchema = (schema as any).schema;
+      assert.ok(innerSchema instanceof StringType);
+    });
+
+    it('should not double wrap an optional schema in optional type', () => {
+      const schema = z.string().optional();
+      const x: AssertEqual<z.Infer<typeof schema>, string | undefined> = true;
+      x;
+      assert.ok(schema instanceof OptionalType);
+      const innerSchema = (schema as any).schema;
+      assert.ok(innerSchema instanceof StringType);
+
+      const doubleOpts = schema.optional();
+      assert.equal(schema, doubleOpts);
+    });
+
+    it('should wrap schema in nullable type', () => {
+      const schema = z.string().nullable();
+      const x: AssertEqual<z.Infer<typeof schema>, string | null> = true;
+      x;
+      assert.ok(schema instanceof NullableType);
+      const innerSchema = (schema as any).schema;
+      assert.ok(innerSchema instanceof StringType);
+    });
+
+    it('should not double wrap a nullable schema in optional type', () => {
+      const schema = z.string().nullable();
+      const x: AssertEqual<z.Infer<typeof schema>, string | null> = true;
+      x;
+      assert.ok(schema instanceof NullableType);
+      const innerSchema = (schema as any).schema;
+      assert.ok(innerSchema instanceof StringType);
+
+      const doubleOpts = schema.nullable();
+      assert.equal(schema, doubleOpts);
+    });
+
     it('should return the correct shape for a dictionary', () => {
       const schema = z.dictionary(z.string());
       const x: AssertEqual<ObjectType<{ [z.keySignature]: OptionalType<StringType> }>, typeof schema> = true;

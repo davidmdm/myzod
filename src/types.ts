@@ -5,10 +5,20 @@ export abstract class Type<T> {
   or<K extends AnyType>(schema: K): UnionType<[this, K]> {
     return new UnionType([this, schema]);
   }
-  optional(): OptionalType<this> {
+  optional(this: OptionalType<any>): this;
+  optional(): OptionalType<this>;
+  optional(): any {
+    if (this instanceof OptionalType) {
+      return this;
+    }
     return new OptionalType(this);
   }
-  nullable(): NullableType<this> {
+  nullable(this: NullableType<any>): this;
+  nullable(): NullableType<this>;
+  nullable(): any {
+    if (this instanceof NullableType) {
+      return this;
+    }
     return new NullableType(this);
   }
   try(value: unknown): T | ValidationError {
