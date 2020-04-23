@@ -267,6 +267,21 @@ describe('Zod Parsing', () => {
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected type to be number but got string');
     });
+
+    it('should return the same instance if object contains non coercable number', () => {
+      const schema = z.object({ a: z.number() });
+      const data = { a: 5 };
+      const ret = schema.parse(data);
+      assert.equal(ret, data);
+    });
+
+    it('should return the different instance if object contains coercable number', () => {
+      const schema = z.object({ a: z.number().coerce() });
+      const data = { a: 5 };
+      const ret = schema.parse(data);
+      assert.notEqual(ret, data);
+      assert.deepEqual(ret, data);
+    });
   });
 
   describe('undefined parsing', () => {
@@ -1683,6 +1698,55 @@ describe('Zod Parsing', () => {
 
       assert.ok(ret.birthday instanceof Date);
       assert.ok(ret.friends[0].birthday instanceof Date);
+    });
+  });
+
+  describe('bigint parsing', () => {
+    it('should parse a string to a bigint', () => {
+      const schema = z.bigint();
+      assert.equal(schema.parse('5'), BigInt(5));
+    });
+
+    it('should parse an integer number to a bigint', () => {
+      const schema = z.bigint();
+      assert.equal(schema.parse(5), BigInt(5));
+    });
+
+    it('should parse a bigint', () => {
+      const schema = z.bigint();
+      assert.equal(schema.parse(BigInt(5)), BigInt(5));
+    });
+
+    it('should fail to parse a not integer number to a bigint', () => {
+      const schema = z.bigint();
+      const err = catchError(schema.parse.bind(schema))(5.23);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'expected type to be bigint interpretable - the number 5.23 cannot be converted to a bigint because it is not an integer'
+      );
+    });
+
+    it('should throw if value is less than min', () => {
+      const schema = z.bigint().min(5);
+      const err = catchError(schema.parse.bind(schema))(3);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected bigint to be greater than or equal to 5 but got 3');
+    });
+
+    it('should throw if value is greater than max', () => {
+      const schema = z.bigint().max(BigInt(5));
+      const err = catchError(schema.parse.bind(schema))(8);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected bigint to be less than or equal to 5 but got 8');
+    });
+
+    it('should force parse to return a new coerced object when bigint is inside object schema', () => {
+      const personSchema = z.object({ name: z.string(), age: z.bigint() });
+      const data = { name: 'Joe', age: 32 };
+      const person = personSchema.parse(data);
+      assert.notEqual(person, data);
+      assert.deepEqual(person, { name: 'Joe', age: BigInt(32) });
     });
   });
 });

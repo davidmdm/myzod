@@ -59,18 +59,19 @@ const person: Person = personSchema.parse({ ... });
 
 Type Root
 
-- [Type<T>](#type<T>)
-  - [parse](#type<T>.parse)
-  - [try](#type<T>.try)
-  - [and](#type<T>.and)
-  - [or](#type<T>.or)
-  - [optional](#type<T>.optional)
-  - [nullable](#type<T>.nullable)
+- [Type<T>](#type)
+  - [parse](#type.parse)
+  - [try](#type.try)
+  - [and](#type.and)
+  - [or](#type.or)
+  - [optional](#type.optional)
+  - [nullable](#type.nullable)
 
 Primitive Types
 
 - [string](#string)
 - [number](#number)
+- [bigint](#bigint)
 - [boolean](#boolean)
 - [undefined](#undefined)
 - [null](#null)
@@ -99,11 +100,11 @@ Recursive Schemas
 
 - [lazy](#lazy)
 
-### Type<T>
+### Type.
 
 All myzod schemas extend the generic myzod.Type class, and as such inherit these methods:
 
-#### Type<T>.parse
+#### Type.parse
 
 Takes an unknown value, and returns it typed if passed validation. Otherwise throws a myzod.ValidationError
 
@@ -111,7 +112,7 @@ Takes an unknown value, and returns it typed if passed validation. Otherwise thr
 parse(value: unknown): T
 ```
 
-#### Type<T>.try
+#### Type.try
 
 Takes an unknown value and returns a result which will either be the parsed value or an instance of ValidationError.
 This api is useful if you do not want to throw exceptions.
@@ -125,7 +126,7 @@ if (result instanceof myzod.ValidationError) {
 }
 ```
 
-##### Type<T>.and
+##### Type.and
 
 Shorthand for creating intersection types of two schemas.
 
@@ -138,7 +139,7 @@ const personSchema = nameSchema.and(ageSchema); // Same as ageSchema.and(nameSch
 type Person = Infer<typeof personSchema>; // => { name: string; age: number; }
 ```
 
-##### Type<T>.or
+##### Type.or
 
 Shorthand for creating union types of two schemas.
 
@@ -148,7 +149,7 @@ const stringOrBoolSchema = myzod.string().or(myzod.boolean());
 type StringOrUndefined = Infer<typeof stringOrBoolSchema>; // => string | boolean
 ```
 
-##### Type<T>.optional
+##### Type.optional
 
 Returns a new schema which is a wrapped OptionalType of the current schema.
 
@@ -158,7 +159,7 @@ const optionalStringSchema = myzod.string().optional(); // => OptionalType<Strin
 type StringOrUndefined = Infer<typeof optionalStringSchema>; // => string | undefined
 ```
 
-##### Type<T>.nullable
+##### Type.nullable
 
 Returns a new schema which is a wrapped NullableType of the current schema.
 
@@ -235,8 +236,36 @@ const schema = myzod.number().coerce(); // same as myzod.number({ coerce: true }
 
 const value = schema.parse('42');
 
-assert.equal(typeof value === 'number'); // succeeds
+assert.ok(typeof value === 'number'); // succeeds
 assert.equal(value, 42); // succeeds
+```
+
+#### BigInt
+
+options:
+
+- min: `number` - min value for number
+- max: `number` - max value for number
+
+options can be passed as an option object or chained from schema.
+
+```typescript
+myzod.bigint({ min: 0, max: 10 });
+// Same as:
+myzod.bigint().min(0).max(10);
+
+const integer = myzod.bigint();
+type Integer = myzod.Infer<typeof integer>; // => bigint
+```
+
+The bigint schema automatically coerces bigint interpretable numbers and strings into bigint values.
+
+```typescript
+const schema = myzod.bigint();
+const value = schema.parse('42');
+
+assert.ok(typeof value === 'bigint'); // succeeds
+assert.equal(value, 42n); // succeeds
 ```
 
 #### Boolean

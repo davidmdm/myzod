@@ -178,7 +178,7 @@ export type NumberOptions = Partial<{ min: number; max: number; coerce: boolean 
 export class NumberType extends Type<number> {
   constructor(private opts: NumberOptions = {}) {
     super();
-    (this as any)[coercionTypeSymbol] = false;
+    (this as any)[coercionTypeSymbol] = !!opts.coerce;
   }
   parse(value: unknown): number {
     if (this.opts.coerce && typeof value === 'string') {
@@ -211,6 +211,41 @@ export class NumberType extends Type<number> {
   }
   coerce(value?: boolean): NumberType {
     return new NumberType({ ...this.opts, coerce: value !== undefined ? value : true });
+  }
+}
+
+export type BigIntOptions = { min?: number | bigint; max?: number | bigint };
+
+export class BigIntType extends Type<bigint> {
+  constructor(private opts: BigIntOptions = {}) {
+    super();
+    (this as any)[coercionTypeSymbol] = true;
+  }
+  parse(value: unknown): bigint {
+    try {
+      const int = BigInt(value);
+      if (this.opts.min !== undefined && int < this.opts.min) {
+        throw new ValidationError(`expected bigint to be greater than or equal to ${this.opts.min} but got ${int}`);
+      }
+      if (this.opts.max !== undefined && int > this.opts.max) {
+        throw new ValidationError(`expected bigint to be less than or equal to ${this.opts.max} but got ${int}`);
+      }
+      return int;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw err;
+      }
+      throw new ValidationError('expected type to be bigint interpretable - ' + err.message.toLowerCase());
+    }
+  }
+  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
+    return new IntersectionType(this, schema);
+  }
+  min(x: number | bigint): BigIntType {
+    return new BigIntType({ ...this.opts, min: x });
+  }
+  max(x: number | bigint): BigIntType {
+    return new BigIntType({ ...this.opts, max: x });
   }
 }
 
