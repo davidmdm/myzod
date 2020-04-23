@@ -1,6 +1,4 @@
 import {
-  ValidationError,
-  Type,
   StringType,
   NumberType,
   LiteralType,
@@ -126,4 +124,4 @@ const enumValue = <T>(e: T) => new EnumType(e);
 export { undefinedValue as undefined, nullValue as null, enumValue as enum };
 
 // Support default imports
-export default { ...this.exports }
+export default { ...this.exports };
