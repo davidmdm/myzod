@@ -126,27 +126,4 @@ const enumValue = <T>(e: T) => new EnumType(e);
 export { undefinedValue as undefined, nullValue as null, enumValue as enum };
 
 // Support default imports
-export default {
-  Type,
-  string,
-  boolean,
-  number,
-  unknown,
-  literal,
-  date,
-  object,
-  array,
-  union,
-  intersection,
-  record,
-  dictionary,
-  tuple,
-  partial,
-  pick,
-  omit,
-  undefined: undefinedValue,
-  null: nullValue,
-  enum: enumValue,
-  ValidationError,
-  keySignature,
-};
+export default { ...this.exports }
