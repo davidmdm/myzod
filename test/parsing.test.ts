@@ -286,6 +286,27 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'expected number to be less than or equal to 10 but got 20');
     });
 
+    it('should fail if number fails predicate', () => {
+      const schema = z.number().withPredicate(
+        value => value % 2 === 0,
+        value => `expected value ${value} to be even`
+      );
+      const err = catchError(schema.parse.bind(schema))(1);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected value 1 to be even');
+    });
+
+    it('should maintain coercion after an applied predicate', () => {
+      const schema = z
+        .number()
+        .coerce()
+        .withPredicate(
+          value => value % 2 === 0,
+          value => `expected value ${value} to be even`
+        );
+      assert.equal(schema.parse('2'), 2);
+    });
+
     it('should convert a string to a number if coerce is true', () => {
       const schema = z.number({ coerce: true });
       const ret = schema.parse('42');

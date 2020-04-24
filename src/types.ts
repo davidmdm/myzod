@@ -167,13 +167,13 @@ export class StringType extends Type<string> {
     super();
     this.predicates = normalizePredicates(opts?.predicate);
     let self: StringType = this;
-    if (opts?.min) {
+    if (typeof opts?.min !== 'undefined') {
       self = self.min(opts.min);
     }
-    if (opts?.max) {
+    if (typeof opts?.max !== 'undefined') {
       self = self.max(opts.max);
     }
-    if (opts?.pattern) {
+    if (typeof opts?.pattern !== 'undefined') {
       self = self.pattern(opts.pattern);
     }
     if (opts?.valid) {
@@ -201,7 +201,7 @@ export class StringType extends Type<string> {
   }
   min(x: number, errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
-      (value: string) => value.length > x,
+      (value: string) => value.length >= x,
       errMsg ||
         ((value: string) =>
           `expected string to have length greater than or equal to ${x} but had length ${value.length}`)
@@ -209,7 +209,7 @@ export class StringType extends Type<string> {
   }
   max(x: number, errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
-      (value: string) => value.length < x,
+      (value: string) => value.length <= x,
       errMsg ||
         ((value: string) => `expected string to have length less than or equal to ${x} but had length ${value.length}`)
     );
@@ -237,12 +237,27 @@ export class BooleanType extends Type<boolean> {
   }
 }
 
-export type NumberOptions = Partial<{ min: number; max: number; coerce: boolean }>;
+export type NumberOptions = {
+  min?: number;
+  max?: number;
+  coerce?: boolean;
+  predicate?: Predicate<number>['func'] | Predicate<number> | Predicate<number>[];
+};
 
 export class NumberType extends Type<number> {
+  private readonly predicates: Predicate<number>[] | null;
   constructor(private opts: NumberOptions = {}) {
     super();
     (this as any)[coercionTypeSymbol] = !!opts.coerce;
+    this.predicates = normalizePredicates(opts.predicate);
+    let self: NumberType = this;
+    if (typeof opts.max !== 'undefined') {
+      self = self.max(opts.max);
+    }
+    if (typeof opts.min !== 'undefined') {
+      self = self.min(opts.min);
+    }
+    return self;
   }
   parse(value: unknown): number {
     if (this.opts.coerce && typeof value === 'string') {
@@ -256,25 +271,37 @@ export class NumberType extends Type<number> {
     if (typeof value !== 'number') {
       throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
-    if (typeof this.opts.min === 'number' && value < this.opts.min) {
-      throw new ValidationError(`expected number to be greater than or equal to ${this.opts.min} but got ${value}`);
-    }
-    if (typeof this.opts.max === 'number' && value > this.opts.max) {
-      throw new ValidationError(`expected number to be less than or equal to ${this.opts.max} but got ${value}`);
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
     }
     return value;
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  min(x: number): NumberType {
-    return new NumberType({ ...this.opts, min: x });
+  min(x: number, errMsg?: ErrMsg<number>): NumberType {
+    return this.withPredicate(
+      value => value >= x,
+      errMsg || (value => `expected number to be greater than or equal to ${x} but got ${value}`)
+    );
   }
-  max(x: number): NumberType {
-    return new NumberType({ ...this.opts, max: x });
+  max(x: number, errMsg?: ErrMsg<number>): NumberType {
+    return this.withPredicate(
+      value => value <= x,
+      errMsg || (value => `expected number to be less than or equal to ${x} but got ${value}`)
+    );
   }
   coerce(value?: boolean): NumberType {
-    return new NumberType({ ...this.opts, coerce: value !== undefined ? value : true });
+    return new NumberType({
+      predicate: this.predicates || undefined,
+      coerce: value !== undefined ? value : true,
+    });
+  }
+  withPredicate(fn: Predicate<number>['func'], errMsg?: ErrMsg<number>): NumberType {
+    return new NumberType({
+      coerce: this.opts.coerce,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
   }
 }
 

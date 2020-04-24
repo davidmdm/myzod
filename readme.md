@@ -241,6 +241,17 @@ options:
 - max: `number` - max value for number
 - coerce: `boolean` - when true will attempt to coerce strings to numbers. default `false`
 
+methods:
+
+- `min(value: number, errMsg?: string) => NumberType`  
+  returns a new number schema where number must be greater than or equal to min value
+- `max(value: number, errMsg?: string) => NumberType`  
+   returns a new number schema where number must be less than or equal to max value
+- `withPredicate(fn: (value: number) => boolean, errMsg?: string) => NumberType`  
+  returns a new number schema where number must satisfy predicate function
+- `coerce(flag?: boolean) => NumberType`  
+  returns a new number schema which depending on the flag will coerce strings to numbers
+
 options can be passed as an option object or chained from schema.
 
 ```typescript
