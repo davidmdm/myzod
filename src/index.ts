@@ -21,7 +21,6 @@ import {
   ObjectShape,
   ObjectOptions,
   AnyType,
-  StringOptions,
   ArrayOptions,
   UnionOptions,
   PartialOpts,
@@ -35,11 +34,12 @@ import {
   OptionalType,
   BigIntOptions,
   BigIntType,
+  Predicates,
 } from './types';
 
 export { ValidationError, Type, Infer, keySignature } from './types';
 
-export const string = (opts?: StringOptions) => new StringType(opts);
+export const string = (predicates?: Predicates<string>) => new StringType(predicates);
 export const boolean = () => new BooleanType();
 export const number = (opts?: NumberOptions) => new NumberType(opts);
 export const bigint = (opts?: BigIntOptions) => new BigIntType(opts);

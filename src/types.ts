@@ -102,72 +102,113 @@ export type IntersectionResult<T extends AnyType, K extends AnyType> =
 //   : never
 // : never;
 
+export type Predicates<T> =
+  | ((value: T) => boolean)
+  | { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }
+  | { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }[];
+
+const applyPredicates = (predicates: Predicates<any>, value: any) => {
+  try {
+    if (typeof predicates === 'function') {
+      if (!predicates(value)) {
+        throw new ValidationError('failed anonymous predicate function');
+      }
+      return;
+    }
+    if (Array.isArray(predicates)) {
+      for (const predicate of predicates) {
+        if (!predicate.func(value)) {
+          throw new ValidationError(
+            predicate.errMsg
+              ? typeof predicate.errMsg === 'function'
+                ? predicate.errMsg(value)
+                : predicate.errMsg
+              : 'failed anonymous predicate function'
+          );
+        }
+      }
+      return;
+    }
+    if (!predicates.func(value)) {
+      throw new ValidationError(
+        predicates.errMsg
+          ? typeof predicates.errMsg === 'function'
+            ? predicates.errMsg(value)
+            : predicates.errMsg
+          : 'failed anonymous predicate function'
+      );
+    }
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      throw err;
+    }
+    throw new ValidationError(err.message);
+  }
+};
+
+const appendPredicate = <T>(
+  predicates: Predicates<T> | undefined,
+  pred: { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }
+): Predicates<T> => {
+  if (typeof predicates === 'undefined') {
+    return pred;
+  }
+  if (typeof predicates === 'function') {
+    return [{ func: predicates }, pred];
+  }
+  if (Array.isArray(predicates)) {
+    return [...predicates, pred];
+  }
+  return [predicates, pred];
+};
+
 // Primitives
 
-export type StringOptions = Partial<{
-  pattern: RegExp;
-  min: number;
-  max: number;
-  predicate: (value: string) => boolean;
-  predicateErrMsg: string;
-  valid: string[];
-}>;
-
 export class StringType extends Type<string> {
-  constructor(private opts: StringOptions = {}) {
+  constructor(private predicates?: Predicates<string>) {
     super();
   }
   parse(value: unknown): string {
     if (typeof value !== 'string') {
       throw new ValidationError('expected type to be string but got ' + typeOf(value));
     }
-    if (typeof this.opts.min === 'number' && value.length < this.opts.min) {
-      throw new ValidationError(
-        `expected string to have length greater than or equal to ${this.opts.min} but had length ${value.length}`
-      );
-    }
-    if (typeof this.opts.max === 'number' && value.length > this.opts.max) {
-      throw new ValidationError(
-        `expected string to have length less than or equal to ${this.opts.max} but had length ${value.length}`
-      );
-    }
-    if (this.opts.pattern instanceof RegExp && !this.opts.pattern.test(value)) {
-      throw new ValidationError(`expected string to match pattern ${this.opts.pattern} but did not`);
-    }
-    if (this.opts.valid && !this.opts.valid.includes(value)) {
-      throw new ValidationError(`expected string to be one of: ${JSON.stringify(this.opts.valid)}`);
-    }
-    if (this.opts.predicate) {
-      try {
-        if (this.opts.predicate(value) === false) {
-          throw new ValidationError(this.opts.predicateErrMsg || 'expected string to pass predicate function');
-        }
-      } catch (err) {
-        if (err instanceof ValidationError) {
-          throw err;
-        }
-        throw new ValidationError(err.message);
-      }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
     }
     return value;
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  pattern(regexp: RegExp): StringType {
-    return new StringType({ ...this.opts, pattern: regexp });
+  pattern(regexp: RegExp, errMsg?: string): StringType {
+    return this.withPredicate(
+      value => regexp.test(value),
+      errMsg || `expected string to match pattern ${regexp} but did not`
+    );
   }
-  min(x: number): StringType {
-    return new StringType({ ...this.opts, min: x });
+  min(x: number, errMsg?: string | ((value: string) => string)): StringType {
+    return this.withPredicate(
+      (value: string) => value.length > x,
+      errMsg ||
+        ((value: string) =>
+          `expected string to have length greater than or equal to ${x} but had length ${value.length}`)
+    );
   }
-  max(x: number): StringType {
-    return new StringType({ ...this.opts, max: x });
+  max(x: number, errMsg?: string | ((value: string) => string)): StringType {
+    return this.withPredicate(
+      (value: string) => value.length < x,
+      errMsg ||
+        ((value: string) => `expected string to have length less than or equal to ${x} but had length ${value.length}`)
+    );
   }
-  valid(list: string[]): StringType {
-    return new StringType({ ...this.opts, valid: list });
+  valid(list: string[], errMsg?: string | ((value: string) => string)): StringType {
+    return this.withPredicate(
+      (value: string) => list.includes(value),
+      errMsg || `expected string to be one of: ${JSON.stringify(list)}`
+    );
   }
-  predicate(fn: StringOptions['predicate'], errMsg?: string): StringType {
-    return new StringType({ ...this.opts, predicate: fn, predicateErrMsg: errMsg || this.opts.predicateErrMsg });
+  withPredicate(fn: (value: string) => boolean, errMsg?: string | ((value: string) => string)): StringType {
+    return new StringType(appendPredicate(this.predicates, { func: fn, errMsg }));
   }
 }
 

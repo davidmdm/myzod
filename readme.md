@@ -177,7 +177,8 @@ options:
 - max: `number` - sets the maximum length for the string
 - pattern: `RegExp` - expression string must match
 - valid: `string[]` - array of valid strings
-- predicate: `(val: string) => boolean` - predicate function to extend string validation.
+- predicate: `((val: string) => boolean) | { func: (val: string) => boolean; errMsg?: string } | { func: (val: string) => boolean; errMsg?: string }`
+  extends validation by executing predicate function(s) against value.
 - predicateErrMsg: `string` - error message to throw in ValidationError should predicate fail
 
 options can be passed as an option object or chained from schema.
@@ -202,15 +203,23 @@ const helloworld = myzod.literals('hello', 'world');
 typeof HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
 ```
 
-Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended using the predicate and predicateErrMsg options
+Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended via the withPredicate API.
 
 ```typescript
-const uuidSchema = myzod.string().predicate(validator.isUUID, 'expected string to be uuid');
+const uuidSchema = myzod.string().withPredicate(validator.isUUID, 'expected string to be uuid');
 
 type UUID = Infer<typeof uuidSchema>; // => string
 
 uuidSchema.parse('hello world'); // Throws ValidationError with message 'expected string to be uuid'
 // note that if predicate function throws an error that message will be used instead
+```
+
+Note that you can register multiple predicates, and that each invocation will create a new schema:
+
+```typescript
+const greeting = myzod.string().withPredicate(value => value.startsWith('hello'), 'string must start with hello');
+const evenGreeting = greeting.withPredicate(value => value.length % 2 === 0, 'string must have even length');
+const oddGreeting = greeting.withPredicate(value => value.length % 2 === 1, 'string must have odd length');
 ```
 
 #### Number
