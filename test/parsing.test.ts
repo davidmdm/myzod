@@ -1832,6 +1832,13 @@ describe('Zod Parsing', () => {
       assert.notEqual(person, data);
       assert.deepEqual(person, { name: 'Joe', age: BigInt(32) });
     });
+
+    it('should fail if predicate is not satisfied', () => {
+      const schema = z.bigint().withPredicate(int => int % BigInt(2) === BigInt(0), 'expected bigint to be even');
+      const err = catchError(schema.parse.bind(schema))(1);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected bigint to be even');
+    });
   });
 });
 

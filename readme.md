@@ -278,6 +278,15 @@ options:
 - min: `number` - min value for number
 - max: `number` - max value for number
 
+methods:
+
+- `min(value: number | bigint) => BigIntType`  
+   returns a new bigint schema where value must be at least min
+- `max(value: number | bigint) => BigIntType`  
+   returns a new bigint schema where value must be lesser or equal to max
+- `withPredicate(fn: (value: bigint) => boolean, errMsg?: string) => BigIntType`  
+   returns a new bigint schema where value must pass predicate function
+
 options can be passed as an option object or chained from schema.
 
 ```typescript

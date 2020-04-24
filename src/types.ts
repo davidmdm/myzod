@@ -305,21 +305,24 @@ export class NumberType extends Type<number> {
   }
 }
 
-export type BigIntOptions = { min?: number | bigint; max?: number | bigint };
+export type BigIntOptions = {
+  min?: number | bigint;
+  max?: number | bigint;
+  predicate?: Predicate<bigint>['func'] | Predicate<bigint> | Predicate<bigint>[];
+};
 
 export class BigIntType extends Type<bigint> {
-  constructor(private opts: BigIntOptions = {}) {
+  private readonly predicates: Predicate<bigint>[] | null;
+  constructor(opts: BigIntOptions = {}) {
     super();
     (this as any)[coercionTypeSymbol] = true;
+    this.predicates = normalizePredicates(opts.predicate);
   }
   parse(value: unknown): bigint {
     try {
       const int = BigInt(value);
-      if (this.opts.min !== undefined && int < this.opts.min) {
-        throw new ValidationError(`expected bigint to be greater than or equal to ${this.opts.min} but got ${int}`);
-      }
-      if (this.opts.max !== undefined && int > this.opts.max) {
-        throw new ValidationError(`expected bigint to be less than or equal to ${this.opts.max} but got ${int}`);
+      if (this.predicates) {
+        applyPredicates(this.predicates, int);
       }
       return int;
     } catch (err) {
@@ -332,11 +335,20 @@ export class BigIntType extends Type<bigint> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  min(x: number | bigint): BigIntType {
-    return new BigIntType({ ...this.opts, min: x });
+  min(x: number | bigint, errMsg?: ErrMsg<bigint>): BigIntType {
+    return this.withPredicate(
+      value => value >= x,
+      errMsg || (value => `expected bigint to be greater than or equal to ${x} but got ${value}`)
+    );
   }
-  max(x: number | bigint): BigIntType {
-    return new BigIntType({ ...this.opts, max: x });
+  max(x: number | bigint, errMsg?: ErrMsg<bigint>): BigIntType {
+    return this.withPredicate(
+      value => value <= x,
+      errMsg || (value => `expected bigint to be less than or equal to ${x} but got ${value}`)
+    );
+  }
+  withPredicate(fn: Predicate<bigint>['func'], errMsg?: ErrMsg<bigint>): BigIntType {
+    return new BigIntType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
   }
 }
 
