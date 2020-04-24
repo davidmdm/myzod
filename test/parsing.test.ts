@@ -457,6 +457,26 @@ describe('Zod Parsing', () => {
       assert.notEqual(ret, date);
       assert.equal(ret.getTime(), date.getTime());
     });
+
+    it('should apply predicates', () => {
+      const now = Date.now();
+      const schema = z
+        .date()
+        .withPredicate(value => value.getTime() > now, 'expected date to be after than current moment')
+        .withPredicate(value => value.getUTCDay() <= 5 && value.getUTCDay() >= 1, 'expected date to be a weekday');
+
+      const parse = catchError(schema.parse.bind(schema));
+
+      const pastDate = new Date(Date.now() - 3600);
+      const pastErr = parse(pastDate);
+      assert.ok(pastErr instanceof z.ValidationError);
+      assert.equal(pastErr.message, 'expected date to be after than current moment');
+
+      const weekendDate = 'Sun Jul 30 2023';
+      const weekendErr = parse(weekendDate);
+      assert.ok(weekendErr instanceof z.ValidationError);
+      assert.equal(weekendErr.message, 'expected date to be a weekday');
+    });
   });
 
   describe('unknown parsing', () => {

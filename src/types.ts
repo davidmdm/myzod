@@ -442,26 +442,44 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
 
 // Non Primitive types
 
+export type DateOptions = {
+  predicate?: Predicate<Date>['func'] | Predicate<Date> | Predicate<Date>[];
+};
+
+const stringToDate = (str: string): Date => {
+  const date = new Date(str);
+  if (isNaN(date.getTime())) {
+    throw new ValidationError(`expected date string to be valid date`);
+  }
+  return date;
+};
+
+const assertDate = (date: any): Date => {
+  if (!(date instanceof Date)) {
+    throw new ValidationError('expected type Date but got ' + typeOf(date));
+  }
+  return date;
+};
+
 export class DateType extends Type<Date> {
-  constructor() {
+  private readonly predicates: Predicate<Date>[] | null;
+  constructor(opts?: DateOptions) {
     super();
     (this as any)[coercionTypeSymbol] = true;
+    this.predicates = normalizePredicates(opts?.predicate);
   }
   parse(value: unknown): Date {
-    if (typeof value === 'string') {
-      const date = new Date(value);
-      if (isNaN(date.getTime())) {
-        throw new ValidationError(`expected date string to be valid date`);
-      }
-      return date;
+    const date = typeof value === 'string' ? stringToDate(value) : assertDate(value);
+    if (this.predicates) {
+      applyPredicates(this.predicates, date);
     }
-    if (!(value instanceof Date)) {
-      throw new ValidationError('expected type Date but got ' + typeOf(value));
-    }
-    return value;
+    return date;
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  withPredicate(fn: Predicate<Date>['func'], errMsg?: ErrMsg<Date>): DateType {
+    return new DateType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
   }
 }
 

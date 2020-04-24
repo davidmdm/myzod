@@ -580,6 +580,11 @@ if (colorSchema.check(value)) {
 
 #### Date
 
+methods:
+
+- `withPredicate(fn: (value: Date) => boolean, errMsg?: string) => DateType`  
+   returns a new date schema where value must pass predicate function(s)
+
 the myzod.date function creates a date schema. Values that will be successfully parsed by this schema are
 Javascript Date instances and valid string representations of dates. The returned parse Date will be an instance of Date.
 
@@ -590,6 +595,11 @@ type Schema = myzod.Infer<typeof schema>; // => Date
 const date = new Date();
 schema.parse(date); // returns date
 schema.parse(date.toISOString()); // returns a date instance equal to date
+
+// WithPredicate example
+const weekDay = myzod
+  .date()
+  .withPredicate(date => date.getUTCDate() !== 6 && date.getUTCDate() !== 0, 'expected weekday');
 ```
 
 #### Union
