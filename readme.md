@@ -171,15 +171,18 @@ type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 
 #### String
 
-options:
+methods:
 
-- min: `number` - sets the minimum length for the string
-- max: `number` - sets the maximum length for the string
-- pattern: `RegExp` - expression string must match
-- valid: `string[]` - array of valid strings
-- predicate: `((val: string) => boolean) | { func: (val: string) => boolean; errMsg?: string } | { func: (val: string) => boolean; errMsg?: string }`
-  extends validation by executing predicate function(s) against value.
-- predicateErrMsg: `string` - error message to throw in ValidationError should predicate fail
+- `min(value: number, errMsg?: string) => StringType`  
+   returns a new string schema where minimum string lenth is min
+- `max(value: number, errMsg?: string) => StringType`  
+   returns a new string schema where maximum string length is max
+- `pattern(value: RegExp, errMsg?: string) => StringType`  
+   returns a new string schema where string must match pattern
+- `valid(list: string[], errMsg?: string) => StringType`  
+   returns a new string schema where string must be included in valid string array
+- `withPredicate(fn: (val: string) => boolean), errMsg?: string }`  
+   returns a new schema where string must pass predicate function(s).
 
 options can be passed as an option object or chained from schema.
 
