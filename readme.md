@@ -171,6 +171,14 @@ type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 
 #### String
 
+options:
+
+- min `number` - min length of string
+- max `number` - max length of string
+- pattern `RegExp` - regular expression string must match
+- valid `string[]` - list of valid stings
+- predicate `Predicate<string>` - custom predicates to apply to string value
+
 methods:
 
 - `min(value: number, errMsg?: string) => StringType`  
@@ -187,6 +195,8 @@ methods:
 options can be passed as an option object or chained from schema.
 
 ```typescript
+myzod.string({ min: 3, max: 10, pattern: /^hey/ });
+// same as
 myzod.string().min(3).max(10).pattern(/^hey/);
 ```
 

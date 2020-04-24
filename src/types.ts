@@ -102,41 +102,36 @@ export type IntersectionResult<T extends AnyType, K extends AnyType> =
 //   : never
 // : never;
 
-export type Predicates<T> =
-  | ((value: T) => boolean)
-  | { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }
-  | { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }[];
+type ErrMsg<T> = string | ((value: T) => string);
+type Predicate<T> = { func: (value: T) => boolean; errMsg?: ErrMsg<T> };
 
-const applyPredicates = (predicates: Predicates<any>, value: any) => {
+const normalizePredicates = <T>(
+  predicate?: Predicate<T>['func'] | Predicate<T> | Predicate<T>[]
+): Predicate<T>[] | null => {
+  if (!predicate) {
+    return null;
+  }
+  if (typeof predicate === 'function') {
+    return [{ func: predicate }];
+  }
+  if (Array.isArray(predicate)) {
+    return predicate;
+  }
+  return [predicate];
+};
+
+const applyPredicates = (predicates: Predicate<any>[], value: any) => {
   try {
-    if (typeof predicates === 'function') {
-      if (!predicates(value)) {
-        throw new ValidationError('failed anonymous predicate function');
+    for (const predicate of predicates) {
+      if (!predicate.func(value)) {
+        throw new ValidationError(
+          predicate.errMsg
+            ? typeof predicate.errMsg === 'function'
+              ? predicate.errMsg(value)
+              : predicate.errMsg
+            : 'failed anonymous predicate function'
+        );
       }
-      return;
-    }
-    if (Array.isArray(predicates)) {
-      for (const predicate of predicates) {
-        if (!predicate.func(value)) {
-          throw new ValidationError(
-            predicate.errMsg
-              ? typeof predicate.errMsg === 'function'
-                ? predicate.errMsg(value)
-                : predicate.errMsg
-              : 'failed anonymous predicate function'
-          );
-        }
-      }
-      return;
-    }
-    if (!predicates.func(value)) {
-      throw new ValidationError(
-        predicates.errMsg
-          ? typeof predicates.errMsg === 'function'
-            ? predicates.errMsg(value)
-            : predicates.errMsg
-          : 'failed anonymous predicate function'
-      );
     }
   } catch (err) {
     if (err instanceof ValidationError) {
@@ -147,26 +142,44 @@ const applyPredicates = (predicates: Predicates<any>, value: any) => {
 };
 
 const appendPredicate = <T>(
-  predicates: Predicates<T> | undefined,
+  predicates: Predicate<T>[] | null | undefined,
   pred: { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }
-): Predicates<T> => {
-  if (typeof predicates === 'undefined') {
-    return pred;
+): Predicate<T>[] => {
+  if (!predicates) {
+    return [pred];
   }
-  if (typeof predicates === 'function') {
-    return [{ func: predicates }, pred];
-  }
-  if (Array.isArray(predicates)) {
-    return [...predicates, pred];
-  }
-  return [predicates, pred];
+  return [...predicates, pred];
 };
 
 // Primitives
 
+export type StringOptions = {
+  min?: number;
+  max?: number;
+  pattern?: RegExp;
+  valid?: string[];
+  predicate?: Predicate<string>['func'] | Predicate<string> | Predicate<string>[];
+};
+
 export class StringType extends Type<string> {
-  constructor(private predicates?: Predicates<string>) {
+  private readonly predicates: Predicate<string>[] | null;
+  constructor(opts?: StringOptions) {
     super();
+    this.predicates = normalizePredicates(opts?.predicate);
+    let self: StringType = this;
+    if (opts?.min) {
+      self = self.min(opts.min);
+    }
+    if (opts?.max) {
+      self = self.max(opts.max);
+    }
+    if (opts?.pattern) {
+      self = self.pattern(opts.pattern);
+    }
+    if (opts?.valid) {
+      self = self.valid(opts.valid);
+    }
+    return self;
   }
   parse(value: unknown): string {
     if (typeof value !== 'string') {
@@ -180,13 +193,13 @@ export class StringType extends Type<string> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  pattern(regexp: RegExp, errMsg?: string): StringType {
+  pattern(regexp: RegExp, errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
       value => regexp.test(value),
       errMsg || `expected string to match pattern ${regexp} but did not`
     );
   }
-  min(x: number, errMsg?: string | ((value: string) => string)): StringType {
+  min(x: number, errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
       (value: string) => value.length > x,
       errMsg ||
@@ -194,21 +207,21 @@ export class StringType extends Type<string> {
           `expected string to have length greater than or equal to ${x} but had length ${value.length}`)
     );
   }
-  max(x: number, errMsg?: string | ((value: string) => string)): StringType {
+  max(x: number, errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
       (value: string) => value.length < x,
       errMsg ||
         ((value: string) => `expected string to have length less than or equal to ${x} but had length ${value.length}`)
     );
   }
-  valid(list: string[], errMsg?: string | ((value: string) => string)): StringType {
+  valid(list: string[], errMsg?: ErrMsg<string>): StringType {
     return this.withPredicate(
       (value: string) => list.includes(value),
       errMsg || `expected string to be one of: ${JSON.stringify(list)}`
     );
   }
-  withPredicate(fn: (value: string) => boolean, errMsg?: string | ((value: string) => string)): StringType {
-    return new StringType(appendPredicate(this.predicates, { func: fn, errMsg }));
+  withPredicate(fn: Predicate<string>['func'], errMsg?: ErrMsg<string>): StringType {
+    return new StringType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
   }
 }
 

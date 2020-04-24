@@ -42,12 +42,64 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
     });
 
+    it('should fail if string does not match pattern and use custom error message', () => {
+      const schema = z.string().pattern(/^hello/, 'value should start with hello');
+      const err = catchError(schema.parse.bind(schema))('goodbye world');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'value should start with hello');
+    });
+
+    it('should fail if string does not match pattern and use custom error message function', () => {
+      const schema = z.string().pattern(/^hello/, value => `value ${JSON.stringify(value)} did notmatch regexp`);
+      const err = catchError(schema.parse.bind(schema))('goodbye world');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'value "goodbye world" did notmatch regexp');
+    });
+
     it('should pass if string length is within the range', () => {
+      const schema = z.string({ min: 3, max: 6 });
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if string length is outside  length the range', () => {
+      const schema = z.string({ min: 3, max: 6 });
+      const parse = catchError(schema.parse.bind(schema));
+
+      const minErr = parse('hi');
+      assert.ok(minErr instanceof z.ValidationError);
+      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+
+      const maxErr = parse('heellloo');
+      assert.ok(maxErr instanceof z.ValidationError);
+      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+    });
+
+    it('should fail if string length is outside  length the range - fluent syntax', () => {
+      const schema = z.string().min(3).max(6);
+      const parse = catchError(schema.parse.bind(schema));
+
+      const minErr = parse('hi');
+      assert.ok(minErr instanceof z.ValidationError);
+      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+
+      const maxErr = parse('heellloo');
+      assert.ok(maxErr instanceof z.ValidationError);
+      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+    });
+
+    it('should pass if string length is within the range - fluent syntax', () => {
       const schema = z.string().min(3).max(6);
       assert.equal(schema.parse('hello'), 'hello');
     });
 
     it('should fail if string length is less than min', () => {
+      const schema = z.string({ min: 3 });
+      const err = catchError(schema.parse.bind(schema))('hi');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
+    });
+
+    it('should fail if string length is less than min - fluent syntax', () => {
       const schema = z.string().min(3);
       const err = catchError(schema.parse.bind(schema))('hi');
       assert.equal(err instanceof z.ValidationError, true);
@@ -81,7 +133,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail with predicate error message if predicate function returns false', () => {
-      const schema = z.string({ func: () => false, errMsg: 'custom predicate message' });
+      const schema = z.string({ predicate: { func: () => false, errMsg: 'custom predicate message' } });
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'custom predicate message');
@@ -103,10 +155,12 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail if not all predicates are met', () => {
-      const schema = z.string([
-        { func: (value: string) => isNaN(Number(value)), errMsg: 'value must not be a number' },
-        { func: (value: string) => value.startsWith('hello'), errMsg: 'value must start with hello' },
-      ]);
+      const schema = z.string({
+        predicate: [
+          { func: (value: string) => isNaN(Number(value)), errMsg: 'value must not be a number' },
+          { func: (value: string) => value.startsWith('hello'), errMsg: 'value must start with hello' },
+        ],
+      });
 
       const parse = catchError(schema.parse.bind(schema));
 
