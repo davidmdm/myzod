@@ -187,8 +187,6 @@ methods:
 options can be passed as an option object or chained from schema.
 
 ```typescript
-myzod.string({ min: 3, max: 10, pattern: /^hey/ });
-// Same as:
 myzod.string().min(3).max(10).pattern(/^hey/);
 ```
 
@@ -203,7 +201,7 @@ if however you want the stings to be typed used the [literals](#literals) helper
 
 ```typescript
 const helloworld = myzod.literals('hello', 'world');
-typeof HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
+type HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
 ```
 
 Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended via the withPredicate API.
