@@ -970,6 +970,14 @@ describe('Zod Parsing', () => {
       assert.ok(ret[0] instanceof Date);
       assert.equal(ret[0].getTime(), date.getTime());
     });
+
+    it('should fail if predicate is not respected', () => {
+      const schema = z.array(z.number()).withPredicate(value => value[0] === 0, 'expected first element to be 0');
+      assert.deepEqual(schema.parse([0, 1]), [0, 1]);
+      const err = catchError(schema.parse.bind(schema))([1, 2]);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected first element to be 0');
+    });
   });
 
   describe('union parsing', () => {

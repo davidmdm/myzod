@@ -534,6 +534,19 @@ options:
 - max: `number` - the maximum length of the array
 - unique: `boolean` - should the array be unique. default `false`
 
+methods:
+
+- `length(value: number, errMsg?: string) => ArrayType<T>`
+  returns a new array schema of the same type where the length of the array must be value
+- `min(value: number, errMsg?: string) => ArrayType<T>`
+  returns a new array schema of the same type where the minimum length is value
+- `max(value: number, errMsg?: string) => ArrayType<T>`
+  returns a new array schema of the same type where the maximum length is value
+- `unique() => ArrayType<T>`
+  returns a new array schema of the same type where every element must be unique
+- `withPredicate(fn: (value: T[]) => boolean, errMsg?: string) => ArrayType<T>`
+  returns a new array schema that must respect predicate function
+
 Signature:
 
 ```typescript

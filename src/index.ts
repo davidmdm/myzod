@@ -46,7 +46,7 @@ export const bigint = (opts?: BigIntOptions) => new BigIntType(opts);
 export const unknown = () => new UnknownType();
 export const literal = <T extends Literal>(literal: T) => new LiteralType(literal);
 export const object = <T extends ObjectShape>(shape: T, opts?: ObjectOptions<T>) => new ObjectType(shape, opts);
-export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions) => new ArrayType(schema, opts);
+export const array = <T extends AnyType>(schema: T, opts?: ArrayOptions<T>) => new ArrayType(schema, opts);
 export const union = <T extends AnyType[]>(schemas: T, opts?: UnionOptions) => new UnionType(schemas, opts);
 export const intersection = <T extends AnyType, K extends AnyType>(l: T, r: K): IntersectionResult<T, K> => l.and(r);
 

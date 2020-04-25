@@ -741,53 +741,45 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
   }
 }
 
-export type ArrayOptions = Partial<{
-  length: number;
-  min: number;
-  max: number;
-  unique: boolean;
-}>;
+export type ArrayOptions<T extends AnyType> = {
+  length?: number;
+  min?: number;
+  max?: number;
+  unique?: boolean;
+  predicate?: Predicate<Infer<T>[]>['func'] | Predicate<Infer<T>[]> | Predicate<Infer<T>[]>[];
+};
 
 export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
+  private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
-  constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
+  constructor(private readonly schema: T, private readonly opts: ArrayOptions<T> = {}) {
     super();
+    this.predicates = normalizePredicates(this.opts.predicate);
     (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
         ? (elem: unknown, parseOptions?: ObjectOptions<any>) =>
             (this.schema.parse as any)(elem, { allowUnknown: parseOptions?.allowUnknown, suppressPathErrMsg: true })
         : (elem: unknown) => this.schema.parse(elem);
+
+    let self: ArrayType<T> = this;
+    if (typeof opts.length !== 'undefined') {
+      self = this.length(opts.length);
+    }
+    if (typeof opts.min !== 'undefined') {
+      self = this.min(opts.min);
+    }
+    if (typeof opts.max !== 'undefined') {
+      self = this.max(opts.max);
+    }
+    if (opts.unique === true) {
+      self = this.unique();
+    }
+    return self;
   }
   parse(value: unknown, parseOptions?: PathOptions & ObjectOptions<any>): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
-    }
-    if (typeof this.opts.length === 'number' && this.opts.length >= 0 && value.length !== this.opts.length) {
-      throw new ValidationError(`expected array to have length ${this.opts.length} but got ${value.length}`);
-    }
-    if (typeof this.opts.min === 'number' && value.length < this.opts.min) {
-      throw new ValidationError(
-        `expected array to have length greater than or equal to ${this.opts.min} but got ${value.length}`
-      );
-    }
-    if (typeof this.opts.max === 'number' && value.length > this.opts.max) {
-      throw new ValidationError(
-        `expected array to have length less than or equal to ${this.opts.max} but got ${value.length}`
-      );
-    }
-    if (this.opts.unique === true && new Set(value).size !== value.length) {
-      const seenMap = new Map<any, number[]>();
-      value.forEach((elem, idx) => {
-        const seenAt = seenMap.get(elem);
-        if (!seenAt) {
-          seenMap.set(elem, [idx]);
-        } else {
-          throw new ValidationError(
-            `expected array to be unique but found same element at indexes ${seenAt[0]} and ${idx}`
-          );
-        }
-      });
     }
     const convValue: any = (this as any)[coercionTypeSymbol] ? [] : undefined;
     for (let i = 0; i < value.length; i++) {
@@ -805,25 +797,52 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
         throw new ValidationError(msg, path);
       }
     }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convValue || value);
+    }
     return convValue || value;
   }
   length(value: number): ArrayType<T> {
-    return new ArrayType(this.schema, { ...this.opts, length: value });
+    return this.withPredicate(
+      arr => arr.length === value,
+      arr => `expected array to have length ${value} but got ${arr.length}`
+    );
   }
   min(value: number): ArrayType<T> {
-    return new ArrayType(this.schema, { ...this.opts, min: value });
+    return this.withPredicate(
+      arr => arr.length >= value,
+      arr => `expected array to have length greater than or equal to ${value} but got ${arr.length}`
+    );
   }
   max(value: number): ArrayType<T> {
-    return new ArrayType(this.schema, { ...this.opts, max: value });
+    return this.withPredicate(
+      arr => arr.length <= value,
+      arr => `expected array to have length less than or equal to ${value} but got ${arr.length}`
+    );
   }
-  unique(value: boolean = true): ArrayType<T> {
-    return new ArrayType(this.schema, { ...this.opts, unique: value });
+  unique(): ArrayType<T> {
+    return this.withPredicate(arr => {
+      const seenMap = new Map<any, number[]>();
+      arr.forEach((elem, idx) => {
+        const seenAt = seenMap.get(elem);
+        if (seenAt) {
+          throw new ValidationError(
+            `expected array to be unique but found same element at indexes ${seenAt[0]} and ${idx}`
+          );
+        }
+        seenMap.set(elem, [idx]);
+      });
+      return true;
+    });
   }
   and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
     if (schema instanceof ArrayType) {
       return new ArrayType(this.schema.and(schema.schema)) as any;
     }
     return new IntersectionType(this, schema) as any;
+  }
+  withPredicate(fn: Predicate<Infer<T>[]>['func'], errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
+    return new ArrayType(this.schema, { predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
   }
 }
 
