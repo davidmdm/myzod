@@ -173,18 +173,30 @@ type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 
 options:
 
-- min: `number` - sets the minimum length for the string
-- max: `number` - sets the maximum length for the string
-- pattern: `RegExp` - expression string must match
-- valid: `string[]` - array of valid strings
-- predicate: `(val: string) => boolean` - predicate function to extend string validation.
-- predicateErrMsg: `string` - error message to throw in ValidationError should predicate fail
+- min `number` - min length of string
+- max `number` - max length of string
+- pattern `RegExp` - regular expression string must match
+- valid `string[]` - list of valid stings
+- predicate `Predicate<string>` - custom predicates to apply to string value
+
+methods:
+
+- `min(value: number, errMsg?: string) => StringType`  
+   returns a new string schema where minimum string lenth is min
+- `max(value: number, errMsg?: string) => StringType`  
+   returns a new string schema where maximum string length is max
+- `pattern(value: RegExp, errMsg?: string) => StringType`  
+   returns a new string schema where string must match pattern
+- `valid(list: string[], errMsg?: string) => StringType`  
+   returns a new string schema where string must be included in valid string array
+- `withPredicate(fn: (val: string) => boolean), errMsg?: string }`  
+   returns a new schema where string must pass predicate function(s).
 
 options can be passed as an option object or chained from schema.
 
 ```typescript
 myzod.string({ min: 3, max: 10, pattern: /^hey/ });
-// Same as:
+// same as
 myzod.string().min(3).max(10).pattern(/^hey/);
 ```
 
@@ -199,18 +211,26 @@ if however you want the stings to be typed used the [literals](#literals) helper
 
 ```typescript
 const helloworld = myzod.literals('hello', 'world');
-typeof HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
+type HelloWorld = myzod.Infer<typeof helloworld>; // => 'hello' | 'world'
 ```
 
-Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended using the predicate and predicateErrMsg options
+Myzod is not interested in reimplementing all possible string validations, ie isUUID, isEmail, isAlphaNumeric, etc. The myzod string validation can be easily extended via the withPredicate API.
 
 ```typescript
-const uuidSchema = myzod.string().predicate(validator.isUUID, 'expected string to be uuid');
+const uuidSchema = myzod.string().withPredicate(validator.isUUID, 'expected string to be uuid');
 
 type UUID = Infer<typeof uuidSchema>; // => string
 
 uuidSchema.parse('hello world'); // Throws ValidationError with message 'expected string to be uuid'
 // note that if predicate function throws an error that message will be used instead
+```
+
+Note that you can register multiple predicates, and that each invocation will create a new schema:
+
+```typescript
+const greeting = myzod.string().withPredicate(value => value.startsWith('hello'), 'string must start with hello');
+const evenGreeting = greeting.withPredicate(value => value.length % 2 === 0, 'string must have even length');
+const oddGreeting = greeting.withPredicate(value => value.length % 2 === 1, 'string must have odd length');
 ```
 
 #### Number
@@ -220,6 +240,17 @@ options:
 - min: `number` - min value for number
 - max: `number` - max value for number
 - coerce: `boolean` - when true will attempt to coerce strings to numbers. default `false`
+
+methods:
+
+- `min(value: number, errMsg?: string) => NumberType`  
+  returns a new number schema where number must be greater than or equal to min value
+- `max(value: number, errMsg?: string) => NumberType`  
+   returns a new number schema where number must be less than or equal to max value
+- `withPredicate(fn: (value: number) => boolean, errMsg?: string) => NumberType`  
+  returns a new number schema where number must satisfy predicate function
+- `coerce(flag?: boolean) => NumberType`  
+  returns a new number schema which depending on the flag will coerce strings to numbers
 
 options can be passed as an option object or chained from schema.
 
@@ -246,6 +277,15 @@ options:
 
 - min: `number` - min value for number
 - max: `number` - max value for number
+
+methods:
+
+- `min(value: number | bigint) => BigIntType`  
+   returns a new bigint schema where value must be at least min
+- `max(value: number | bigint) => BigIntType`  
+   returns a new bigint schema where value must be lesser or equal to max
+- `withPredicate(fn: (value: bigint) => boolean, errMsg?: string) => BigIntType`  
+   returns a new bigint schema where value must pass predicate function
 
 options can be passed as an option object or chained from schema.
 
@@ -359,9 +399,23 @@ const personSchema = myzod.object({
 type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
 ```
 
+#### object.withPredicate
+
+You can add predicate functions to object schemas. Note that these predicate functions will not be kept around for schemas produces from object.pick/omit/partial as they predicate function signatures need to change for those signatures.
+
+```typescript
+const registrationSchema = myzod
+  .object({
+    email: z.string().withPredicate(validator.isEmail, 'expected email'),
+    password: z.string().min(8),
+    confirmedPassword: z.string(),
+  })
+  .withPredicate(value => value.password === value.confirmedPassword, 'password and confirmed do not match');
+```
+
 #### object.pick/omit/partial
 
-The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance.
+The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance. Note once more that predicates do not carry over from base schema.
 
 ```typescript
 const profileSchema = myzod.object({
@@ -480,6 +534,19 @@ options:
 - max: `number` - the maximum length of the array
 - unique: `boolean` - should the array be unique. default `false`
 
+methods:
+
+- `length(value: number, errMsg?: string) => ArrayType<T>`  
+  returns a new array schema of the same type where the length of the array must be value
+- `min(value: number, errMsg?: string) => ArrayType<T>`  
+  returns a new array schema of the same type where the minimum length is value
+- `max(value: number, errMsg?: string) => ArrayType<T>`  
+  returns a new array schema of the same type where the maximum length is value
+- `unique() => ArrayType<T>`  
+  returns a new array schema of the same type where every element must be unique
+- `withPredicate(fn: (value: T[]) => boolean, errMsg?: string) => ArrayType<T>`  
+  returns a new array schema that must respect predicate function
+
 Signature:
 
 ```typescript
@@ -497,6 +564,11 @@ schema.parse([1, 1, 2]); // => throws ValidationError
 ```
 
 #### Tuple
+
+methods:
+
+- `withPredicate(fn: (value: Infer<TupleType<T>>) => boolean, errMsg?: string) => TupleType<T>`  
+  returns a new tuple type that must respect predicate function
 
 Tuples are similar to arrays but allow for mixed types of static length.
 Note that myzod does not support intersections of tuple types at this time.
@@ -540,6 +612,11 @@ if (colorSchema.check(value)) {
 
 #### Date
 
+methods:
+
+- `withPredicate(fn: (value: Date) => boolean, errMsg?: string) => DateType`  
+   returns a new date schema where value must pass predicate function(s)
+
 the myzod.date function creates a date schema. Values that will be successfully parsed by this schema are
 Javascript Date instances and valid string representations of dates. The returned parse Date will be an instance of Date.
 
@@ -550,6 +627,11 @@ type Schema = myzod.Infer<typeof schema>; // => Date
 const date = new Date();
 schema.parse(date); // returns date
 schema.parse(date.toISOString()); // returns a date instance equal to date
+
+// WithPredicate example
+const weekDay = myzod
+  .date()
+  .withPredicate(date => date.getUTCDate() !== 6 && date.getUTCDate() !== 0, 'expected weekday');
 ```
 
 #### Union

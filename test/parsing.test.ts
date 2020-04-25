@@ -31,31 +31,64 @@ describe('Zod Parsing', () => {
     });
 
     it('should pass if matches provided pattern', () => {
-      const schema = z.string({ pattern: /^hello/ });
-      assert.equal(schema.parse('hello world'), 'hello world');
-    });
-
-    it('should pass if matches provided pattern - fluent syntax', () => {
       const schema = z.string().pattern(/^hello/);
       assert.equal(schema.parse('hello world'), 'hello world');
     });
 
-    it('should fail if string does not match pattern', () => {
-      const schema = z.string({ pattern: /^hello/ });
+    it('should fail if string does not match pattern ', () => {
+      const schema = z.string().pattern(/^hello/);
       const err = catchError(schema.parse.bind(schema))('goodbye world');
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
     });
 
-    it('should fail if string does not match pattern - fluent syntax', () => {
-      const schema = z.string().pattern(/^hello/);
+    it('should fail if string does not match pattern and use custom error message', () => {
+      const schema = z.string().pattern(/^hello/, 'value should start with hello');
       const err = catchError(schema.parse.bind(schema))('goodbye world');
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
+      assert.equal(err.message, 'value should start with hello');
+    });
+
+    it('should fail if string does not match pattern and use custom error message function', () => {
+      const schema = z.string().pattern(/^hello/, value => `value ${JSON.stringify(value)} did notmatch regexp`);
+      const err = catchError(schema.parse.bind(schema))('goodbye world');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'value "goodbye world" did notmatch regexp');
     });
 
     it('should pass if string length is within the range', () => {
       const schema = z.string({ min: 3, max: 6 });
+      assert.equal(schema.parse('hello'), 'hello');
+    });
+
+    it('should fail if string length is outside  length the range', () => {
+      const schema = z.string({ min: 3, max: 6 });
+      const parse = catchError(schema.parse.bind(schema));
+
+      const minErr = parse('hi');
+      assert.ok(minErr instanceof z.ValidationError);
+      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+
+      const maxErr = parse('heellloo');
+      assert.ok(maxErr instanceof z.ValidationError);
+      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+    });
+
+    it('should fail if string length is outside  length the range - fluent syntax', () => {
+      const schema = z.string().min(3).max(6);
+      const parse = catchError(schema.parse.bind(schema));
+
+      const minErr = parse('hi');
+      assert.ok(minErr instanceof z.ValidationError);
+      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+
+      const maxErr = parse('heellloo');
+      assert.ok(maxErr instanceof z.ValidationError);
+      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+    });
+
+    it('should pass if string length is within the range - fluent syntax', () => {
+      const schema = z.string().min(3).max(6);
       assert.equal(schema.parse('hello'), 'hello');
     });
 
@@ -74,13 +107,6 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail if string length is greater than max', () => {
-      const schema = z.string({ max: 6 });
-      const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to have length less than or equal to 6 but had length 11');
-    });
-
-    it('should fail if string length is greater than max - fluent syntax', () => {
       const schema = z.string().max(6);
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
@@ -88,40 +114,84 @@ describe('Zod Parsing', () => {
     });
 
     it('should pass if predicate function returns true', () => {
-      const schema = z.string().predicate(() => true);
+      const schema = z.string().withPredicate(() => true);
       assert.equal(schema.parse('hello'), 'hello');
     });
 
     it('should fail if predicate function returns false', () => {
-      const schema = z.string({ predicate: () => false });
+      const schema = z.string().withPredicate(() => false);
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to pass predicate function');
+      assert.equal(err.message, 'failed anonymous predicate function');
     });
 
     it('should fail if predicate function returns false - fluent syntax', () => {
-      const schema = z.string().predicate(() => false);
+      const schema = z.string().withPredicate(() => false);
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to pass predicate function');
+      assert.equal(err.message, 'failed anonymous predicate function');
     });
 
-    it('should fail with predicate error message if predicate function returns false - fluent syntax', () => {
-      const schema = z.string().predicate(() => false, 'custom predicate message');
+    it('should fail with predicate error message if predicate function returns false', () => {
+      const schema = z.string({ predicate: { func: () => false, errMsg: 'custom predicate message' } });
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'custom predicate message');
     });
 
-    it('should fail with predicate error message from options object if not overridden in fluent syntax', () => {
-      const schema = z.string({ predicateErrMsg: 'options.predicateErrMsg' }).predicate(() => false);
+    it('should fail with predicate error message if predicate function returns false - fluent syntax', () => {
+      const schema = z.string().withPredicate(() => false, 'custom predicate message');
       const err = catchError(schema.parse.bind(schema))('hello world');
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'options.predicateErrMsg');
+      assert.equal(err.message, 'custom predicate message');
+    });
+
+    it('should support multiple predicates - fluent syntax', () => {
+      const schema = z
+        .string()
+        .withPredicate(value => isNaN(Number(value)), 'value must not be a number')
+        .withPredicate(value => value.startsWith('hello'), 'value must start with hello');
+      assert.equal(schema.parse('hello world'), 'hello world');
+    });
+
+    it('should fail if not all predicates are met', () => {
+      const schema = z.string({
+        predicate: [
+          { func: (value: string) => isNaN(Number(value)), errMsg: 'value must not be a number' },
+          { func: (value: string) => value.startsWith('hello'), errMsg: 'value must start with hello' },
+        ],
+      });
+
+      const parse = catchError(schema.parse.bind(schema));
+
+      const pred1Err = parse('123');
+      assert.ok(pred1Err instanceof z.ValidationError);
+      assert.equal(pred1Err.message, 'value must not be a number');
+
+      const pred2Err = parse('goodbye world');
+      assert.ok(pred2Err instanceof z.ValidationError);
+      assert.equal(pred2Err.message, 'value must start with hello');
+    });
+
+    it('should fail if not all predicates are met - fluent syntax', () => {
+      const schema = z
+        .string()
+        .withPredicate(value => isNaN(Number(value)), 'value must not be a number')
+        .withPredicate(value => value.startsWith('hello'), 'value must start with hello');
+
+      const parse = catchError(schema.parse.bind(schema));
+
+      const pred1Err = parse('123');
+      assert.ok(pred1Err instanceof z.ValidationError);
+      assert.equal(pred1Err.message, 'value must not be a number');
+
+      const pred2Err = parse('goodbye world');
+      assert.ok(pred2Err instanceof z.ValidationError);
+      assert.equal(pred2Err.message, 'value must start with hello');
     });
 
     it('should fail with same error message as predicate function if it throws', () => {
-      const schema = z.string().predicate(() => {
+      const schema = z.string().withPredicate(() => {
         throw new Error('predicate error message');
       });
       const err = catchError(schema.parse.bind(schema))('hello world');
@@ -142,18 +212,11 @@ describe('Zod Parsing', () => {
     });
 
     it('should pass if value is within valid strings', () => {
-      const schema = z.string({ valid: ['hello', 'world'] });
+      const schema = z.string().valid(['hello', 'world']);
       assert.equal(schema.parse('hello'), 'hello');
     });
 
     it('should fail if value is not within valid strings', () => {
-      const schema = z.string({ valid: ['hello', 'world'] });
-      const err = catchError(schema.parse.bind(schema))('hi my dudes');
-      assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected string to be one of: ["hello","world"]');
-    });
-
-    it('should fail if value is not within valid strings - fluent syntax', () => {
       const schema = z.string().valid(['hello', 'world']);
       const err = catchError(schema.parse.bind(schema))('hi my dudes');
       assert.ok(err instanceof z.ValidationError);
@@ -221,6 +284,27 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))(20);
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected number to be less than or equal to 10 but got 20');
+    });
+
+    it('should fail if number fails predicate', () => {
+      const schema = z.number().withPredicate(
+        value => value % 2 === 0,
+        value => `expected value ${value} to be even`
+      );
+      const err = catchError(schema.parse.bind(schema))(1);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected value 1 to be even');
+    });
+
+    it('should maintain coercion after an applied predicate', () => {
+      const schema = z
+        .number()
+        .coerce()
+        .withPredicate(
+          value => value % 2 === 0,
+          value => `expected value ${value} to be even`
+        );
+      assert.equal(schema.parse('2'), 2);
     });
 
     it('should convert a string to a number if coerce is true', () => {
@@ -372,6 +456,26 @@ describe('Zod Parsing', () => {
       assert.ok(ret instanceof Date);
       assert.notEqual(ret, date);
       assert.equal(ret.getTime(), date.getTime());
+    });
+
+    it('should apply predicates', () => {
+      const now = Date.now();
+      const schema = z
+        .date()
+        .withPredicate(value => value.getTime() > now, 'expected date to be after than current moment')
+        .withPredicate(value => value.getUTCDay() <= 5 && value.getUTCDay() >= 1, 'expected date to be a weekday');
+
+      const parse = catchError(schema.parse.bind(schema));
+
+      const pastDate = new Date(Date.now() - 3600);
+      const pastErr = parse(pastDate);
+      assert.ok(pastErr instanceof z.ValidationError);
+      assert.equal(pastErr.message, 'expected date to be after than current moment');
+
+      const weekendDate = 'Sun Jul 30 2023';
+      const weekendErr = parse(weekendDate);
+      assert.ok(weekendErr instanceof z.ValidationError);
+      assert.equal(weekendErr.message, 'expected date to be a weekday');
     });
   });
 
@@ -544,6 +648,31 @@ describe('Zod Parsing', () => {
       const schema = z.object({ value: z.number().coerce() });
       const ret = schema.parse({ value: '42' });
       assert.deepEqual(ret, { value: 42 });
+    });
+
+    it('should fail if object does not pass predicate', () => {
+      const schema = z.object({ a: z.string(), b: z.string() }).withPredicate(
+        value => value.a === value.b,
+        value => `expected properties "${value.a}" and "${value.b}" to be equal`
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected properties "hello" and "world" to be equal');
+    });
+
+    it('should not transfer predicates over to a pick/omit/partial schema from an object', () => {
+      const base = z.object({ a: z.string() }).withPredicate(() => true);
+      assert.ok(Array.isArray((base as any).predicates));
+      assert.equal((base as any).predicates.length, 1);
+
+      const picked = base.pick(['a']);
+      assert.equal((picked as any).predicates, null);
+
+      const omitted = base.omit(['a']);
+      assert.equal((omitted as any).predicates, null);
+
+      const partialed = base.partial();
+      assert.equal((partialed as any).predicates, null);
     });
   });
 
@@ -840,6 +969,14 @@ describe('Zod Parsing', () => {
       assert.equal(ret.length, 1);
       assert.ok(ret[0] instanceof Date);
       assert.equal(ret[0].getTime(), date.getTime());
+    });
+
+    it('should fail if predicate is not respected', () => {
+      const schema = z.array(z.number()).withPredicate(value => value[0] === 0, 'expected first element to be 0');
+      assert.deepEqual(schema.parse([0, 1]), [0, 1]);
+      const err = catchError(schema.parse.bind(schema))([1, 2]);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected first element to be 0');
     });
   });
 
@@ -1607,6 +1744,17 @@ describe('Zod Parsing', () => {
         'error parsing tuple at index 1: error parsing object at path: "a.b" - expected type to be string but got number'
       );
     });
+
+    it('should fail if tuple does not respect predicate function', () => {
+      const schema = z
+        .tuple([z.number(), z.string()])
+        .withPredicate(value => value[0] === value[1].length, 'expected number to indicate length of string');
+
+      assert.deepEqual(schema.parse([5, 'hello']), [5, 'hello']);
+      const err = catchError(schema.parse.bind(schema))([2, 'world']);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected number to indicate length of string');
+    });
   });
 
   describe('lazy parsing', () => {
@@ -1747,6 +1895,13 @@ describe('Zod Parsing', () => {
       const person = personSchema.parse(data);
       assert.notEqual(person, data);
       assert.deepEqual(person, { name: 'Joe', age: BigInt(32) });
+    });
+
+    it('should fail if predicate is not satisfied', () => {
+      const schema = z.bigint().withPredicate(int => int % BigInt(2) === BigInt(0), 'expected bigint to be even');
+      const err = catchError(schema.parse.bind(schema))(1);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected bigint to be even');
     });
   });
 });
