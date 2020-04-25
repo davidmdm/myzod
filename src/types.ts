@@ -500,9 +500,11 @@ type InferKeySignature<T extends ObjectShape> = T extends { [keySignature]: AnyT
     : {}
   : {};
 
-type InferObjectShape<T extends ObjectShape> = InferKeySignature<T> &
-  { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-  { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any };
+type InferObjectShape<T extends ObjectShape> = Eval<
+  InferKeySignature<T> &
+    { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
+    { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any }
+>;
 
 export type ToUnion<T extends any[]> = T[number];
 export type PartialShape<T extends ObjectShape> = {
@@ -527,11 +529,19 @@ type MergeShapes<T extends ObjectShape, K extends ObjectShape> = {
 export type StringTypes<T> = T extends string ? T : never;
 
 export type PathOptions = { suppressPathErrMsg?: boolean };
-export type ObjectOptions = { allowUnknown?: boolean };
+export type ObjectOptions<T extends ObjectShape> = {
+  allowUnknown?: boolean;
+  predicate?:
+    | Predicate<InferObjectShape<T>>['func']
+    | Predicate<InferObjectShape<T>>
+    | Predicate<InferObjectShape<T>>[];
+};
 
-export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShape<T>>> {
-  constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions) {
+export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>> {
+  private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
+  constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions<T>) {
     super();
+    this.predicates = normalizePredicates(opts?.predicate);
     const keys = Object.keys(this.objectShape);
     (this as any)[allowUnknownSymbol] = !!opts?.allowUnknown;
     (this as any)[shapekeysSymbol] = keys;
@@ -540,7 +550,7 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
       !!(this.objectShape[keySignature] && (this.objectShape[keySignature] as any)[coercionTypeSymbol]);
     (this as any)[keySignature] = this.objectShape[keySignature];
   }
-  parse(value: unknown, parseOpts: ObjectOptions & PathOptions = {}): Eval<InferObjectShape<T>> {
+  parse(value: unknown, parseOpts: ObjectOptions<any> & PathOptions = {}): InferObjectShape<T> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
@@ -584,6 +594,9 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
           throw new ValidationError(msg, path);
         }
       }
+      if (this.predicates) {
+        applyPredicates(this.predicates, convVal || value);
+      }
       return convVal || value;
     }
 
@@ -606,7 +619,10 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
           throw new ValidationError(msg, path);
         }
       }
-      return convVal || (value as any);
+      if (this.predicates) {
+        applyPredicates(this.predicates, convVal || value);
+      }
+      return convVal || value;
     }
 
     const convVal: any = (this as any)[coercionTypeSymbol] ? (allowUnknown ? { ...value } : {}) : undefined;
@@ -630,7 +646,10 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
         throw new ValidationError(msg, path);
       }
     }
-    return convVal || (value as any);
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal || value);
+    }
+    return convVal || value;
   }
 
   and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
@@ -662,7 +681,16 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
 
   pick<K extends T extends { [keySignature]: AnyType } ? string : StringTypes<keyof T>>(
     keys: K[],
-    opts?: ObjectOptions
+    opts?: ObjectOptions<
+      Eval<
+        Pick<T, Extract<StringTypes<keyof T>, ToUnion<typeof keys>>> &
+          (T extends { [keySignature]: AnyType }
+            ? T extends { [keySignature]: infer KeySig }
+              ? { [key in Exclude<ToUnion<typeof keys>, keyof T>]: KeySig }
+              : {}
+            : {})
+      >
+    >
   ): ObjectType<
     Eval<
       Pick<T, Extract<StringTypes<keyof T>, ToUnion<typeof keys>>> &
@@ -685,22 +713,31 @@ export class ObjectType<T extends ObjectShape> extends Type<Eval<InferObjectShap
 
   omit<K extends StringTypes<keyof T>>(
     keys: K[],
-    opts?: ObjectOptions
+    opts?: ObjectOptions<Eval<Omit<T, ToUnion<typeof keys>>>>
   ): ObjectType<Eval<Omit<T, ToUnion<typeof keys>>>> {
     const pickedKeys: K[] = ((this as any)[shapekeysSymbol] as K[]).filter((x: K) => !keys.includes(x));
     if (!(this as any)[keySignature]) {
-      return this.pick(pickedKeys as any, opts) as any;
+      return this.pick(pickedKeys as any, opts as any) as any;
     }
-    return (this.pick(pickedKeys as any, opts) as AnyType).and(
+    return (this.pick(pickedKeys as any, opts as any) as AnyType).and(
       new ObjectType({ [keySignature]: (this as any)[keySignature] })
     );
   }
 
-  partial<K extends ObjectOptions & PartialOpts>(
+  partial<K extends ObjectOptions<Eval<DeepPartialShape<T>>> & { deep: true }>(
     opts?: K
-  ): ObjectType<Eval<K extends { deep: true } ? DeepPartialShape<T> : PartialShape<T>>> {
+  ): ObjectType<Eval<DeepPartialShape<T>>>;
+  partial<K extends ObjectOptions<Eval<PartialShape<T>>> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
+  partial(opts?: any): any {
     const schema = (toPartialSchema(this, { deep: opts?.deep || false }) as any).objectShape;
     return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
+  }
+
+  withPredicate(fn: Predicate<InferObjectShape<T>>['func'], errMsg?: ErrMsg<InferObjectShape<T>>): ObjectType<T> {
+    return new ObjectType(this.objectShape, {
+      ...this.opts,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
   }
 }
 
@@ -712,17 +749,17 @@ export type ArrayOptions = Partial<{
 }>;
 
 export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
-  private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions) => any;
+  private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
   constructor(private readonly schema: T, private readonly opts: ArrayOptions = {}) {
     super();
     (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
-        ? (elem: unknown, parseOptions?: ObjectOptions) =>
+        ? (elem: unknown, parseOptions?: ObjectOptions<any>) =>
             (this.schema.parse as any)(elem, { allowUnknown: parseOptions?.allowUnknown, suppressPathErrMsg: true })
         : (elem: unknown) => this.schema.parse(elem);
   }
-  parse(value: unknown, parseOptions?: PathOptions & ObjectOptions): Infer<T>[] {
+  parse(value: unknown, parseOptions?: PathOptions & ObjectOptions<any>): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
     }
@@ -921,7 +958,7 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
     })();
   }
 
-  parse(value: unknown, opts?: PathOptions & ObjectOptions): Eval<Infer<T> & Infer<K>> {
+  parse(value: unknown, opts?: PathOptions & ObjectOptions<any>): Eval<Infer<T> & Infer<K>> {
     const allowUnknown = opts?.allowUnknown || (this as any)[allowUnknownSymbol];
     if (!allowUnknown && (this as any)[shapekeysSymbol]) {
       const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];

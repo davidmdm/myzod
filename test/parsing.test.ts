@@ -649,6 +649,31 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ value: '42' });
       assert.deepEqual(ret, { value: 42 });
     });
+
+    it('should fail if object does not pass predicate', () => {
+      const schema = z.object({ a: z.string(), b: z.string() }).withPredicate(
+        value => value.a === value.b,
+        value => `expected properties "${value.a}" and "${value.b}" to be equal`
+      );
+      const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected properties "hello" and "world" to be equal');
+    });
+
+    it('should not transfer predicates over to a pick/omit/partial schema from an object', () => {
+      const base = z.object({ a: z.string() }).withPredicate(() => true);
+      assert.ok(Array.isArray((base as any).predicates));
+      assert.equal((base as any).predicates.length, 1);
+
+      const picked = base.pick(['a']);
+      assert.equal((picked as any).predicates, null);
+
+      const omitted = base.omit(['a']);
+      assert.equal((omitted as any).predicates, null);
+
+      const partialed = base.partial();
+      assert.equal((partialed as any).predicates, null);
+    });
   });
 
   describe('object utility parsing', () => {

@@ -399,9 +399,23 @@ const personSchema = myzod.object({
 type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
 ```
 
+#### object.withPredicate
+
+You can add predicate functions to object schemas. Note that these predicate functions will not be kept around for schemas produces from object.pick/omit/partial as they predicate function signatures need to change for those signatures.
+
+```typescript
+const registrationSchema = myzod
+  .object({
+    email: z.string().withPredicate(validator.isEmail, 'expected email'),
+    password: z.string().min(8),
+    confirmedPassword: z.string(),
+  })
+  .withPredicate(value => value.password === value.confirmedPassword, 'password and confirmed do not match');
+```
+
 #### object.pick/omit/partial
 
-The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance.
+The Object type has utility methods pick, omit, and partial for creating new ObjectType schemas based on the current instance. Note once more that predicates do not carry over from base schema.
 
 ```typescript
 const profileSchema = myzod.object({
