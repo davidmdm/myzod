@@ -1744,6 +1744,17 @@ describe('Zod Parsing', () => {
         'error parsing tuple at index 1: error parsing object at path: "a.b" - expected type to be string but got number'
       );
     });
+
+    it('should fail if tuple does not respect predicate function', () => {
+      const schema = z
+        .tuple([z.number(), z.string()])
+        .withPredicate(value => value[0] === value[1].length, 'expected number to indicate length of string');
+
+      assert.deepEqual(schema.parse([5, 'hello']), [5, 'hello']);
+      const err = catchError(schema.parse.bind(schema))([2, 'world']);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected number to indicate length of string');
+    });
   });
 
   describe('lazy parsing', () => {

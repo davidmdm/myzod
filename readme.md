@@ -536,15 +536,15 @@ options:
 
 methods:
 
-- `length(value: number, errMsg?: string) => ArrayType<T>`
+- `length(value: number, errMsg?: string) => ArrayType<T>`  
   returns a new array schema of the same type where the length of the array must be value
-- `min(value: number, errMsg?: string) => ArrayType<T>`
+- `min(value: number, errMsg?: string) => ArrayType<T>`  
   returns a new array schema of the same type where the minimum length is value
-- `max(value: number, errMsg?: string) => ArrayType<T>`
+- `max(value: number, errMsg?: string) => ArrayType<T>`  
   returns a new array schema of the same type where the maximum length is value
-- `unique() => ArrayType<T>`
+- `unique() => ArrayType<T>`  
   returns a new array schema of the same type where every element must be unique
-- `withPredicate(fn: (value: T[]) => boolean, errMsg?: string) => ArrayType<T>`
+- `withPredicate(fn: (value: T[]) => boolean, errMsg?: string) => ArrayType<T>`  
   returns a new array schema that must respect predicate function
 
 Signature:
@@ -564,6 +564,11 @@ schema.parse([1, 1, 2]); // => throws ValidationError
 ```
 
 #### Tuple
+
+methods:
+
+- `withPredicate(fn: (value: Infer<TupleType<T>>) => boolean, errMsg?: string) => TupleType<T>`  
+  returns a new tuple type that must respect predicate function
 
 Tuples are similar to arrays but allow for mixed types of static length.
 Note that myzod does not support intersections of tuple types at this time.

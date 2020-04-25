@@ -802,22 +802,22 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
     }
     return convValue || value;
   }
-  length(value: number): ArrayType<T> {
+  length(value: number, errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return this.withPredicate(
       arr => arr.length === value,
-      arr => `expected array to have length ${value} but got ${arr.length}`
+      errMsg || (arr => `expected array to have length ${value} but got ${arr.length}`)
     );
   }
-  min(value: number): ArrayType<T> {
+  min(value: number, errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return this.withPredicate(
       arr => arr.length >= value,
-      arr => `expected array to have length greater than or equal to ${value} but got ${arr.length}`
+      errMsg || (arr => `expected array to have length greater than or equal to ${value} but got ${arr.length}`)
     );
   }
-  max(value: number): ArrayType<T> {
+  max(value: number, errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return this.withPredicate(
       arr => arr.length <= value,
-      arr => `expected array to have length less than or equal to ${value} but got ${arr.length}`
+      errMsg || (arr => `expected array to have length less than or equal to ${value} but got ${arr.length}`)
     );
   }
   unique(): ArrayType<T> {
@@ -865,8 +865,13 @@ type InferTuple<T extends AnyType[]> = {
 };
 
 export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> {
-  constructor(private readonly schemas: T) {
+  private readonly predicates: Predicate<InferTuple<T>>[] | null;
+  constructor(
+    private readonly schemas: T,
+    predicate?: Predicate<InferTuple<T>>['func'] | Predicate<InferTuple<T>> | Predicate<InferTuple<T>>[]
+  ) {
     super();
+    this.predicates = normalizePredicates(predicate);
     (this as any)[coercionTypeSymbol] = schemas.some(schema => (schema as any)[coercionTypeSymbol]);
   }
   parse(value: unknown): InferTuple<T> {
@@ -887,6 +892,9 @@ export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> {
       } catch (err) {
         throw new ValidationError(`error parsing tuple at index ${i}: ${err.message}`);
       }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convValue || value);
     }
     return convValue || (value as any);
   }
@@ -914,6 +922,9 @@ export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> {
       return new TupleType(nextSchemasArray) as any;
     }
     return new IntersectionType(this, schema) as any;
+  }
+  withPredicate(fn: Predicate<InferTuple<T>>['func'], errMsg?: ErrMsg<InferTuple<T>>): TupleType<T> {
+    return new TupleType(this.schemas, appendPredicate(this.predicates, { func: fn, errMsg }));
   }
 }
 
