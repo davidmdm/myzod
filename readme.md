@@ -82,6 +82,7 @@ Reference Types
 
 - [object](#object)
   - [pick/omit/partial](#object.pick/omit/partial)
+  - [shape](#object.shape)
 - [record](#record)
 - [array](#array)
 - [tuple](#tuple)
@@ -392,11 +393,9 @@ emptyObjSchema.parse({ key: 'value' }); // => succeeds
 strictEmptyObjSchema.parse({ key: 'value' }); // => throws ValidationError because not expected key: "key"
 
 const personSchema = myzod.object({
-  name: myzod.string().min(2),
-  age: myzod.number({ min: 0 }).nullable(),
+  name: myzod.string(),
 });
-
-type Person = Infer<typeof personSchema>; // => { name: string; age: number | null }
+const shape = personSchema.shape(); // => returns { name: myzod.string() }
 ```
 
 #### object.withPredicate
@@ -409,6 +408,18 @@ const registrationSchema = myzod
     email: z.string().withPredicate(validator.isEmail, 'expected email'),
     password: z.string().min(8),
     confirmedPassword: z.string(),
+  })
+  .withPredicate(value => value.password === value.confirmedPassword, 'password and confirmed do not match');
+```
+
+#### object.shape
+
+You can extract the shape from an ObjectType.
+
+```typescript
+const registrationSchema = myzod
+  .object({
+    email: z.string()
   })
   .withPredicate(value => value.password === value.confirmedPassword, 'password and confirmed do not match');
 ```
