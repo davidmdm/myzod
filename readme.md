@@ -416,11 +416,10 @@ const registrationSchema = myzod
 You can extract the shape from an ObjectType.
 
 ```typescript
-const registrationSchema = myzod
-  .object({
-    email: z.string()
-  })
-  .withPredicate(value => value.password === value.confirmedPassword, 'password and confirmed do not match');
+const personSchema = myzod.object({
+  name: myzod.string(),
+});
+const shape = personSchema.shape(); // => returns { name: myzod.string() }
 ```
 
 #### object.pick/omit/partial
