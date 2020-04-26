@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import { ObjectType, ObjectShape } from '../src/types';
+import { ObjectType, ObjectShape, coercionTypeSymbol } from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -222,6 +222,19 @@ describe('Zod Parsing', () => {
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected string to be one of: ["hello","world"]');
     });
+
+    it('should return default schema value when parsing undefined', () => {
+      const schema = z.string().default('hello world!');
+      assert.equal(schema.parse(undefined), 'hello world!');
+    });
+
+    it('should run default schema function every call with undefined', () => {
+      let def = 'hello world';
+      const schema = z.string().default(() => (def += '!'));
+      assert.equal(schema.parse(undefined), 'hello world!');
+      assert.equal(schema.parse('hello'), 'hello');
+      assert.equal(schema.parse(undefined), 'hello world!!');
+    });
   });
 
   describe('boolean parsing', () => {
@@ -236,6 +249,23 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))({});
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected type to be boolean but got object');
+    });
+
+    it('should take default value', () => {
+      const schema = z.boolean().default(false);
+      assert.equal(schema.parse(undefined), false);
+    });
+
+    it('should take default value - func', () => {
+      const schema = z.boolean().default(() => true);
+      assert.equal(schema.parse(undefined), true);
+    });
+
+    it('should fail with null even when default value', () => {
+      const schema = z.boolean().default(false);
+      const err = catchError(schema.parse.bind(schema))(null);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be boolean but got null');
     });
   });
 
@@ -366,6 +396,20 @@ describe('Zod Parsing', () => {
       assert.notEqual(ret, data);
       assert.deepEqual(ret, data);
     });
+
+    it('should return the default value when parsing undefined', () => {
+      const schema = z.number().default(0);
+      assert.equal(schema.parse(undefined), 0);
+      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
+
+    it('should return the default value when parsing undefined - func', () => {
+      let num = 0;
+      const schema = z.number().default(() => num++);
+      assert.equal(schema.parse(undefined), 0);
+      assert.equal(schema.parse(100), 100);
+      assert.equal(schema.parse(undefined), 1);
+    });
   });
 
   describe('undefined parsing', () => {
@@ -403,6 +447,7 @@ describe('Zod Parsing', () => {
 
     it('should return the literal if match', () => {
       const ret = schema.parse('123');
+      assert.ok(!(schema as any)[coercionTypeSymbol]);
       assert.equal(ret, '123');
     });
 
@@ -431,6 +476,12 @@ describe('Zod Parsing', () => {
         err.message,
         'No union satisfied:\n  expected value to be literal "hello" but got null\n  expected value to be literal "world" but got null'
       );
+    });
+
+    it('should return literal when default is set', () => {
+      const schema = z.literal('hello').default();
+      assert.ok((schema as any)[coercionTypeSymbol]);
+      assert.equal(schema.parse(undefined), 'hello');
     });
   });
 
@@ -477,11 +528,24 @@ describe('Zod Parsing', () => {
       assert.ok(weekendErr instanceof z.ValidationError);
       assert.equal(weekendErr.message, 'expected date to be a weekday');
     });
+
+    it('should return default date when parsing undefined', () => {
+      const date = new Date();
+      const schema = z.date().default(date);
+      assert.equal(schema.parse(undefined), date);
+    });
+
+    it('should return default date when parsing undefined - func', () => {
+      const date = new Date();
+      const schema = z.date().default(() => date);
+      assert.equal(schema.parse(undefined), date);
+    });
   });
 
   describe('unknown parsing', () => {
     it('should return the unknown value as is', () => {
       const schema = z.unknown();
+      assert.ok(!(schema as any)[coercionTypeSymbol]);
       const ret = schema.parse('hello');
       assert.equal(ret, 'hello');
     });
@@ -501,6 +565,12 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ required: undefined });
       assert.deepEqual(ret, { required: undefined });
       assert.equal(ret.hasOwnProperty('required'), true);
+    });
+
+    it('should return default value', () => {
+      const schema = z.unknown().default('hello');
+      assert.ok((schema as any)[coercionTypeSymbol]);
+      assert.equal(schema.parse(undefined), 'hello');
     });
   });
 
@@ -528,6 +598,14 @@ describe('Zod Parsing', () => {
       const err = catchError(nullableSchema.parse.bind(nullableSchema))(undefined);
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected type to be string but got undefined');
+    });
+
+    it('should return a nullable modifiers default value if parsing undefined', () => {
+      const nullDefaultSchema = z.number().nullable().default(null);
+      const numberDefaultSchema = z.number().nullable().default(123);
+      assert.equal(nullDefaultSchema.parse(undefined), null);
+      assert.equal(numberDefaultSchema.parse(undefined), 123);
+      assert.ok((nullDefaultSchema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -1902,6 +1980,11 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))(1);
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected bigint to be even');
+    });
+
+    it('should use default value when parsing undefined', () => {
+      const schema = z.bigint().default(BigInt(4));
+      assert.equal(schema.parse(undefined), BigInt(4));
     });
   });
 });

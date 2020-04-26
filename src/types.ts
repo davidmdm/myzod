@@ -68,7 +68,7 @@ export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
-const coercionTypeSymbol = Symbol.for('coercion');
+export const coercionTypeSymbol = Symbol.for('coercion');
 
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
@@ -151,6 +151,14 @@ const appendPredicate = <T>(
   return [...predicates, pred];
 };
 
+interface WithPredicate<T> {
+  withPredicate(fn: Predicate<T>['func'], errMsg?: ErrMsg<T>): any;
+}
+
+interface Defaultable<T> {
+  default(value: T | (() => T)): any;
+}
+
 // Primitives
 
 export type StringOptions = {
@@ -159,13 +167,17 @@ export type StringOptions = {
   pattern?: RegExp;
   valid?: string[];
   predicate?: Predicate<string>['func'] | Predicate<string> | Predicate<string>[];
+  default?: string | (() => string);
 };
 
-export class StringType extends Type<string> {
+export class StringType extends Type<string> implements WithPredicate<string>, Defaultable<string> {
   private readonly predicates: Predicate<string>[] | null;
+  private readonly defaultValue?: string | (() => string);
   constructor(opts?: StringOptions) {
     super();
     this.predicates = normalizePredicates(opts?.predicate);
+    this.defaultValue = opts?.default;
+    (this as any)[coercionTypeSymbol] = opts?.default !== undefined;
     let self: StringType = this;
     if (typeof opts?.min !== 'undefined') {
       self = self.min(opts.min);
@@ -181,7 +193,7 @@ export class StringType extends Type<string> {
     }
     return self;
   }
-  parse(value: unknown): string {
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): string {
     if (typeof value !== 'string') {
       throw new ValidationError('expected type to be string but got ' + typeOf(value));
     }
@@ -223,10 +235,17 @@ export class StringType extends Type<string> {
   withPredicate(fn: Predicate<string>['func'], errMsg?: ErrMsg<string>): StringType {
     return new StringType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
   }
+  default(value: string | (() => string)): StringType {
+    return new StringType({ predicate: this.predicates || undefined, default: value });
+  }
 }
 
-export class BooleanType extends Type<boolean> {
-  parse(value: unknown): boolean {
+export class BooleanType extends Type<boolean> implements Defaultable<boolean> {
+  constructor(private readonly defaultValue?: boolean | (() => boolean)) {
+    super();
+    (this as any)[coercionTypeSymbol] = defaultValue !== undefined;
+  }
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): boolean {
     if (typeof value !== 'boolean') {
       throw new ValidationError('expected type to be boolean but got ' + typeOf(value));
     }
@@ -235,6 +254,9 @@ export class BooleanType extends Type<boolean> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
+  default(value: boolean | (() => boolean)): BooleanType {
+    return new BooleanType(value);
+  }
 }
 
 export type NumberOptions = {
@@ -242,14 +264,19 @@ export type NumberOptions = {
   max?: number;
   coerce?: boolean;
   predicate?: Predicate<number>['func'] | Predicate<number> | Predicate<number>[];
+  default?: number | (() => number);
 };
 
-export class NumberType extends Type<number> {
+export class NumberType extends Type<number> implements WithPredicate<number>, Defaultable<number> {
   private readonly predicates: Predicate<number>[] | null;
-  constructor(private opts: NumberOptions = {}) {
+  private readonly defaultValue?: number | (() => number);
+  private readonly coerceFlag?: boolean;
+  constructor(opts: NumberOptions = {}) {
     super();
-    (this as any)[coercionTypeSymbol] = !!opts.coerce;
+    this.coerceFlag = opts.coerce;
     this.predicates = normalizePredicates(opts.predicate);
+    this.defaultValue = opts.default;
+    (this as any)[coercionTypeSymbol] = !!opts.coerce || opts.default !== undefined;
     let self: NumberType = this;
     if (typeof opts.max !== 'undefined') {
       self = self.max(opts.max);
@@ -259,15 +286,14 @@ export class NumberType extends Type<number> {
     }
     return self;
   }
-  parse(value: unknown): number {
-    if (this.opts.coerce && typeof value === 'string') {
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): number {
+    if (this.coerceFlag && typeof value === 'string') {
       const number = parseFloat(value);
       if (isNaN(number)) {
         throw new ValidationError('expected type to be number but got string');
       }
       return this.parse(number);
     }
-
     if (typeof value !== 'number') {
       throw new ValidationError('expected type to be number but got ' + typeOf(value));
     }
@@ -295,12 +321,21 @@ export class NumberType extends Type<number> {
     return new NumberType({
       predicate: this.predicates || undefined,
       coerce: value !== undefined ? value : true,
+      default: this.defaultValue,
     });
   }
   withPredicate(fn: Predicate<number>['func'], errMsg?: ErrMsg<number>): NumberType {
     return new NumberType({
-      coerce: this.opts.coerce,
+      coerce: this.coerceFlag,
+      default: this.defaultValue,
       predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+  default(value: number | (() => number)): NumberType {
+    return new NumberType({
+      coerce: this.coerceFlag,
+      default: value,
+      predicate: this.predicates || undefined,
     });
   }
 }
@@ -309,16 +344,19 @@ export type BigIntOptions = {
   min?: number | bigint;
   max?: number | bigint;
   predicate?: Predicate<bigint>['func'] | Predicate<bigint> | Predicate<bigint>[];
+  default?: bigint | (() => bigint);
 };
 
-export class BigIntType extends Type<bigint> {
+export class BigIntType extends Type<bigint> implements WithPredicate<bigint>, Defaultable<bigint> {
   private readonly predicates: Predicate<bigint>[] | null;
+  private readonly defaultValue?: bigint | (() => bigint);
   constructor(opts: BigIntOptions = {}) {
     super();
     (this as any)[coercionTypeSymbol] = true;
     this.predicates = normalizePredicates(opts.predicate);
+    this.defaultValue = opts.default;
   }
-  parse(value: unknown): bigint {
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): bigint {
     try {
       const int = BigInt(value);
       if (this.predicates) {
@@ -348,7 +386,13 @@ export class BigIntType extends Type<bigint> {
     );
   }
   withPredicate(fn: Predicate<bigint>['func'], errMsg?: ErrMsg<bigint>): BigIntType {
-    return new BigIntType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
+    return new BigIntType({
+      default: this.defaultValue,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+  default(value: bigint | (() => bigint)): BigIntType {
+    return new BigIntType({ predicate: this.predicates || undefined, default: value });
   }
 }
 
@@ -378,11 +422,14 @@ export class NullType extends Type<null> {
 
 export type Literal = string | number | boolean | undefined | null;
 
-export class LiteralType<T extends Literal> extends Type<T> {
-  constructor(private readonly literal: T) {
+export class LiteralType<T extends Literal> extends Type<T> implements Defaultable<T> {
+  private readonly defaultValue?: T;
+  constructor(private readonly literal: T, defaulted?: boolean) {
     super();
+    this.defaultValue = defaulted ? this.literal : undefined;
+    (this as any)[coercionTypeSymbol] = !!defaulted;
   }
-  parse(value: unknown): T {
+  parse(value: unknown = this.defaultValue): T {
     if (value !== this.literal) {
       const typeofValue = typeof value !== 'object' ? JSON.stringify(value) : typeOf(value);
       throw new ValidationError(`expected value to be literal ${JSON.stringify(this.literal)} but got ${typeofValue}`);
@@ -392,14 +439,24 @@ export class LiteralType<T extends Literal> extends Type<T> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
+  default(): LiteralType<T> {
+    return new LiteralType(this.literal, true);
+  }
 }
 
-export class UnknownType extends Type<unknown> {
-  parse(value: unknown): unknown {
+export class UnknownType extends Type<unknown> implements Defaultable<unknown> {
+  constructor(private readonly defaultValue?: any) {
+    super();
+    (this as any)[coercionTypeSymbol] = defaultValue !== undefined;
+  }
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): unknown {
     return value;
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  default(value: any | (() => any)) {
+    return new UnknownType(value);
   }
 }
 
@@ -422,14 +479,21 @@ export class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> 
   }
 }
 
-export class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
-  constructor(private readonly schema: T) {
+type Nullable<T> = T | null;
+export class NullableType<T extends AnyType> extends Type<Infer<T> | null> implements Defaultable<Infer<T> | null> {
+  constructor(
+    private readonly schema: T,
+    private readonly defaultValue?: Nullable<Infer<T>> | (() => Nullable<Infer<T>>)
+  ) {
     super();
-    (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
+    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined || (this.schema as any)[coercionTypeSymbol];
     (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
     (this as any)[allowUnknownSymbol] = (this.schema as any)[allowUnknownSymbol];
   }
-  parse(value: unknown): Infer<T> | null {
+  parse(
+    //@ts-ignore
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
+  ): Infer<T> | null {
     if (value === null) {
       return null;
     }
@@ -438,12 +502,16 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
+  default(value: Nullable<Infer<T>> | (() => Nullable<Infer<T>>)) {
+    return new NullableType(this.schema, value);
+  }
 }
 
 // Non Primitive types
 
 export type DateOptions = {
   predicate?: Predicate<Date>['func'] | Predicate<Date> | Predicate<Date>[];
+  default?: Date | (() => Date);
 };
 
 const stringToDate = (str: string): Date => {
@@ -461,14 +529,16 @@ const assertDate = (date: any): Date => {
   return date;
 };
 
-export class DateType extends Type<Date> {
+export class DateType extends Type<Date> implements WithPredicate<Date>, Defaultable<Date> {
   private readonly predicates: Predicate<Date>[] | null;
+  private readonly defaultValue?: Date | (() => Date);
   constructor(opts?: DateOptions) {
     super();
     (this as any)[coercionTypeSymbol] = true;
     this.predicates = normalizePredicates(opts?.predicate);
+    this.defaultValue = opts?.default;
   }
-  parse(value: unknown): Date {
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): Date {
     const date = typeof value === 'string' ? stringToDate(value) : assertDate(value);
     if (this.predicates) {
       applyPredicates(this.predicates, date);
@@ -479,7 +549,13 @@ export class DateType extends Type<Date> {
     return new IntersectionType(this, schema);
   }
   withPredicate(fn: Predicate<Date>['func'], errMsg?: ErrMsg<Date>): DateType {
-    return new DateType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
+    return new DateType({
+      default: this.defaultValue,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+  default(value: Date | (() => Date)): DateType {
+    return new DateType({ default: value, predicate: this.predicates || undefined });
   }
 }
 
@@ -537,7 +613,8 @@ export type ObjectOptions<T extends ObjectShape> = {
     | Predicate<InferObjectShape<T>>[];
 };
 
-export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>> {
+export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
+  implements WithPredicate<InferObjectShape<T>> {
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
   constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions<T>) {
     super();
@@ -753,7 +830,7 @@ export type ArrayOptions<T extends AnyType> = {
   predicate?: Predicate<Infer<T>[]>['func'] | Predicate<Infer<T>[]> | Predicate<Infer<T>[]>[];
 };
 
-export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> {
+export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> implements WithPredicate<Infer<T>[]> {
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
   constructor(private readonly schema: T, private readonly opts: ArrayOptions<T> = {}) {
@@ -868,7 +945,7 @@ type InferTuple<T extends AnyType[]> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : never;
 };
 
-export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> {
+export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> implements WithPredicate<InferTuple<T>> {
   private readonly predicates: Predicate<InferTuple<T>>[] | null;
   constructor(
     private readonly schemas: T,

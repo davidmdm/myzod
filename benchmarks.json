@@ -60,9 +60,9 @@
     },
     "Number": {
       "no validations": {
-        "ratio": 1.129,
-        "elapsed": 105,
-        "iterationsPerSecond": 9523809,
+        "ratio": 1,
+        "elapsed": 93,
+        "iterationsPerSecond": 10752688,
         "bestIterationsPerSecond": 10752688,
         "bestElapsed": 93,
         "passed": true,
@@ -93,11 +93,11 @@
     },
     "String": {
       "no validations": {
-        "ratio": 1.212,
-        "elapsed": 63,
-        "iterationsPerSecond": 15873015,
-        "bestIterationsPerSecond": 19230769,
-        "bestElapsed": 52,
+        "ratio": 0.981,
+        "elapsed": 51,
+        "iterationsPerSecond": 19607843,
+        "bestIterationsPerSecond": 19607843,
+        "bestElapsed": 51,
         "passed": true,
         "error": null
       }
