@@ -82,7 +82,6 @@ Reference Types
 
 - [object](#object)
   - [pick/omit/partial](#object.pick/omit/partial)
-  - [shape](#object.shape)
 - [record](#record)
 - [array](#array)
 - [tuple](#tuple)
