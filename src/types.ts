@@ -733,6 +733,10 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
     return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
   }
 
+  shape(): T {
+    return Object.assign({}, this.objectShape);
+  }
+
   withPredicate(fn: Predicate<InferObjectShape<T>>['func'], errMsg?: ErrMsg<InferObjectShape<T>>): ObjectType<T> {
     return new ObjectType(this.objectShape, {
       ...this.opts,
