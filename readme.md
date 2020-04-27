@@ -191,6 +191,8 @@ methods:
    returns a new string schema where string must be included in valid string array
 - `withPredicate(fn: (val: string) => boolean), errMsg?: string }`  
    returns a new schema where string must pass predicate function(s).
+- `default(value: string | (() => string)) => StringType`  
+   returns a new schema which will use defaultValue when parsing undefined
 
 options can be passed as an option object or chained from schema.
 
@@ -233,6 +235,14 @@ const evenGreeting = greeting.withPredicate(value => value.length % 2 === 0, 'st
 const oddGreeting = greeting.withPredicate(value => value.length % 2 === 1, 'string must have odd length');
 ```
 
+You can use default values or functions to create default values for myzod string schemas.
+
+```typescript
+const uuidSchema = z.string().default(() => uuidv4());
+const val = uuidSchema.parse(undefined); // val is a valid uuid constructed by uuidv4()
+uuid.parse(null); // throws an error
+```
+
 #### Number
 
 options:
@@ -251,6 +261,8 @@ methods:
   returns a new number schema where number must satisfy predicate function
 - `coerce(flag?: boolean) => NumberType`  
   returns a new number schema which depending on the flag will coerce strings to numbers
+- `default(value: number | (() => number)) => NumberType`  
+   returns a new number schema which will use value as default when parsing undefined
 
 options can be passed as an option object or chained from schema.
 
@@ -310,6 +322,11 @@ assert.equal(value, 42n); // succeeds
 
 #### Boolean
 
+methods:
+
+- `default(value: boolean | (() => boolean)) => BooleanType`  
+   returns a new boolean schema instance which will use value as default when parsing undefined
+
 ```typescript
 myzod.boolean();
 ```
@@ -322,11 +339,21 @@ myzod.undefined();
 
 #### Null
 
+methods:
+
+- `default() => NullType`  
+   returns a new null schema instance which will use set null as default when parsing undefined
+
 ```typescript
 myzod.null();
 ```
 
 #### Literal
+
+methods:
+
+- `default() => LiteralType`  
+   returns a new literal schema instance which will use its literal as default when parsing undefined
 
 Just as in typescript we can type things using literals
 
@@ -350,6 +377,11 @@ const schema = myzod.union([myzod.literal('red'), myzod.literal('green'), myzod.
 ```
 
 #### Unknown
+
+methods:
+
+- `default(value: any | (() => any)) => UnknownType`  
+   returns a new unknown schema instance which will use value as default when parsing undefined
 
 ```typescript
 myzod.unknown();
@@ -462,6 +494,18 @@ const schema = myzod
 type DeeplyPartialSchema = myzod.Infer<typeof schema>; // { name?: string; birthday?: { year?: number; month?: number; date?: number; } }
 ```
 
+#### object.default
+
+With the default function you can set a default value for the object schema which will be used when trying to parse undefined:
+
+```typescript
+const personSchema = myzod
+  .object({ name: myzod.string(), lastName: myzod.string() })
+  .default({ name: 'John', lastName: 'Doe' });
+
+const person = personSchema.parse(undefined); // => { name: 'John', lastName: 'Doe' }
+```
+
 ##### Key Signatures
 
 In the next section myzod goes over "records" which is the simple and idiomatic way in typescript of describing an object with solely a key signature.
@@ -555,6 +599,8 @@ methods:
   returns a new array schema of the same type where every element must be unique
 - `withPredicate(fn: (value: T[]) => boolean, errMsg?: string) => ArrayType<T>`  
   returns a new array schema that must respect predicate function
+- `default(value: T[] | (() => T[])) => ArrayType<T>`  
+   returns a new array schema that will use value as default when parsing undefined
 
 Signature:
 
@@ -578,6 +624,8 @@ methods:
 
 - `withPredicate(fn: (value: Infer<TupleType<T>>) => boolean, errMsg?: string) => TupleType<T>`  
   returns a new tuple type that must respect predicate function
+- `default(value: InferTupleType<T>) => TupleType<T>`  
+   returns a new tuple type schema that will use value as default when parsing undefined
 
 Tuples are similar to arrays but allow for mixed types of static length.
 Note that myzod does not support intersections of tuple types at this time.
@@ -589,6 +637,11 @@ type Schema = Infer<typeof schema>; // => [string, { key: boolean; }, number[]];
 ```
 
 #### Enum
+
+methods:
+
+- `default(value: Enum | (() => Enum)) => EnumType`  
+   returns a new enum schema instance which will use value as default when parsing undefined
 
 The enum implementation differs greatly from the original zod implementation.
 In zod you would create an enum schema by passing an array of litteral schemas.
@@ -625,6 +678,8 @@ methods:
 
 - `withPredicate(fn: (value: Date) => boolean, errMsg?: string) => DateType`  
    returns a new date schema where value must pass predicate function(s)
+- `default(value: Date | (() => Date)) => DateType`  
+   returns a new date schema which will use value as default when parsing undefined
 
 the myzod.date function creates a date schema. Values that will be successfully parsed by this schema are
 Javascript Date instances and valid string representations of dates. The returned parse Date will be an instance of Date.

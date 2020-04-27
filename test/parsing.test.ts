@@ -833,6 +833,17 @@ describe('Zod Parsing', () => {
       const schema = z.object({ a: z.string(), b: z.string() }).default(() => ({ a: 'hello', b: 'world' }));
       assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
     });
+
+    it('should return nested defaults', () => {
+      const schema = z.object({
+        a: z.string().default('hello'),
+        b: z.number().default(() => 42),
+        c: z.boolean().default(true),
+        d: z.null().default(),
+      });
+      assert.deepEqual(schema.parse({}), { a: 'hello', b: 42, c: true, d: null });
+      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
   });
 
   describe('record parsing', () => {
@@ -1154,6 +1165,21 @@ describe('Zod Parsing', () => {
       assert.ok(ret2.birthday instanceof Date);
       assert.equal((ret2.birthday as Date).getTime(), new Date('1991-07-22').getTime());
     });
+
+    it('should use deafult value when parsing undefined', () => {
+      const schema = z.string().or(z.number()).default('hello');
+      assert.equal(schema.parse(undefined), 'hello');
+      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
+
+    it('should use deafult value when parsing undefined - func', () => {
+      const schema = z
+        .string()
+        .or(z.number())
+        .default(() => 42);
+      assert.equal(schema.parse(undefined), 42);
+      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
   });
 
   describe('intersection parsing', () => {
@@ -1464,6 +1490,7 @@ describe('Zod Parsing', () => {
 
     it('should pass if value is part of enum', () => {
       assert.equal(schema.parse('red'), Colors.red);
+      assert.ok(!(schema as any)[coercionTypeSymbol]);
     });
 
     it('should fail if not part of enum', () => {
@@ -1478,6 +1505,18 @@ describe('Zod Parsing', () => {
 
     it('should return false if value satisfies enum', () => {
       assert.equal(schema.check('blueberry'), false);
+    });
+
+    it('should return default value when parsing undefined', () => {
+      const defaultedSchema = schema.default(Colors.green);
+      assert.equal(defaultedSchema.parse(undefined), Colors.green);
+      assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
+    });
+
+    it('should return default value when parsing undefined - func', () => {
+      const defaultedSchema = schema.default(() => Colors.green);
+      assert.equal(defaultedSchema.parse(undefined), Colors.green);
+      assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
   });
 

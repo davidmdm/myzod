@@ -1068,18 +1068,30 @@ export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>>
 }
 
 type InferTupleUnion<T extends any[]> = Infer<T[number]>;
-export type UnionOptions = { strict?: boolean };
+export type UnionOptions<T extends any[]> = {
+  strict?: boolean;
+  default?: InferTupleUnion<T> | (() => InferTupleUnion<T>);
+};
 
-export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
-  constructor(private readonly schemas: T, private readonly opts?: UnionOptions) {
+export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
+  implements Defaultable<InferTupleUnion<T>> {
+  private readonly strict: boolean;
+  private readonly defaultValue?: InferTupleUnion<T> | (() => InferTupleUnion<T>);
+  constructor(private readonly schemas: T, opts?: UnionOptions<T>) {
     super();
-    (this as any)[coercionTypeSymbol] = schemas.some(schema => (schema as any)[coercionTypeSymbol]);
+    this.strict = opts?.strict !== false;
+    this.defaultValue = opts?.default;
+    (this as any)[coercionTypeSymbol] =
+      opts?.default !== undefined || schemas.some(schema => (schema as any)[coercionTypeSymbol]);
   }
-  parse(value: unknown): InferTupleUnion<T> {
+  parse(
+    //@ts-ignore
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
+  ): InferTupleUnion<T> {
     const errors: string[] = [];
     for (const schema of this.schemas) {
       try {
-        if (this.opts?.strict === false && schema instanceof ObjectType) {
+        if (this.strict === false && schema instanceof ObjectType) {
           return schema.parse(value, { allowUnknown: true }) as any;
         }
         return schema.parse(value);
@@ -1091,6 +1103,9 @@ export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>> {
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  default(value: InferTupleUnion<T> | (() => InferTupleUnion<T>)): UnionType<T> {
+    return new UnionType(this.schemas, { strict: this.strict, default: value });
   }
 }
 
@@ -1146,13 +1161,19 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 
 type ValueOf<T> = T[keyof T];
 
-export class EnumType<T> extends Type<ValueOf<T>> {
+export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf<T>> {
   private values: any[];
-  constructor(enumeration: T) {
+  private readonly defaultValue?: ValueOf<T> | (() => ValueOf<T>);
+  constructor(private readonly enumeration: T, defaultValue?: ValueOf<T> | (() => ValueOf<T>)) {
     super();
     this.values = Object.values(enumeration);
+    this.defaultValue = defaultValue;
+    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined;
   }
-  parse(value: unknown): ValueOf<T> {
+  parse(
+    //@ts-ignore
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
+  ): ValueOf<T> {
     if (!this.values.includes(value)) {
       throw new ValidationError(`error ${JSON.stringify(value)} not part of enum values`);
     }
@@ -1163,6 +1184,9 @@ export class EnumType<T> extends Type<ValueOf<T>> {
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  default(value: ValueOf<T> | (() => ValueOf<T>)): EnumType<T> {
+    return new EnumType(this.enumeration, value);
   }
 }
 
