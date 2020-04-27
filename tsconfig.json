@@ -17,5 +17,7 @@
     "strictNullChecks": true,
     "declaration": true,
     "removeComments": false
-  }
+  },
+  "include": ["src/**/*"],
+  "exlude": ["test/**/*"]
 }
