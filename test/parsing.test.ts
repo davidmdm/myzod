@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import { ObjectType, ObjectShape, coercionTypeSymbol } from '../src/types';
+import { ObjectType, ObjectShape } from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -400,7 +400,6 @@ describe('Zod Parsing', () => {
     it('should return the default value when parsing undefined', () => {
       const schema = z.number().default(0);
       assert.equal(schema.parse(undefined), 0);
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
     it('should return the default value when parsing undefined - func', () => {
@@ -447,7 +446,6 @@ describe('Zod Parsing', () => {
 
     it('should return the literal if match', () => {
       const ret = schema.parse('123');
-      assert.ok(!(schema as any)[coercionTypeSymbol]);
       assert.equal(ret, '123');
     });
 
@@ -479,8 +477,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should return literal when default is set', () => {
-      const schema = z.literal('hello').default();
-      assert.ok((schema as any)[coercionTypeSymbol]);
+      const schema = z.literal('hello').default('hello');
       assert.equal(schema.parse(undefined), 'hello');
     });
   });
@@ -545,7 +542,6 @@ describe('Zod Parsing', () => {
   describe('unknown parsing', () => {
     it('should return the unknown value as is', () => {
       const schema = z.unknown();
-      assert.ok(!(schema as any)[coercionTypeSymbol]);
       const ret = schema.parse('hello');
       assert.equal(ret, 'hello');
     });
@@ -569,7 +565,6 @@ describe('Zod Parsing', () => {
 
     it('should return default value', () => {
       const schema = z.unknown().default('hello');
-      assert.ok((schema as any)[coercionTypeSymbol]);
       assert.equal(schema.parse(undefined), 'hello');
     });
   });
@@ -605,7 +600,6 @@ describe('Zod Parsing', () => {
       const numberDefaultSchema = z.number().nullable().default(123);
       assert.equal(nullDefaultSchema.parse(undefined), null);
       assert.equal(numberDefaultSchema.parse(undefined), 123);
-      assert.ok((nullDefaultSchema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -839,10 +833,21 @@ describe('Zod Parsing', () => {
         a: z.string().default('hello'),
         b: z.number().default(() => 42),
         c: z.boolean().default(true),
-        d: z.null().default(),
+        d: z.null().default(null),
       });
       assert.deepEqual(schema.parse({}), { a: 'hello', b: 42, c: true, d: null });
-      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
+
+    it('should return nested defaults with default object', () => {
+      const schema = z
+        .object({
+          a: z.string().default('hello'),
+          b: z.number().default(() => 42),
+          c: z.boolean().default(true),
+          d: z.null().default(null),
+        })
+        .default({});
+      assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 42, c: true, d: null });
     });
   });
 
@@ -1093,7 +1098,6 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))(undefined);
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected array to have length 2 but got 0');
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -1169,7 +1173,6 @@ describe('Zod Parsing', () => {
     it('should use deafult value when parsing undefined', () => {
       const schema = z.string().or(z.number()).default('hello');
       assert.equal(schema.parse(undefined), 'hello');
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
     it('should use deafult value when parsing undefined - func', () => {
@@ -1178,7 +1181,6 @@ describe('Zod Parsing', () => {
         .or(z.number())
         .default(() => 42);
       assert.equal(schema.parse(undefined), 42);
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -1490,7 +1492,6 @@ describe('Zod Parsing', () => {
 
     it('should pass if value is part of enum', () => {
       assert.equal(schema.parse('red'), Colors.red);
-      assert.ok(!(schema as any)[coercionTypeSymbol]);
     });
 
     it('should fail if not part of enum', () => {
@@ -1510,13 +1511,11 @@ describe('Zod Parsing', () => {
     it('should return default value when parsing undefined', () => {
       const defaultedSchema = schema.default(Colors.green);
       assert.equal(defaultedSchema.parse(undefined), Colors.green);
-      assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
 
     it('should return default value when parsing undefined - func', () => {
       const defaultedSchema = schema.default(() => Colors.green);
       assert.equal(defaultedSchema.parse(undefined), Colors.green);
-      assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -1904,13 +1903,11 @@ describe('Zod Parsing', () => {
     it('should return default value when parsing undefined', () => {
       const schema = z.tuple([z.number(), z.string()]).default([42, 'hello world']);
       assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
     it('should return default value when parsing undefined - func', () => {
       const schema = z.tuple([z.number(), z.string()]).default(() => [42, 'hello world']);
       assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
-      assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
 
