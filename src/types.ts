@@ -408,8 +408,12 @@ export class UndefinedType extends Type<undefined> {
   }
 }
 
-export class NullType extends Type<null> {
-  parse(value: unknown): null {
+export class NullType extends Type<null> implements Defaultable<null> {
+  constructor(private readonly defaulted?: boolean) {
+    super();
+    (this as any)[coercionTypeSymbol] = !!defaulted;
+  }
+  parse(value: unknown = this.defaulted ? null : undefined): null {
     if (value !== null) {
       throw new ValidationError('expected type to be null but got ' + typeOf(value));
     }
@@ -417,6 +421,9 @@ export class NullType extends Type<null> {
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  default(): NullType {
+    return new NullType(true);
   }
 }
 
@@ -611,23 +618,32 @@ export type ObjectOptions<T extends ObjectShape> = {
     | Predicate<InferObjectShape<T>>['func']
     | Predicate<InferObjectShape<T>>
     | Predicate<InferObjectShape<T>>[];
+  default?: InferObjectShape<T> | (() => InferObjectShape<T>);
 };
 
 export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
-  implements WithPredicate<InferObjectShape<T>> {
+  implements WithPredicate<InferObjectShape<T>>, Defaultable<InferObjectShape<T>> {
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
-  constructor(private readonly objectShape: T, private readonly opts?: ObjectOptions<T>) {
+  private readonly defaultValue?: InferObjectShape<T> | (() => InferObjectShape<T>);
+  private readonly allowUnknown: boolean;
+  constructor(private readonly objectShape: T, opts?: ObjectOptions<T>) {
     super();
     this.predicates = normalizePredicates(opts?.predicate);
+    this.defaultValue = opts?.default;
+    this.allowUnknown = opts?.allowUnknown === true;
     const keys = Object.keys(this.objectShape);
-    (this as any)[allowUnknownSymbol] = !!opts?.allowUnknown;
+    (this as any)[keySignature] = this.objectShape[keySignature];
+    (this as any)[allowUnknownSymbol] = this.allowUnknown;
     (this as any)[shapekeysSymbol] = keys;
     (this as any)[coercionTypeSymbol] =
+      this.defaultValue !== undefined ||
       Object.values(this.objectShape).some(schema => (schema as any)[coercionTypeSymbol]) ||
       !!(this.objectShape[keySignature] && (this.objectShape[keySignature] as any)[coercionTypeSymbol]);
-    (this as any)[keySignature] = this.objectShape[keySignature];
   }
-  parse(value: unknown, parseOpts: ObjectOptions<any> & PathOptions = {}): InferObjectShape<T> {
+  parse(
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue,
+    parseOpts: ObjectOptions<any> & PathOptions = {}
+  ): InferObjectShape<T> {
     if (typeof value !== 'object') {
       throw new ValidationError('expected type to be object but got ' + typeOf(value));
     }
@@ -639,7 +655,7 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
     }
 
     const keys: string[] = (this as any)[shapekeysSymbol];
-    const allowUnknown = typeof parseOpts.allowUnknown === 'boolean' ? parseOpts.allowUnknown : this.opts?.allowUnknown;
+    const allowUnknown = typeof parseOpts.allowUnknown === 'boolean' ? parseOpts.allowUnknown : this.allowUnknown;
     const keySig = this.objectShape[keySignature];
 
     if (!allowUnknown && !keySig) {
@@ -816,8 +832,17 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
 
   withPredicate(fn: Predicate<InferObjectShape<T>>['func'], errMsg?: ErrMsg<InferObjectShape<T>>): ObjectType<T> {
     return new ObjectType(this.objectShape, {
-      ...this.opts,
+      default: this.defaultValue,
+      allowUnknown: this.allowUnknown,
       predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+
+  default(value: InferObjectShape<T> | (() => InferObjectShape<T>)): ObjectType<T> {
+    return new ObjectType(this.objectShape, {
+      default: value,
+      allowUnknown: this.allowUnknown,
+      predicate: this.predicates || undefined,
     });
   }
 }
@@ -828,15 +853,19 @@ export type ArrayOptions<T extends AnyType> = {
   max?: number;
   unique?: boolean;
   predicate?: Predicate<Infer<T>[]>['func'] | Predicate<Infer<T>[]> | Predicate<Infer<T>[]>[];
+  default?: Infer<T>[] | (() => Infer<T>[]);
 };
 
-export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> implements WithPredicate<Infer<T>[]> {
+export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
+  implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]> {
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
+  private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
-  constructor(private readonly schema: T, private readonly opts: ArrayOptions<T> = {}) {
+  constructor(private readonly schema: T, opts: ArrayOptions<T> = {}) {
     super();
-    this.predicates = normalizePredicates(this.opts.predicate);
-    (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
+    this.predicates = normalizePredicates(opts.predicate);
+    this.defaultValue = opts.default;
+    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined || (this.schema as any)[coercionTypeSymbol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
         ? (elem: unknown, parseOptions?: ObjectOptions<any>) =>
@@ -858,7 +887,10 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> implements Wi
     }
     return self;
   }
-  parse(value: unknown, parseOptions?: PathOptions & ObjectOptions<any>): Infer<T>[] {
+  parse(
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue,
+    parseOptions?: PathOptions & ObjectOptions<any>
+  ): Infer<T>[] {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected an array but got ' + typeOf(value));
     }
@@ -923,7 +955,16 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]> implements Wi
     return new IntersectionType(this, schema) as any;
   }
   withPredicate(fn: Predicate<Infer<T>[]>['func'], errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
-    return new ArrayType(this.schema, { predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
+    return new ArrayType(this.schema, {
+      default: this.defaultValue,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+  default(value: Infer<T>[] | (() => Infer<T>[])): ArrayType<T> {
+    return new ArrayType(this.schema, {
+      default: value,
+      predicate: this.predicates || undefined,
+    });
   }
 }
 
@@ -945,17 +986,25 @@ type InferTuple<T extends AnyType[]> = {
   [key in keyof T]: T[key] extends Type<infer K> ? K : never;
 };
 
-export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> implements WithPredicate<InferTuple<T>> {
+type TupleOptions<T extends any[]> = {
+  predicate?: Predicate<InferTuple<T>>['func'] | Predicate<InferTuple<T>> | Predicate<InferTuple<T>>[];
+  default?: InferTuple<T> | (() => InferTuple<T>);
+};
+
+export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>>
+  implements WithPredicate<InferTuple<T>>, Defaultable<InferTuple<T>> {
   private readonly predicates: Predicate<InferTuple<T>>[] | null;
-  constructor(
-    private readonly schemas: T,
-    predicate?: Predicate<InferTuple<T>>['func'] | Predicate<InferTuple<T>> | Predicate<InferTuple<T>>[]
-  ) {
+  private readonly defaultValue?: InferTuple<T> | (() => InferTuple<T>);
+  constructor(private readonly schemas: T, opts?: TupleOptions<T>) {
     super();
-    this.predicates = normalizePredicates(predicate);
-    (this as any)[coercionTypeSymbol] = schemas.some(schema => (schema as any)[coercionTypeSymbol]);
+    this.predicates = normalizePredicates(opts?.predicate);
+    this.defaultValue = opts?.default;
+    (this as any)[coercionTypeSymbol] =
+      this.defaultValue !== undefined || schemas.some(schema => (schema as any)[coercionTypeSymbol]);
   }
-  parse(value: unknown): InferTuple<T> {
+  parse(
+    value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
+  ): InferTuple<T> {
     if (!Array.isArray(value)) {
       throw new ValidationError('expected tuple value to be type array but got ' + typeOf(value));
     }
@@ -1005,7 +1054,16 @@ export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>> implemen
     return new IntersectionType(this, schema) as any;
   }
   withPredicate(fn: Predicate<InferTuple<T>>['func'], errMsg?: ErrMsg<InferTuple<T>>): TupleType<T> {
-    return new TupleType(this.schemas, appendPredicate(this.predicates, { func: fn, errMsg }));
+    return new TupleType(this.schemas, {
+      default: this.defaultValue,
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+    });
+  }
+  default(value: InferTuple<T> | (() => InferTuple<T>)): TupleType<T> {
+    return new TupleType(this.schemas, {
+      default: value,
+      predicate: this.predicates || undefined,
+    });
   }
 }
 

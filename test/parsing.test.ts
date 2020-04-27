@@ -823,6 +823,16 @@ describe('Zod Parsing', () => {
       //@ts-ignore
       assert.ok(typeof schema.partial === 'undefined');
     });
+
+    it('should return default value if parsing undefined', () => {
+      const schema = z.object({ a: z.string(), b: z.string() }).default({ a: 'hello', b: 'world' });
+      assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
+    });
+
+    it('should return default value if parsing undefined - func', () => {
+      const schema = z.object({ a: z.string(), b: z.string() }).default(() => ({ a: 'hello', b: 'world' }));
+      assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
+    });
   });
 
   describe('record parsing', () => {
@@ -1055,6 +1065,24 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))([1, 2]);
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected first element to be 0');
+    });
+
+    it('should return default value when parsing undefined', () => {
+      const schema = z.array(z.number()).default([1, 2, 3]);
+      assert.deepEqual(schema.parse(undefined), [1, 2, 3]);
+    });
+
+    it('should return default value when parsing undefined - func', () => {
+      const schema = z.array(z.number()).default(() => [1, 2, 3]);
+      assert.deepEqual(schema.parse(undefined), [1, 2, 3]);
+    });
+
+    it('should be possible to fail predicate with default value', () => {
+      const schema = z.array(z.number()).length(2).default([]);
+      const err = catchError(schema.parse.bind(schema))(undefined);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected array to have length 2 but got 0');
+      assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
 
@@ -1832,6 +1860,18 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))([2, 'world']);
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected number to indicate length of string');
+    });
+
+    it('should return default value when parsing undefined', () => {
+      const schema = z.tuple([z.number(), z.string()]).default([42, 'hello world']);
+      assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
+      assert.ok((schema as any)[coercionTypeSymbol]);
+    });
+
+    it('should return default value when parsing undefined - func', () => {
+      const schema = z.tuple([z.number(), z.string()]).default(() => [42, 'hello world']);
+      assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
+      assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
 
