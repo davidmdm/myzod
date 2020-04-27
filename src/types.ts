@@ -21,6 +21,10 @@ export abstract class Type<T> {
     }
     return new NullableType(this);
   }
+  default(
+    this: this extends ObjectType<any> ? (this extends ObjectType<infer K> ? ObjectType<K> : never) : never,
+    value: DefaultValue<typeof this> | (() => DefaultValue<typeof this>)
+  ): DefaultableType<this>;
   default(this: DefaultableType<any>, value: T | (() => T)): this;
   default(this: AnyType, value: T | (() => T)): DefaultableType<this>;
   default(value: any): any {
@@ -72,43 +76,45 @@ function prettyPrintPath(path: (number | string)[]): string {
 
 export type Eval<T> = T extends any[] | Date ? T : { [Key in keyof T]: T[Key] } & {};
 export type AnyType = Type<any>;
-export type Infer<T extends AnyType> = T extends Type<infer K> ? Eval<K> : any;
+export type Infer<T extends AnyType> = T extends DefaultableType<any>
+  ? T extends DefaultableType<infer Schema>
+    ? Schema extends Type<infer K>
+      ? Eval<K>
+      : never
+    : never
+  : T extends Type<infer K>
+  ? Eval<K>
+  : never;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
 const coercionTypeSymbol = Symbol.for('coercion');
 
-export type IntersectionResult<T extends AnyType, K extends AnyType> =
-  //
-  // T extends AnyType
-  //   ? K extends AnyType
-  T extends ObjectType<any>
-    ? K extends ObjectType<any>
-      ? T extends ObjectType<infer Shape1>
-        ? K extends ObjectType<infer Shape2>
-          ? ObjectType<Eval<MergeShapes<Shape1, Shape2>>>
-          : never
+export type IntersectionResult<T extends AnyType, K extends AnyType> = T extends ObjectType<any>
+  ? K extends ObjectType<any>
+    ? T extends ObjectType<infer Shape1>
+      ? K extends ObjectType<infer Shape2>
+        ? ObjectType<Eval<MergeShapes<Shape1, Shape2>>>
         : never
-      : IntersectionType<T, K>
-    : T extends ArrayType<any>
-    ? K extends ArrayType<any>
-      ? T extends ArrayType<infer S1>
-        ? K extends ArrayType<infer S2>
-          ? ArrayType<IntersectionResult<S1, S2>>
-          : never
+      : never
+    : IntersectionType<T, K>
+  : T extends ArrayType<any>
+  ? K extends ArrayType<any>
+    ? T extends ArrayType<infer S1>
+      ? K extends ArrayType<infer S2>
+        ? ArrayType<IntersectionResult<S1, S2>>
         : never
-      : IntersectionType<T, K> //
-    : T extends TupleType<any>
-    ? K extends TupleType<any>
-      ? T extends TupleType<infer S1>
-        ? K extends TupleType<infer S2>
-          ? TupleType<Join<S1, S2>>
-          : never
+      : never
+    : IntersectionType<T, K> //
+  : T extends TupleType<any>
+  ? K extends TupleType<any>
+    ? T extends TupleType<infer S1>
+      ? K extends TupleType<infer S2>
+        ? TupleType<Join<S1, S2>>
         : never
-      : IntersectionType<T, K>
-    : IntersectionType<T, K>;
-//   : never
-// : never;
+      : never
+    : IntersectionType<T, K>
+  : IntersectionType<T, K>;
 
 type ErrMsg<T> = string | ((value: T) => string);
 type Predicate<T> = { func: (value: T) => boolean; errMsg?: ErrMsg<T> };
@@ -453,9 +459,12 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
 //   b: DefaultableType<NumberType>;
 // };
 
-type DS = DefaultableType<StringType>;
+// type DK = DefaultKeys<X>;
+// type Shape = InferObjectShape<X>;
 
-type R = DS extends Type<any> ? (DS extends Type<infer K> ? K : DS) : any;
+// type OmittedShape = Eval<Omit<Shape, DK>>;
+// type OptShape = Eval<{ [key in DK]?: Infer<X[key]> }>;
+// type R = OmittedShape & OptShape;
 
 type DefaultKeys<T extends Record<string, AnyType>> = {
   [key in keyof T]: T[key] extends DefaultableType<any> ? key : never;
@@ -463,9 +472,13 @@ type DefaultKeys<T extends Record<string, AnyType>> = {
 
 type DefaultValue<T extends AnyType> = T extends ObjectType<any>
   ? T extends ObjectType<infer Shape>
-    ? Omit<InferObjectShape<Shape>, DefaultKeys<Shape>> & { [key in DefaultKeys<Shape>]?: Infer<Shape[key]> }
+    ? Eval<
+        Eval<Omit<InferObjectShape<Shape>, DefaultKeys<Shape>>> & { [key in DefaultKeys<Shape>]?: Infer<Shape[key]> }
+      >
     : never
   : Infer<T>;
+
+// type R2 = DefaultValue<ObjectType<X>>;
 
 export class DefaultableType<T extends AnyType> extends Type<Infer<T>> {
   constructor(private readonly schema: T, private readonly defaultValue: DefaultValue<T> | (() => DefaultValue<T>)) {
@@ -542,18 +555,19 @@ type InferKeySignature<T extends ObjectShape> = T extends { [keySignature]: AnyT
   : {};
 
 type InferObjectShape<T extends ObjectShape> = Eval<
-  InferKeySignature<T> &
-    { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-    { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any }
+  InferKeySignature<T> & { [key in OptionalKeys<T>]?: Infer<T[key]> } & { [key in RequiredKeys<T>]: Infer<T[key]> }
 >;
 
 export type ToUnion<T extends any[]> = T[number];
 export type PartialShape<T extends ObjectShape> = {
   [key in keyof T]: T[key] extends OptionalType<any> ? T[key] : OptionalType<T[key]>;
 };
+
 export type DeepPartialShape<T extends ObjectShape> = {
-  [key in keyof T]: T[key] extends ObjectType<infer K>
-    ? OptionalType<ObjectType<DeepPartialShape<K>>>
+  [key in keyof T]: T[key] extends ObjectType<any>
+    ? T extends ObjectType<infer K>
+      ? OptionalType<ObjectType<DeepPartialShape<K>>>
+      : never
     : OptionalType<T[key]>;
 };
 
@@ -761,14 +775,12 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
       return this.pick(pickedKeys as any, opts as any) as any;
     }
     return (this.pick(pickedKeys as any, opts as any) as AnyType).and(
-      new ObjectType({ [keySignature]: (this as any)[keySignature] })
+      new ObjectType({ [keySignature]: (this as any)[keySignature] }) as any
     );
   }
 
-  partial<K extends ObjectOptions<Eval<DeepPartialShape<T>>> & { deep: true }>(
-    opts?: K
-  ): ObjectType<Eval<DeepPartialShape<T>>>;
-  partial<K extends ObjectOptions<Eval<PartialShape<T>>> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
+  partial<K extends ObjectOptions<any> & { deep: true }>(opts?: K): ObjectType<Eval<DeepPartialShape<T>>>;
+  partial<K extends ObjectOptions<any> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
   partial(opts?: any): any {
     const schema = (toPartialSchema(this, { deep: opts?.deep || false }) as any).objectShape;
     return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
