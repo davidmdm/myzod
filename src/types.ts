@@ -21,6 +21,14 @@ export abstract class Type<T> {
     }
     return new NullableType(this);
   }
+  default(this: DefaultableType<any>, value: T | (() => T)): this;
+  default(this: AnyType, value: T | (() => T)): DefaultableType<this>;
+  default(value: any): any {
+    if (this instanceof DefaultableType) {
+      return (this as any).schema.default(value);
+    }
+    return new DefaultableType(this, value as any);
+  }
   try(value: unknown): T | ValidationError {
     try {
       return this.parse(value);
@@ -437,6 +445,39 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> {
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+}
+
+// type X = {
+//   a: DefaultableType<StringType>;
+//   b: DefaultableType<NumberType>;
+// };
+
+type DS = DefaultableType<StringType>;
+
+type R = DS extends Type<any> ? (DS extends Type<infer K> ? K : DS) : any;
+
+type DefaultKeys<T extends Record<string, AnyType>> = {
+  [key in keyof T]: T[key] extends DefaultableType<any> ? key : never;
+}[keyof T];
+
+type DefaultValue<T extends AnyType> = T extends ObjectType<any>
+  ? T extends ObjectType<infer Shape>
+    ? Omit<InferObjectShape<Shape>, DefaultKeys<Shape>> & { [key in DefaultKeys<Shape>]?: Infer<Shape[key]> }
+    : never
+  : Infer<T>;
+
+export class DefaultableType<T extends AnyType> extends Type<Infer<T>> {
+  constructor(private readonly schema: T, private readonly defaultValue: DefaultValue<T> | (() => DefaultValue<T>)) {
+    super();
+    (this as any)[coercionTypeSymbol] = true;
+  }
+  //@ts-ignore
+  parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue) {
+    return this.schema.parse(value);
+  }
+  and<K extends AnyType>(schema: K): IntersectionResult<T, K> {
+    return this.schema.and(schema);
   }
 }
 
