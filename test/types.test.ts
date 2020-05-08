@@ -194,6 +194,7 @@ describe('Types test', () => {
 
     const assertIsOptionalOf = (schema: any, type: any) => {
       assert.ok(schema instanceof OptionalType);
+      //@ts-ignore
       assert.ok(schema.schema instanceof type);
     };
 
@@ -202,6 +203,12 @@ describe('Types test', () => {
 
     assertIsOptionalOf(shape.a, StringType);
     assertIsOptionalOf(shape.b, ObjectType);
+  });
+
+  it('partial object should not double wrap optional fields', () => {
+    const shape = z.object({ a: z.string().optional() });
+    const x: AssertEqual<typeof shape, ObjectType<{ a: OptionalType<StringType> }>> = true;
+    x;
   });
 
   it('deep partial', () => {

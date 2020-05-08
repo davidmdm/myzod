@@ -596,6 +596,8 @@ export type PartialShape<T extends ObjectShape> = {
 export type DeepPartialShape<T extends ObjectShape> = {
   [key in keyof T]: T[key] extends ObjectType<infer K>
     ? OptionalType<ObjectType<DeepPartialShape<K>>>
+    : T[key] extends OptionalType<any>
+    ? T[key]
     : OptionalType<T[key]>;
 };
 
@@ -818,7 +820,7 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
   }
 
   partial<K extends ObjectOptions<Eval<DeepPartialShape<T>>> & { deep: true }>(
-    opts?: K
+    opts: K
   ): ObjectType<Eval<DeepPartialShape<T>>>;
   partial<K extends ObjectOptions<Eval<PartialShape<T>>> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
   partial(opts?: any): any {
