@@ -856,22 +856,29 @@ export type ArrayOptions<T extends AnyType> = {
   unique?: boolean;
   predicate?: Predicate<Infer<T>[]>['func'] | Predicate<Infer<T>[]> | Predicate<Infer<T>[]>[];
   default?: Infer<T>[] | (() => Infer<T>[]);
+  coerce?: (v: any) => T[];
 };
 
 export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
   implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]> {
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
+
+  private readonly coerce?: (v: any) => T[];
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
   constructor(private readonly schema: T, opts: ArrayOptions<T> = {}) {
     super();
     this.predicates = normalizePredicates(opts.predicate);
     this.defaultValue = opts.default;
+    this.coerce = opts.coerce;
     (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined || (this.schema as any)[coercionTypeSymbol];
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
         ? (elem: unknown, parseOptions?: ObjectOptions<any>) =>
-            (this.schema.parse as any)(elem, { allowUnknown: parseOptions?.allowUnknown, suppressPathErrMsg: true })
+            (this.schema.parse as any)(elem, {
+              allowUnknown: parseOptions?.allowUnknown,
+              suppressPathErrMsg: true,
+            })
         : (elem: unknown) => this.schema.parse(elem);
 
     let self: ArrayType<T> = this;
@@ -893,16 +900,33 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue,
     parseOptions?: PathOptions & ObjectOptions<any>
   ): Infer<T>[] {
-    if (!Array.isArray(value)) {
-      throw new ValidationError('expected an array but got ' + typeOf(value));
+    let coercedValue = value;
+    if (!Array.isArray(coercedValue)) {
+      if (!this.coerce) {
+        throw new ValidationError('expected an array but got ' + typeOf(value));
+      }
+
+      try {
+        coercedValue = this.coerce(value);
+      } catch {
+        // The coerce function itself might have thrown an error
+        // We wrap that in a ValidationError to standerdize the validation error
+        throw new ValidationError('expected an array but got ' + typeOf(value));
+      }
+
+      if (!Array.isArray(coercedValue)) {
+        // The coerce function might not have thrown but it could have returned a value that's still
+        // not an array.
+        throw new ValidationError('expected an array but got ' + typeOf(value));
+      }
     }
     const convValue: any = (this as any)[coercionTypeSymbol] ? [] : undefined;
-    for (let i = 0; i < value.length; i++) {
+    for (let i = 0; i < coercedValue.length; i++) {
       try {
         if (convValue) {
-          convValue[i] = this._parse(value[i]);
+          convValue[i] = this._parse(coercedValue[i]);
         } else {
-          this._parse(value[i], parseOptions);
+          this._parse(coercedValue[i], parseOptions);
         }
       } catch (err) {
         const path = err.path ? [i, ...err.path] : [i];
@@ -913,9 +937,9 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
       }
     }
     if (this.predicates) {
-      applyPredicates(this.predicates, convValue || value);
+      applyPredicates(this.predicates, convValue || coercedValue);
     }
-    return convValue || value;
+    return convValue || coercedValue;
   }
   length(value: number, errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return this.withPredicate(
@@ -959,6 +983,7 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
   withPredicate(fn: Predicate<Infer<T>[]>['func'], errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return new ArrayType(this.schema, {
       default: this.defaultValue,
+      coerce: this.coerce,
       predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
     });
   }

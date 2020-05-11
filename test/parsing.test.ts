@@ -1095,6 +1095,48 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'expected array to have length 2 but got 0');
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
+
+    it('should support string coercion to arrays with a coerce function', () => {
+      const schema = z.array(z.string(), {
+        coerce(v) {
+          return v.split(',');
+        },
+      });
+      const ret = schema.parse('a,b,c');
+      assert.deepEqual(ret, ['a', 'b', 'c']);
+    });
+
+    it('should support string coercion to arrays with a coerce function and nested coeercion', () => {
+      const schema = z.array(z.number({ coerce: true }), {
+        coerce(v) {
+          return v.split(',');
+        },
+      });
+      const ret = schema.parse('1,2,3');
+      assert.deepEqual(ret, [1, 2, 3]);
+    });
+
+    it('should fail if the coerce function throws', () => {
+      const schema = z.array(z.string(), {
+        coerce(v) {
+          throw new Error('Whoops!');
+        },
+      });
+      const err = catchError(schema.parse.bind(schema))('a,b,c');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected an array but got string');
+    });
+
+    it('should fail if the coerce function does not return an array', () => {
+      const schema = z.array(z.string(), {
+        coerce(v) {
+          return 'Whoops!' as any;
+        },
+      });
+      const err = catchError(schema.parse.bind(schema))('a,b,c');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected an array but got string');
+    });
   });
 
   describe('union parsing', () => {
