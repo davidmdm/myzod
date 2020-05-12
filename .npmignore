@@ -1,9 +1,10 @@
 test
 coverage
-.nyc_output
-.vscode
-.tsconfig.json
-.prettierrc.json
 src
 
+.nyc_output
+.vscode
+.prettierrc.json
+
+tsconfig.json
 benchmarks.json

@@ -1102,6 +1102,7 @@ describe('Zod Parsing', () => {
           return v.split(',');
         },
       });
+      assert.equal((schema as any)[coercionTypeSymbol], true);
       const ret = schema.parse('a,b,c');
       assert.deepEqual(ret, ['a', 'b', 'c']);
     });
@@ -1109,9 +1110,15 @@ describe('Zod Parsing', () => {
     it('should support string coercion to arrays with a coerce function and nested coeercion', () => {
       const schema = z.array(z.number({ coerce: true }), {
         coerce(v) {
-          return v.split(',');
+          return v.split(',').map(x => Number(x));
         },
       });
+      const ret = schema.parse('1,2,3');
+      assert.deepEqual(ret, [1, 2, 3]);
+    });
+
+    it('should support string coercion to arrays with a coerce function and nested coeercion - fluent syntax', () => {
+      const schema = z.array(z.number({ coerce: true })).coerce(v => v.split(',').map(x => Number(x)));
       const ret = schema.parse('1,2,3');
       assert.deepEqual(ret, [1, 2, 3]);
     });
@@ -1124,7 +1131,7 @@ describe('Zod Parsing', () => {
       });
       const err = catchError(schema.parse.bind(schema))('a,b,c');
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected an array but got string');
+      assert.equal(err.message, 'error coercing string value to array - Whoops!');
     });
 
     it('should fail if the coerce function does not return an array', () => {

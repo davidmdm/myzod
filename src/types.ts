@@ -856,22 +856,27 @@ export type ArrayOptions<T extends AnyType> = {
   unique?: boolean;
   predicate?: Predicate<Infer<T>[]>['func'] | Predicate<Infer<T>[]> | Predicate<Infer<T>[]>[];
   default?: Infer<T>[] | (() => Infer<T>[]);
-  coerce?: (v: any) => T[];
+  coerce?: (value: string) => Infer<T>[];
 };
 
 export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
   implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]> {
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
-
-  private readonly coerce?: (v: any) => T[];
+  private readonly coerceFn?: (v: any) => Infer<T>[];
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
+
   constructor(private readonly schema: T, opts: ArrayOptions<T> = {}) {
     super();
     this.predicates = normalizePredicates(opts.predicate);
     this.defaultValue = opts.default;
-    this.coerce = opts.coerce;
-    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined || (this.schema as any)[coercionTypeSymbol];
+    this.coerceFn = opts.coerce;
+
+    (this as any)[coercionTypeSymbol] =
+      typeof this.coerceFn === 'function' ||
+      this.defaultValue !== undefined ||
+      (this.schema as any)[coercionTypeSymbol];
+
     this._parse =
       this.schema instanceof ObjectType || this.schema instanceof ArrayType || this.schema instanceof LazyType
         ? (elem: unknown, parseOptions?: ObjectOptions<any>) =>
@@ -898,35 +903,28 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
   }
   parse(
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue,
-    parseOptions?: PathOptions & ObjectOptions<any>
+    parseOptions?: PathOptions & ObjectOptions<any> & { coerced?: boolean }
   ): Infer<T>[] {
-    let coercedValue = value;
-    if (!Array.isArray(coercedValue)) {
-      if (!this.coerce) {
-        throw new ValidationError('expected an array but got ' + typeOf(value));
-      }
-
+    if (typeof value === 'string' && typeof this.coerceFn === 'function' && !parseOptions?.coerced) {
       try {
-        coercedValue = this.coerce(value);
-      } catch {
-        // The coerce function itself might have thrown an error
-        // We wrap that in a ValidationError to standerdize the validation error
-        throw new ValidationError('expected an array but got ' + typeOf(value));
-      }
-
-      if (!Array.isArray(coercedValue)) {
-        // The coerce function might not have thrown but it could have returned a value that's still
-        // not an array.
-        throw new ValidationError('expected an array but got ' + typeOf(value));
+        return this.parse(this.coerceFn(value), { ...parseOptions, coerced: true });
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          throw e;
+        }
+        throw new ValidationError('error coercing string value to array - ' + e.message);
       }
     }
+    if (!Array.isArray(value)) {
+      throw new ValidationError('expected an array but got ' + typeOf(value));
+    }
     const convValue: any = (this as any)[coercionTypeSymbol] ? [] : undefined;
-    for (let i = 0; i < coercedValue.length; i++) {
+    for (let i = 0; i < value.length; i++) {
       try {
         if (convValue) {
-          convValue[i] = this._parse(coercedValue[i]);
+          convValue[i] = this._parse(value[i]);
         } else {
-          this._parse(coercedValue[i], parseOptions);
+          this._parse(value[i], parseOptions);
         }
       } catch (err) {
         const path = err.path ? [i, ...err.path] : [i];
@@ -937,9 +935,9 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
       }
     }
     if (this.predicates) {
-      applyPredicates(this.predicates, convValue || coercedValue);
+      applyPredicates(this.predicates, convValue || value);
     }
-    return convValue || coercedValue;
+    return convValue || value;
   }
   length(value: number, errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return this.withPredicate(
@@ -980,10 +978,17 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
     }
     return new IntersectionType(this, schema) as any;
   }
+  coerce(fn: (value: string) => Infer<T>[]): ArrayType<T> {
+    return new ArrayType(this.schema, {
+      default: this.defaultValue,
+      coerce: fn,
+      predicate: this.predicates || undefined,
+    });
+  }
   withPredicate(fn: Predicate<Infer<T>[]>['func'], errMsg?: ErrMsg<Infer<T>[]>): ArrayType<T> {
     return new ArrayType(this.schema, {
       default: this.defaultValue,
-      coerce: this.coerce,
+      coerce: this.coerceFn,
       predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
     });
   }

@@ -586,6 +586,7 @@ options:
 - min: `number` - the minimum length of the array
 - max: `number` - the maximum length of the array
 - unique: `boolean` - should the array be unique. default `false`
+- coerce: `(value: string) => T[]` - function to coerce string representations to an array
 
 methods:
 
@@ -601,6 +602,8 @@ methods:
   returns a new array schema that must respect predicate function
 - `default(value: T[] | (() => T[])) => ArrayType<T>`  
    returns a new array schema that will use value as default when parsing undefined
+- `coerce(fn: (value: string) => T[]) => ArrayType<T>`  
+   returns a new array schema that will coerce string representations using given function
 
 Signature:
 
@@ -616,6 +619,15 @@ const schema = myzod.array(myzod.number()).unique();
 type Schema = Infer<typeof schema>; // => string[]
 
 schema.parse([1, 1, 2]); // => throws ValidationError
+```
+
+Myzod allows for string representations to be coerced to the array of your type via a coercion function. A common example is when parsing csv values.
+
+```typescript
+const schema = myzod.array(myzod.string()).coerce((csv: string) => csv.split(','));
+const result = schema.try('red,blue,green');
+
+// result === ['red', 'blue', 'green'];
 ```
 
 #### Tuple
