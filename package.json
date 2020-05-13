@@ -25,13 +25,13 @@
   "license": "ISC",
   "devDependencies": {
     "@types/mocha": "^7.0.2",
-    "@types/node": "^13.13.5",
+    "@types/node": "^14.0.1",
     "benchmonkey": "0.0.7",
     "mocha": "^7.1.2",
     "nyc": "^15.0.1",
     "prettier": "^2.0.5",
     "ts-node": "^8.10.1",
-    "typescript": "^3.8.3"
+    "typescript": "^3.9.2"
   },
   "nyc": {
     "include": [
