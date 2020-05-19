@@ -233,10 +233,16 @@ export class StringType extends Type<string> implements WithPredicate<string>, D
     );
   }
   withPredicate(fn: Predicate<string>['func'], errMsg?: ErrMsg<string>): StringType {
-    return new StringType({ predicate: appendPredicate(this.predicates, { func: fn, errMsg }) });
+    return new StringType({
+      predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+      default: this.defaultValue,
+    });
   }
   default(value: string | (() => string)): StringType {
-    return new StringType({ predicate: this.predicates || undefined, default: value });
+    return new StringType({
+      predicate: this.predicates || undefined,
+      default: value,
+    });
   }
 }
 

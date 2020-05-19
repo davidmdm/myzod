@@ -235,6 +235,12 @@ describe('Zod Parsing', () => {
       assert.equal(schema.parse('hello'), 'hello');
       assert.equal(schema.parse(undefined), 'hello world!!');
     });
+
+    it('should preserve default schema value when creating new string schemas with predicate', () => {
+      const base = z.string().default('Oh Hello');
+      const schema = base.withPredicate(v => v.length > 3);
+      assert.equal(schema.try(undefined), 'Oh Hello');
+    });
   });
 
   describe('boolean parsing', () => {
