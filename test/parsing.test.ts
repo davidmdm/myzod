@@ -206,7 +206,7 @@ describe('Zod Parsing', () => {
 
     it('should fail "and" with another type', () => {
       const schema = z.boolean().and(z.boolean().or(z.string()));
-      const err = catchError(schema.parse.bind(schema))('hello');
+      const err = schema.try('hello');
       assert.ok(err instanceof z.ValidationError);
       assert.equal(err.message, 'expected type to be boolean but got string');
     });
@@ -1532,6 +1532,52 @@ describe('Zod Parsing', () => {
     it('and of two arrays should return an array type', () => {
       const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
       assert.equal(typeof schema.unique, 'function');
+    });
+
+    it('should intersect and a union of objects correctly', () => {
+      const unions = z.union([
+        z.object({ type: z.literal('a') }),
+        z.object({ type: z.literal('b') }),
+        z.object({ type: z.literal('c') }),
+      ]);
+      const obj = z.object({ version: z.number() });
+      const schema = obj.and(unions);
+      const ret = schema.parse({ type: 'a', version: 3 });
+      assert.deepEqual(ret, { type: 'a', version: 3 });
+    });
+    it('should fail with appropriate error intersect and a union of objects', () => {
+      const unions = z.union([
+        z.object({ type: z.literal('a') }),
+        z.object({ type: z.literal('b') }),
+        z.object({ type: z.literal('c') }),
+      ]);
+      const obj = z.object({ version: z.number() });
+      const schema = obj.and(unions);
+      const err = schema.try({ type: 'd', version: 3 });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'No union satisfied:\n' +
+          '  error parsing object at path: "type" - expected value to be literal "a" but got "d"\n' +
+          '  error parsing object at path: "type" - expected value to be literal "b" but got "d"\n' +
+          '  error parsing object at path: "type" - expected value to be literal "c" but got "d"'
+      );
+    });
+
+    it('should fail if missing property intersect of object and a union of objects', () => {
+      const unions = z.union([
+        z.object({ type: z.literal('a') }),
+        z.object({ type: z.literal('b') }),
+        z.object({ type: z.literal('c') }),
+      ]);
+      const obj = z.object({ version: z.number() });
+      const schema = obj.and(unions);
+      const err = schema.try({ type: 'a' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(
+        err.message,
+        'error parsing object at path: "version" - expected type to be number but got undefined'
+      );
     });
   });
 

@@ -766,7 +766,6 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
         }
         return acc;
       }, {});
-
       const selfKeySig = this.objectShape[keySignature];
       const targetKeySig: AnyType | undefined = (schema as any)[keySignature];
       if (selfKeySig && targetKeySig) {
@@ -774,9 +773,9 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
       } else if (selfKeySig || targetKeySig) {
         intersectShape[keySignature] = selfKeySig || targetKeySig;
       }
-
       return new ObjectType(intersectShape) as any;
     }
+
     return new IntersectionType(this, schema) as any;
   }
 
@@ -1126,7 +1125,7 @@ export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
     //@ts-ignore
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
   ): InferTupleUnion<T> {
-    const errors: string[] = [];
+    const errors = new Set<string>();
     for (const schema of this.schemas) {
       try {
         if (this.strict === false && schema instanceof ObjectType) {
@@ -1134,10 +1133,14 @@ export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
         }
         return schema.parse(value);
       } catch (err) {
-        errors.push(err.message);
+        errors.add(err.message);
       }
     }
-    throw new ValidationError('No union satisfied:\n  ' + errors.join('\n  '));
+    const messages = Array.from(errors);
+    if (messages.length === 1) {
+      throw new ValidationError(messages[0]);
+    }
+    throw new ValidationError('No union satisfied:\n  ' + messages.join('\n  '));
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
@@ -1166,11 +1169,25 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 
     this._parse = (() => {
       // TODO Investigate why I unwrap partials in a new intersection again
+      if (this.left instanceof UnionType) {
+        const unionSchemas: AnyType[] = (this.left as any).schemas;
+        const schemas = unionSchemas.map(schema => this.right.and(schema));
+        const _schema = new UnionType(schemas);
+        return (value: unknown) => _schema.parse(value);
+      }
+      if (this.right instanceof UnionType) {
+        const unionSchemas: AnyType[] = (this.right as any).schemas;
+        const schemas = unionSchemas.map(schema => this.left.and(schema));
+        const _schema = new UnionType(schemas);
+        return (value: unknown) => _schema.parse(value);
+      }
       if (this.left instanceof PartialType) {
-        return (value: unknown) => new IntersectionType((this.left as any).schema, this.right).parse(value) as any;
+        const _schema = new IntersectionType((this.left as any).schema, this.right);
+        return (value: unknown) => _schema.parse(value) as any;
       }
       if (this.right instanceof PartialType) {
-        return (value: unknown) => new IntersectionType(this.left, (this.right as any).schema).parse(value) as any;
+        const _schema = new IntersectionType(this.left, (this.right as any).schema);
+        return (value: unknown) => _schema.parse(value) as any;
       }
       return (value: unknown) => {
         this.left.parse(value);
