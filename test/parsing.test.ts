@@ -1586,9 +1586,14 @@ describe('Zod Parsing', () => {
         { strict: false }
       );
       const obj = z.object({ version: z.number() });
-      const schema = obj.and(unions);
-      const ret = schema.parse({ type: 'a', version: 2, date: 'now' });
-      assert.deepEqual(ret, { type: 'a', version: 2, date: 'now' });
+
+      const schemaL = unions.and(obj);
+      const retL = schemaL.parse({ type: 'a', version: 2, date: 'now' });
+      assert.deepEqual(retL, { type: 'a', version: 2, date: 'now' });
+
+      const schemaR = obj.and(unions);
+      const retR = schemaR.parse({ type: 'a', version: 2, date: 'now' });
+      assert.deepEqual(retR, { type: 'a', version: 2, date: 'now' });
     });
   });
 
