@@ -1579,6 +1579,17 @@ describe('Zod Parsing', () => {
         'error parsing object at path: "version" - expected type to be number but got undefined'
       );
     });
+
+    it('should preserve strictness of union during intersection', () => {
+      const unions = z.union(
+        [z.object({ type: z.literal('a') }), z.object({ type: z.literal('b') }), z.object({ type: z.literal('c') })],
+        { strict: false }
+      );
+      const obj = z.object({ version: z.number() });
+      const schema = obj.and(unions);
+      const ret = schema.parse({ type: 'a', version: 2, date: 'now' });
+      assert.deepEqual(ret, { type: 'a', version: 2, date: 'now' });
+    });
   });
 
   describe('enum parsing', () => {

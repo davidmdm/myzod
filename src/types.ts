@@ -1172,13 +1172,13 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
       if (this.left instanceof UnionType) {
         const unionSchemas: AnyType[] = (this.left as any).schemas;
         const schemas = unionSchemas.map(schema => this.right.and(schema));
-        const _schema = new UnionType(schemas);
+        const _schema = new UnionType(schemas, { strict: (this.left as any).strict });
         return (value: unknown) => _schema.parse(value);
       }
       if (this.right instanceof UnionType) {
         const unionSchemas: AnyType[] = (this.right as any).schemas;
         const schemas = unionSchemas.map(schema => this.left.and(schema));
-        const _schema = new UnionType(schemas);
+        const _schema = new UnionType(schemas, { strict: (this.right as any).strict });
         return (value: unknown) => _schema.parse(value);
       }
       if (this.left instanceof PartialType) {
