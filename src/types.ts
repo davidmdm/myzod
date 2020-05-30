@@ -143,7 +143,10 @@ const applyPredicates = (predicates: Predicate<any>[], value: any) => {
 
 const appendPredicate = <T>(
   predicates: Predicate<T>[] | null | undefined,
-  pred: { func: (value: T) => boolean; errMsg?: string | ((value: T) => string) }
+  pred: {
+    func: (value: T) => boolean;
+    errMsg?: string | ((value: T) => string);
+  }
 ): Predicate<T>[] => {
   if (!predicates) {
     return [pred];
@@ -796,7 +799,9 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
       Pick<T, Extract<StringTypes<keyof T>, ToUnion<typeof keys>>> &
         (T extends { [keySignature]: AnyType }
           ? T extends { [keySignature]: infer KeySig }
-            ? { [key in Exclude<ToUnion<typeof keys>, keyof T>]: KeySig }
+            ? {
+                [key in Exclude<ToUnion<typeof keys>, keyof T>]: KeySig;
+              }
             : {}
           : {})
     >
@@ -829,8 +834,25 @@ export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
   ): ObjectType<Eval<DeepPartialShape<T>>>;
   partial<K extends ObjectOptions<Eval<PartialShape<T>>> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
   partial(opts?: any): any {
-    const schema = (toPartialSchema(this, { deep: opts?.deep || false }) as any).objectShape;
-    return new ObjectType(schema, { allowUnknown: opts?.allowUnknown });
+    const originalShape: ObjectShape = this.objectShape;
+    const shape = Object.keys(originalShape).reduce<ObjectShape>((acc, key) => {
+      if (opts?.deep) {
+        acc[key] = toPartialSchema(originalShape[key], opts).optional();
+      } else {
+        acc[key] = originalShape[key].optional();
+      }
+      return acc;
+    }, {});
+    const keysig = originalShape[keySignature];
+    if (keysig) {
+      if (opts?.deep) {
+        shape[keySignature] = toPartialSchema(keysig, opts).optional();
+      } else {
+        shape[keySignature] = keysig.optional();
+      }
+    }
+    // Do not transfer predicates or default value to new object shape as this would not be type-safe
+    return new ObjectType(shape as any, { allowUnknown: this.allowUnknown });
   }
 
   shape(): T {
@@ -1245,31 +1267,15 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
   }
 }
 
-type DeepPartial<T> = { [key in keyof T]?: T[key] extends Object ? Eval<DeepPartial<T[key]>> : T[key] };
+type DeepPartial<T> = {
+  [key in keyof T]?: T[key] extends Object ? Eval<DeepPartial<T[key]>> : T[key];
+};
 export type PartialOpts = { deep: boolean };
 
 function toPartialSchema(schema: AnyType, opts?: PartialOpts): AnyType {
   if (schema instanceof ObjectType) {
-    const originalShape: ObjectShape = (schema as any).objectShape;
-    const shape = Object.keys(originalShape).reduce<ObjectShape>((acc, key) => {
-      if (opts?.deep) {
-        acc[key] = toPartialSchema(originalShape[key], opts).optional();
-      } else {
-        acc[key] = originalShape[key].optional();
-      }
-      return acc;
-    }, {});
-    const keysig = originalShape[keySignature];
-    if (keysig) {
-      if (opts?.deep) {
-        shape[keySignature] = toPartialSchema(keysig, opts).optional();
-      } else {
-        shape[keySignature] = keysig.optional();
-      }
-    }
-    return new ObjectType(shape, (schema as any).opts);
+    return schema.partial({ deep: opts?.deep || false });
   }
-
   if (schema instanceof IntersectionType) {
     return new IntersectionType(
       toPartialSchema((schema as any).left, opts),
