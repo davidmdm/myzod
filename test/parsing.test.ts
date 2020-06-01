@@ -1576,7 +1576,10 @@ describe('Zod Parsing', () => {
       assert.ok(err instanceof z.ValidationError);
       assert.equal(
         err.message,
-        'error parsing object at path: "version" - expected type to be number but got undefined'
+        'No union satisfied:\n' +
+          '  error parsing object at path: "version" - expected type to be number but got undefined\n' +
+          '  error parsing object at path: "type" - expected value to be literal "b" but got "a"\n' +
+          '  error parsing object at path: "type" - expected value to be literal "c" but got "a"'
       );
     });
 

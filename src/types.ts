@@ -1132,6 +1132,12 @@ export type UnionOptions<T extends any[]> = {
   default?: InferTupleUnion<T> | (() => InferTupleUnion<T>);
 };
 
+type UnionIntersection<U extends UnionType<any>, T extends AnyType> = U extends UnionType<infer Schemas>
+  ? UnionType<
+      { [key in keyof Schemas]: Schemas[key] extends AnyType ? IntersectionResult<Schemas[key], T> : Schemas[key] }
+    >
+  : never;
+
 export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
   implements Defaultable<InferTupleUnion<T>> {
   private readonly strict: boolean;
@@ -1164,8 +1170,9 @@ export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
     }
     throw new ValidationError('No union satisfied:\n  ' + messages.join('\n  '));
   }
-  and<K extends AnyType>(schema: K): IntersectionType<this, K> {
-    return new IntersectionType(this, schema);
+  and<K extends AnyType>(schema: K): UnionIntersection<UnionType<T>, K> {
+    const schemaIntersections: any = this.schemas.map(x => x.and(schema));
+    return new UnionType(schemaIntersections, { strict: this.strict }) as any;
   }
   default(value: InferTupleUnion<T> | (() => InferTupleUnion<T>)): UnionType<T> {
     return new UnionType(this.schemas, { strict: this.strict, default: value });
@@ -1192,15 +1199,11 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
     this._parse = (() => {
       // TODO Investigate why I unwrap partials in a new intersection again
       if (this.left instanceof UnionType) {
-        const unionSchemas: AnyType[] = (this.left as any).schemas;
-        const schemas = unionSchemas.map(schema => this.right.and(schema));
-        const _schema = new UnionType(schemas, { strict: (this.left as any).strict });
+        const _schema = this.left.and(this.right);
         return (value: unknown) => _schema.parse(value);
       }
       if (this.right instanceof UnionType) {
-        const unionSchemas: AnyType[] = (this.right as any).schemas;
-        const schemas = unionSchemas.map(schema => this.left.and(schema));
-        const _schema = new UnionType(schemas, { strict: (this.right as any).strict });
+        const _schema = this.right.and(this.left);
         return (value: unknown) => _schema.parse(value);
       }
       if (this.left instanceof PartialType) {
