@@ -28,6 +28,16 @@ export abstract class Type<T> {
       return err;
     }
   }
+
+  // TODO This sometimes violates the type system when coercion is used
+  check(value: unknown): value is T {
+    try {
+      this.parse(value);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
 }
 
 export class ValidationError extends Error {

@@ -2214,4 +2214,34 @@ describe('Type.try', () => {
       'error parsing object at path: "age" - expected number to be greater than or equal to 18 but got 12'
     );
   });
+
+  it('should be able to check schema', () => {
+    const schemaA = z.object({
+      a: z.number().coerce(),
+      common: z.string()
+    });
+
+    const schemaB = z.object({
+      b: z.string(),
+      common: z.string()
+    });
+
+    const schemaUnion = z.union([schemaA, schemaB]);
+
+    const raw: unknown = {
+      a: '1',
+      common: 'string'
+    }
+
+    // Those fail now.
+    assert.strictEqual(schemaUnion.check(raw), false);
+    assert.strictEqual(schemaA.check(raw), false);
+    assert.strictEqual(schemaB.check(raw), false);
+
+    const data = schemaUnion.parse(raw);
+
+    assert.strictEqual(schemaUnion.check(data), true);
+    assert.strictEqual(schemaA.check(data), true);
+    assert.strictEqual(schemaB.check(data), false);
+  });
 });
