@@ -1573,6 +1573,18 @@ describe('Zod Parsing', () => {
       assert.equal(defaultedSchema.parse(undefined), Colors.green);
       assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
+
+    it('should be case sensitive for string enum', () => {
+      const err = catchError(schema.parse.bind(schema))('RED');
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'error "RED" not part of enum values');
+    });
+
+    it('should be case insensitive for coerced string enum', () => {
+      const coerceSchema = z.enum(Colors, { coerce: 'lower' });
+      assert.equal(coerceSchema.parse('RED'), Colors.red);
+      assert.ok(!(coerceSchema as any)[coercionTypeSymbol]);
+    });
   });
 
   describe('partial parsing', () => {
