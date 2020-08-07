@@ -684,6 +684,24 @@ if (colorSchema.check(value)) {
 }
 ```
 
+The enum type also accepts a config object as a second parameter.
+
+You can set `coerce` to `'lower'` or  `'upper'` to ignore string casing when calling `check` or `parse`.
+
+```typescript
+z.enum(Colors, { coerce: 'lower' });
+const value: string = 'Red';
+if (colorSchema.check(value)) {
+  // this will pass
+}
+```
+
+You can also set a default value in the config object.
+
+```typescript
+z.enum(Colors, { defaultValue: 'red' });
+```
+
 #### Date
 
 methods:

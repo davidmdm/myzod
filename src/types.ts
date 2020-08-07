@@ -1231,7 +1231,13 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
     return coercedValue as ValueOf<T>;
   }
   check(value: unknown): value is ValueOf<T> {
-    return this.values.includes(value);
+    let coercedValue = value;
+    if (typeof value === 'string' && this.coerceOpt === 'lower') {
+      coercedValue = value.toLowerCase();
+    } else if (typeof value === 'string' && this.coerceOpt === 'upper') {
+      coercedValue = value.toUpperCase();
+    }
+    return this.values.includes(coercedValue);
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
