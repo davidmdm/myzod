@@ -132,7 +132,7 @@ Shorthand for creating intersection types of two schemas.
 
 ```typescript
 const nameSchema = myzod.object({ name: myzod.string() });
-const ageSchema = myzod.object({ name: myzod.number() });
+const ageSchema = myzod.object({ age: myzod.number() });
 
 const personSchema = nameSchema.and(ageSchema); // Same as ageSchema.and(nameSchema);
 
