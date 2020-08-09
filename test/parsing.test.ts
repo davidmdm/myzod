@@ -1,6 +1,14 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import { ObjectType, ObjectShape, coercionTypeSymbol } from '../src/types';
+import {
+  ObjectType,
+  ObjectShape,
+  coercionTypeSymbol,
+  EnumType,
+  OptionalType,
+  ArrayType,
+  StringType,
+} from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
 
@@ -613,6 +621,20 @@ describe('Zod Parsing', () => {
       assert.equal(numberDefaultSchema.parse(undefined), 123);
       assert.ok((nullDefaultSchema as any)[coercionTypeSymbol]);
     });
+
+    it('should allow access to schema property', () => {
+      enum SomeEnum {
+        one = 'one',
+        two = 'two',
+      }
+      const s = z.object({
+        field: z.enum(SomeEnum).optional(),
+      });
+      const enumFields = Object.entries(s.shape())
+        .filter(f => f[1] instanceof OptionalType && f[1].schema instanceof EnumType)
+        .map(f => f[0]);
+      assert.equal(enumFields[0], 'field');
+    });
   });
 
   describe('object parsing', () => {
@@ -1149,6 +1171,17 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))('a,b,c');
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected an array but got string');
+    });
+
+    it('should allow access to schema property', () => {
+      const s = z.object({
+        one: z.array(z.number()),
+        two: z.array(z.string()),
+      });
+      const strArrayFields = Object.entries(s.shape())
+        .filter(f => f[1] instanceof ArrayType && f[1].schema instanceof StringType)
+        .map(f => f[0]);
+      assert.equal(strArrayFields[0], 'two');
     });
   });
 

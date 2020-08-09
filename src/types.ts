@@ -477,7 +477,7 @@ export class UnknownType extends Type<unknown> implements Defaultable<unknown> {
 }
 
 export class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> {
-  constructor(private readonly schema: T) {
+  constructor(readonly schema: T) {
     super();
     (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
     (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
@@ -892,8 +892,7 @@ export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
   private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
   private readonly coerceFn?: (v: any) => Infer<T>[];
   private readonly _parse: (value: unknown, parseOptions?: PathOptions & ObjectOptions<any>) => any;
-
-  constructor(private readonly schema: T, opts: ArrayOptions<T> = {}) {
+  constructor(readonly schema: T, opts: ArrayOptions<T> = {}) {
     super();
     this.predicates = normalizePredicates(opts.predicate);
     this.defaultValue = opts.default;
