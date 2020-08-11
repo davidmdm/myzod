@@ -692,7 +692,7 @@ You can set `coerce` to `'lower'` or `'upper'` to ignore string casing when call
 z.enum(Colors, { coerce: 'lower' });
 const value: string = 'Red';
 colorSchema.parse(value);
-// this will pass and return a lowercased value
+// parse will return a lowercased value
 ```
 
 You can also set a default value in the options object.
