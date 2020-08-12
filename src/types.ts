@@ -1280,6 +1280,9 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
   default(defaultValue: ValueOf<T> | (() => ValueOf<T>)): EnumType<T> {
     return new EnumType(this.enumeration, { defaultValue });
   }
+  coerce(opt: EnumCoerceOptions): EnumType<T> {
+    return new EnumType(this.enumeration, { defaultValue: this.defaultValue, coerce: opt });
+  }
 }
 
 type DeepPartial<T> = {
