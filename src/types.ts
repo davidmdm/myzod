@@ -1239,24 +1239,37 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 }
 
 type ValueOf<T> = T[keyof T];
+type EnumCoerceOptions = 'upper' | 'lower';
+export type EnumOptions<T> = {
+  coerce?: EnumCoerceOptions;
+  defaultValue?: ValueOf<T> | (() => ValueOf<T>);
+};
 
 export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf<T>> {
   private values: any[];
   private readonly defaultValue?: ValueOf<T> | (() => ValueOf<T>);
-  constructor(private readonly enumeration: T, defaultValue?: ValueOf<T> | (() => ValueOf<T>)) {
+  private readonly coerceOpt?: EnumCoerceOptions;
+  constructor(private readonly enumeration: T, opts: EnumOptions<T> = {}) {
     super();
     this.values = Object.values(enumeration);
-    this.defaultValue = defaultValue;
+    this.coerceOpt = opts.coerce;
+    this.defaultValue = opts.defaultValue;
     (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined;
   }
   parse(
     //@ts-ignore
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
   ): ValueOf<T> {
-    if (!this.values.includes(value)) {
+    let coercedValue = value;
+    if (typeof value === 'string' && this.coerceOpt === 'lower') {
+      coercedValue = value.toLowerCase();
+    } else if (typeof value === 'string' && this.coerceOpt === 'upper') {
+      coercedValue = value.toUpperCase();
+    }
+    if (!this.values.includes(coercedValue)) {
       throw new ValidationError(`error ${JSON.stringify(value)} not part of enum values`);
     }
-    return value as ValueOf<T>;
+    return coercedValue as ValueOf<T>;
   }
   check(value: unknown): value is ValueOf<T> {
     return this.values.includes(value);
@@ -1264,8 +1277,8 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
-  default(value: ValueOf<T> | (() => ValueOf<T>)): EnumType<T> {
-    return new EnumType(this.enumeration, value);
+  default(defaultValue: ValueOf<T> | (() => ValueOf<T>)): EnumType<T> {
+    return new EnumType(this.enumeration, { defaultValue });
   }
 }
 

@@ -684,6 +684,23 @@ if (colorSchema.check(value)) {
 }
 ```
 
+The enum type also accepts an options object as a second parameter.
+
+You can set `coerce` to `'lower'` or `'upper'` to ignore string casing when calling `check` or `parse`.
+
+```typescript
+z.enum(Colors, { coerce: 'lower' });
+const value: string = 'Red';
+colorSchema.parse(value);
+// parse will return a lowercased value
+```
+
+You can also set a default value in the options object.
+
+```typescript
+z.enum(Colors, { defaultValue: 'red' });
+```
+
 #### Date
 
 methods:

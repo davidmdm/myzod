@@ -35,6 +35,7 @@ import {
   BigIntOptions,
   BigIntType,
   StringOptions,
+  EnumOptions,
 } from './types';
 
 export { ValidationError, Type, Infer, keySignature } from './types';
@@ -121,7 +122,7 @@ export function omit<
 
 const undefinedValue = () => new UndefinedType();
 const nullValue = () => new NullType();
-const enumValue = <T>(e: T) => new EnumType(e);
+const enumValue = <T>(e: T, opts?: EnumOptions<T>) => new EnumType(e, opts);
 
 export { undefinedValue as undefined, nullValue as null, enumValue as enum };
 
