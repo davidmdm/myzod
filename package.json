@@ -23,7 +23,7 @@
     "url": "https://github.com/davidmdm/myzod.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/mocha": "^8.0.1",
     "@types/node": "^14.0.27",
