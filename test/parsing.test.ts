@@ -24,6 +24,28 @@ const catchError = <T extends (...args: any[]) => any>(fn: T): ((...args: Argume
 };
 
 describe('Zod Parsing', () => {
+  describe('type.map parsing', () => {
+    it('should parse and apply map function', () => {
+      const schema = z.string().map(x => x.length);
+      assert.equal(schema.try('hello'), 5);
+    });
+
+    it('should return original validation error before mapping takes effect', () => {
+      const schema = z.string().map(x => x.length);
+      const err = schema.try(true);
+      assert.ok(err instanceof z.ValidationError);
+      assert.equal(err.message, 'expected type to be string but got boolean');
+    });
+
+    it('should throw thrown by map function as is', () => {
+      const schema = z.string().map(() => {
+        throw new Error('mapping error');
+      });
+      const err = schema.try('hello');
+      assert.equal(err.message, 'mapping error');
+    });
+  });
+
   describe('String parsing', () => {
     const schema = z.string();
 

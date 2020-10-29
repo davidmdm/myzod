@@ -1,3 +1,5 @@
+const _mapSymb = Symbol.for('_map');
+
 export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
@@ -27,6 +29,12 @@ export abstract class Type<T> {
     } catch (err) {
       return err;
     }
+  }
+  map<K>(fn: (value: T) => K): Type<K> {
+    (this as any)[_mapSymb] = fn;
+    const parse = this.parse.bind(this);
+    (this as any).parse = (value: any) => fn(parse(value));
+    return this as any;
   }
 }
 

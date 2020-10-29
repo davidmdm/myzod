@@ -17,6 +17,13 @@ import {
 type AssertEqual<T, K> = [T] extends [K] ? ([K] extends [T] ? true : false) : false;
 
 describe('Types test', () => {
+
+  it('mapped type', () => {
+    const schema = z.string().map(Number)
+    const x: AssertEqual<z.Infer<typeof schema>, number> = true
+    x
+  })
+
   it('string', () => {
     const schema = z.string();
     const x: AssertEqual<z.Infer<typeof schema>, string> = true;
