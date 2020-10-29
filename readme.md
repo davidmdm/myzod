@@ -169,6 +169,23 @@ const nullableStringSchema = myzod.string().nullable(); // => NullableType<Strin
 type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 ```
 
+##### Type.map
+
+Returns a new generic schema to the mapped type. Useful for transforming validated input into a new type on parse.
+```typescript
+const ObjectIDSchema = myzod
+                         .string()
+                         .withPredicate(ObjectId.isValid, 'must be an object ID')
+                         .map(value => new ObjectId(value));
+
+// Infer<ObjectIDSchema> === ObjectId
+
+const id = ObjectIDSchema.parse('507c7f79bcf86cd7994f6c0e');
+id instanceof ObjectId; // true
+
+const id2 = ObjectIDSchema.parse('some string'); // Throws VaidationError with message "must be an object ID"'
+```
+
 #### String
 
 options:
