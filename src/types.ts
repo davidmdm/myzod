@@ -640,7 +640,8 @@ export type ObjectOptions<T extends ObjectShape> = {
   default?: InferObjectShape<T> | (() => InferObjectShape<T>);
 };
 
-export class ObjectType<T extends ObjectShape> extends Type<InferObjectShape<T>>
+export class ObjectType<T extends ObjectShape>
+  extends Type<InferObjectShape<T>>
   implements WithPredicate<InferObjectShape<T>>, Defaultable<InferObjectShape<T>> {
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
   private readonly defaultValue?: InferObjectShape<T> | (() => InferObjectShape<T>);
@@ -894,7 +895,8 @@ export type ArrayOptions<T extends AnyType> = {
   coerce?: (value: string) => Infer<T>[];
 };
 
-export class ArrayType<T extends AnyType> extends Type<Infer<T>[]>
+export class ArrayType<T extends AnyType>
+  extends Type<Infer<T>[]>
   implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]> {
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
@@ -1057,7 +1059,8 @@ type TupleOptions<T extends any[]> = {
   default?: InferTuple<T> | (() => InferTuple<T>);
 };
 
-export class TupleType<T extends AnyType[]> extends Type<InferTuple<T>>
+export class TupleType<T extends AnyType[]>
+  extends Type<InferTuple<T>>
   implements WithPredicate<InferTuple<T>>, Defaultable<InferTuple<T>> {
   private readonly predicates: Predicate<InferTuple<T>>[] | null;
   private readonly defaultValue?: InferTuple<T> | (() => InferTuple<T>);
@@ -1145,7 +1148,8 @@ type UnionIntersection<U extends UnionType<any>, T extends AnyType> = U extends 
     >
   : never;
 
-export class UnionType<T extends AnyType[]> extends Type<InferTupleUnion<T>>
+export class UnionType<T extends AnyType[]>
+  extends Type<InferTupleUnion<T>>
   implements Defaultable<InferTupleUnion<T>> {
   private readonly strict: boolean;
   private readonly defaultValue?: InferTupleUnion<T> | (() => InferTupleUnion<T>);

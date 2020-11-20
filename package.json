@@ -8,7 +8,8 @@
     "test": "nyc mocha \"test/**/*test.ts\"",
     "build": "rm -rf ./libs && tsc",
     "pub": "npm t && npm run build && npm publish",
-    "bench": "find test -path '*.benchmark.ts' | xargs benchmonkey"
+    "bench": "find test -path '*.benchmark.ts' | xargs benchmonkey",
+    "prettier": "prettier --write '**/*.ts'"
   },
   "keywords": [
     "typescript",
@@ -25,14 +26,14 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/mocha": "^8.0.3",
-    "@types/node": "^14.14.6",
+    "@types/mocha": "^8.0.4",
+    "@types/node": "^14.14.9",
     "benchmonkey": "0.0.7",
-    "mocha": "^8.2.0",
+    "mocha": "^8.2.1",
     "nyc": "^15.1.0",
-    "prettier": "^2.1.2",
+    "prettier": "^2.2.0",
     "ts-node": "^9.0.0",
-    "typescript": "^4.0.5"
+    "typescript": "^4.1.2"
   },
   "nyc": {
     "include": [
