@@ -638,6 +638,7 @@ export type ObjectOptions<T extends ObjectShape> = {
     | Predicate<InferObjectShape<T>>
     | Predicate<InferObjectShape<T>>[];
   default?: InferObjectShape<T> | (() => InferObjectShape<T>);
+  collectErrors?: boolean;
 };
 
 export class ObjectType<T extends ObjectShape>
@@ -646,11 +647,13 @@ export class ObjectType<T extends ObjectShape>
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
   private readonly defaultValue?: InferObjectShape<T> | (() => InferObjectShape<T>);
   private readonly allowUnknown: boolean;
+  private readonly shouldCollectErrors: boolean;
   constructor(private readonly objectShape: T, opts?: ObjectOptions<T>) {
     super();
     this.predicates = normalizePredicates(opts?.predicate);
     this.defaultValue = opts?.default;
     this.allowUnknown = opts?.allowUnknown === true;
+    this.shouldCollectErrors = opts?.collectErrors === true;
     const keys = Object.keys(this.objectShape);
     (this as any)[keySignature] = this.objectShape[keySignature];
     (this as any)[allowUnknownSymbol] = this.allowUnknown;
@@ -691,26 +694,11 @@ export class ObjectType<T extends ObjectShape>
     }
 
     if (keys.length === 0 && keySig) {
-      const convVal: any = (this as any)[coercionTypeSymbol] ? {} : undefined;
-      for (const key in value) {
-        try {
-          if (convVal) {
-            convVal[key] = (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
-          } else {
-            (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
-          }
-        } catch (err) {
-          const path = err.path ? [key, ...err.path] : [key];
-          const msg = parseOpts.suppressPathErrMsg
-            ? err.message
-            : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-          throw new ValidationError(msg, path);
-        }
+      if ((this as any)[coercionTypeSymbol]) {
+        return this.parseRecordConv(value, keySig, parseOpts);
+      } else {
+        return this.parseRecord(value, keySig, parseOpts);
       }
-      if (this.predicates) {
-        applyPredicates(this.predicates, convVal || value);
-      }
-      return convVal || value;
     }
 
     if (keySig) {
@@ -763,6 +751,51 @@ export class ObjectType<T extends ObjectShape>
       applyPredicates(this.predicates, convVal || value);
     }
     return convVal || value;
+  }
+
+  private parseRecord(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    for (const key in value) {
+      try {
+        (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
+      } catch (err) {
+        const path = err.path ? [key, ...err.path] : [key];
+        const msg = parseOpts.suppressPathErrMsg
+          ? err.message
+          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
+        throw new ValidationError(msg, path);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseRecordConv(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    const convVal: any = {};
+    for (const key in value) {
+      try {
+        convVal[key] = (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
+      } catch (err) {
+        const path = err.path ? [key, ...err.path] : [key];
+        const msg = parseOpts.suppressPathErrMsg
+          ? err.message
+          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
+        throw new ValidationError(msg, path);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
   }
 
   and<K extends AnyType>(schema: K): IntersectionResult<this, K> {
@@ -873,6 +906,7 @@ export class ObjectType<T extends ObjectShape>
       default: this.defaultValue,
       allowUnknown: this.allowUnknown,
       predicate: appendPredicate(this.predicates, { func: fn, errMsg }),
+      collectErrors: this.shouldCollectErrors,
     });
   }
 
@@ -881,6 +915,16 @@ export class ObjectType<T extends ObjectShape>
       default: value,
       allowUnknown: this.allowUnknown,
       predicate: this.predicates || undefined,
+      collectErrors: this.shouldCollectErrors,
+    });
+  }
+
+  collectErrors(value: boolean = true): ObjectType<T> {
+    return new ObjectType(this.objectShape, {
+      default: this.defaultValue,
+      allowUnknown: this.allowUnknown,
+      predicate: this.predicates || undefined,
+      collectErrors: value,
     });
   }
 }
