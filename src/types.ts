@@ -769,6 +769,14 @@ export class ObjectType<T extends ObjectShape>
     return convVal || value;
   }
 
+  private buildPathError(err: ValidationError, key: string, parseOpts: PathOptions): ValidationError {
+    const path = err.path ? [key, ...err.path] : [key];
+    const msg = parseOpts.suppressPathErrMsg
+      ? err.message
+      : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
+    return new ValidationError(msg, path);
+  }
+
   private parseRecord(
     value: Object,
     keySig: AnyType,
@@ -778,11 +786,7 @@ export class ObjectType<T extends ObjectShape>
       try {
         (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
       } catch (err) {
-        const path = err.path ? [key, ...err.path] : [key];
-        const msg = parseOpts.suppressPathErrMsg
-          ? err.message
-          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-        throw new ValidationError(msg, path);
+        throw this.buildPathError(err, key, parseOpts);
       }
     }
     if (this.predicates) {
@@ -802,18 +806,12 @@ export class ObjectType<T extends ObjectShape>
       const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        const path = result.path ? [key, ...result.path] : [key];
-        const msg = parseOpts.suppressPathErrMsg
-          ? result.message
-          : `error parsing object at path: "${prettyPrintPath(path)}" - ${result.message}`;
-        errs[key] = new ValidationError(msg, path);
+        errs[key] = this.buildPathError(result, key, parseOpts);
       }
     }
-
     if (hasError) {
       throw new ValidationError('', undefined, errs);
     }
-
     if (this.predicates) {
       applyPredicates(this.predicates, value);
     }
@@ -830,11 +828,7 @@ export class ObjectType<T extends ObjectShape>
       try {
         convVal[key] = (keySig as any).parse((value as any)[key], { suppressPathErrMsg: true });
       } catch (err) {
-        const path = err.path ? [key, ...err.path] : [key];
-        const msg = parseOpts.suppressPathErrMsg
-          ? err.message
-          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-        throw new ValidationError(msg, path);
+        throw this.buildPathError(err, key, parseOpts);
       }
     }
     if (this.predicates) {
@@ -851,25 +845,18 @@ export class ObjectType<T extends ObjectShape>
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
-
     for (const key in value) {
       const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        const path = result.path ? [key, ...result.path] : [key];
-        const msg = parseOpts.suppressPathErrMsg
-          ? result.message
-          : `error parsing object at path: "${prettyPrintPath(path)}" - ${result.message}`;
-        errs[key] = new ValidationError(msg, path);
+        errs[key] = this.buildPathError(result, key, parseOpts);
       } else {
         convVal[key] = result;
       }
     }
-
     if (hasError) {
       throw new ValidationError('', undefined, errs);
     }
-
     if (this.predicates) {
       applyPredicates(this.predicates, convVal);
     }
