@@ -1008,6 +1008,23 @@ describe('Zod Parsing', () => {
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'unexpected keys on object: ["c"]');
     });
+
+    it('should collect errors', () => {
+      const schema = z.record(z.string()).collectErrors();
+      const err = schema.try({ a: 1, b: true, c: null });
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.path, undefined);
+      assert.strictEqual(
+        err.message,
+        [
+          'error parsing object at path: "a" - expected type to be string but got number',
+          'error parsing object at path: "b" - expected type to be string but got boolean',
+          'error parsing object at path: "c" - expected type to be string but got null',
+        ].join('\n')
+      );
+      assert.ok(err.collectedErrors !== undefined);
+      assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'b', 'c']);
+    });
   });
 
   describe('array parsing', () => {
@@ -1600,6 +1617,7 @@ describe('Zod Parsing', () => {
       const ret = schema.parse({ type: 'a', version: 3 });
       assert.deepEqual(ret, { type: 'a', version: 3 });
     });
+
     it('should fail with appropriate error intersect and a union of objects', () => {
       const unions = z.union([
         z.object({ type: z.literal('a') }),
