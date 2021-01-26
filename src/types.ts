@@ -25,7 +25,7 @@ export abstract class Type<T> {
   }
   try(value: unknown): T | ValidationError {
     try {
-      return this.parse(value);
+      return (this as any).parse.apply(this, arguments);
     } catch (err) {
       return err;
     }
@@ -41,9 +41,21 @@ export abstract class Type<T> {
 export class ValidationError extends Error {
   name = 'MyZodError';
   path?: (string | number)[];
-  constructor(message: string, path?: (string | number)[]) {
+  collectedErrors?: Record<string, ValidationError | undefined>;
+  // @ts-ignore
+  constructor(
+    message: string,
+    path?: (string | number)[],
+    collectedErrors?: Record<string, ValidationError | undefined>
+  ) {
+    if (collectedErrors !== undefined) {
+      message = Object.values(collectedErrors)
+        .map(err => err?.message)
+        .join('\n');
+    }
     super(message);
     this.path = path;
+    this.collectedErrors = collectedErrors;
   }
 }
 
@@ -696,6 +708,8 @@ export class ObjectType<T extends ObjectShape>
     if (keys.length === 0 && keySig) {
       if ((this as any)[coercionTypeSymbol]) {
         return this.parseRecordConv(value, keySig, parseOpts);
+      } else if (this.shouldCollectErrors) {
+        return this.parseRecordCollect(value, keySig, parseOpts);
       } else {
         return this.parseRecord(value, keySig, parseOpts);
       }
@@ -769,6 +783,35 @@ export class ObjectType<T extends ObjectShape>
         throw new ValidationError(msg, path);
       }
     }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseRecordCollect(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    let hasError = false;
+    const errs: Record<string, ValidationError> = {};
+    for (const key in value) {
+      const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        const path = result.path ? [key, ...result.path] : [key];
+        const msg = parseOpts.suppressPathErrMsg
+          ? result.message
+          : `error parsing object at path: "${prettyPrintPath(path)}" - ${result.message}`;
+        errs[key] = new ValidationError(msg, path);
+      }
+    }
+
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+
     if (this.predicates) {
       applyPredicates(this.predicates, value);
     }
