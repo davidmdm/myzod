@@ -588,8 +588,8 @@ describe('Zod Parsing', () => {
 
     it('should force a key to be required within an object schema', () => {
       const schema = z.object({ required: z.unknown() });
-      const err = catchError(schema.parse.bind(schema))({});
-      assert.equal(err instanceof z.ValidationError, true);
+      const err = schema.try({});
+      assert.ok(err instanceof z.ValidationError);
       assert.equal(
         err.message,
         `error parsing object at path: "required" - expected key "required" of unknown type to be present on object`

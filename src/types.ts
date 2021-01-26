@@ -712,61 +712,29 @@ export class ObjectType<T extends ObjectShape>
         return this.parseRecordConv(value, keySig, parseOpts);
       } else if (this.shouldCollectErrors) {
         return this.parseRecordCollect(value, keySig, parseOpts);
-      } else {
-        return this.parseRecord(value, keySig, parseOpts);
       }
+      return this.parseRecord(value, keySig, parseOpts);
     }
 
     if (keySig) {
-      const convVal: any = (this as any)[coercionTypeSymbol] ? {} : undefined;
-      for (const key in value) {
-        try {
-          if (convVal) {
-            // @ts-ignore
-            convVal[key] = (this.objectShape[key] || keySig).parse((value as any)[key], { suppressPathErrMsg: true });
-          } else {
-            // @ts-ignore
-            (this.objectShape[key] || keySig).parse((value as any)[key], { suppressPathErrMsg: true });
-          }
-        } catch (err) {
-          const path = err.path ? [key, ...err.path] : [key];
-          const msg = parseOpts.suppressPathErrMsg
-            ? err.message
-            : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-          throw new ValidationError(msg, path);
-        }
+      if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
+        return this.parseMixRecordConvCollect(value, keySig, parseOpts);
+      } else if ((this as any)[coercionTypeSymbol]) {
+        return this.parseMixRecordConv(value, keySig, parseOpts);
+      } else if (this.shouldCollectErrors) {
+        return this.parseMixRecordCollect(value, keySig, parseOpts);
       }
-      if (this.predicates) {
-        applyPredicates(this.predicates, convVal || value);
-      }
-      return convVal || value;
+      return this.parseMixRecord(value, keySig, parseOpts);
     }
 
-    const convVal: any = (this as any)[coercionTypeSymbol] ? (allowUnknown ? { ...value } : {}) : undefined;
-
-    for (const key of keys) {
-      try {
-        const schema = (this.objectShape as any)[key];
-        if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
-          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
-        }
-        if (convVal) {
-          convVal[key] = schema.parse((value as any)[key], { suppressPathErrMsg: true });
-        } else {
-          schema.parse((value as any)[key], { suppressPathErrMsg: true });
-        }
-      } catch (err) {
-        const path = err.path ? [key, ...err.path] : [key];
-        const msg = parseOpts.suppressPathErrMsg
-          ? err.message
-          : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-        throw new ValidationError(msg, path);
-      }
+    if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
+      return this.parseObjectConvCollect(value, parseOpts);
+    } else if ((this as any)[coercionTypeSymbol]) {
+      return this.parseObjectConv(value, parseOpts);
+    } else if (this.shouldCollectErrors) {
+      return this.parseObjectCollect(value, parseOpts);
     }
-    if (this.predicates) {
-      applyPredicates(this.predicates, convVal || value);
-    }
-    return convVal || value;
+    return this.parseObject(value, parseOpts);
   }
 
   private buildPathError(err: ValidationError, key: string, parseOpts: PathOptions): ValidationError {
@@ -775,6 +743,92 @@ export class ObjectType<T extends ObjectShape>
       ? err.message
       : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
     return new ValidationError(msg, path);
+  }
+
+  private parseObject(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+    for (const key in value) {
+      try {
+        const schema = (this.objectShape as any)[key];
+        if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+        }
+        schema.parse((value as any)[key], { suppressPathErrMsg: true });
+      } catch (err) {
+        throw this.buildPathError(err, key, parseOpts);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseObjectCollect(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+    let hasError = false;
+    const errs: Record<string, ValidationError> = {};
+    for (const key in value) {
+      const schema = (this.objectShape as any)[key];
+      if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+        throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+      }
+      const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        errs[key] = this.buildPathError(result, key, parseOpts);
+      }
+    }
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseObjectConv(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+    const convVal: any = {};
+    for (const key in value) {
+      try {
+        const schema = (this.objectShape as any)[key];
+        if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+        }
+        convVal[key] = (schema as any).parse((value as any)[key], { suppressPathErrMsg: true });
+      } catch (err) {
+        throw this.buildPathError(err, key, parseOpts);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
+  }
+
+  private parseObjectConvCollect(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+    const convVal: any = {};
+    const errs: any = {};
+    let hasError = false;
+    for (const key in value) {
+      const schema = (this.objectShape as any)[key];
+      if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
+        throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+      }
+      const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        errs[key] = this.buildPathError(result, key, parseOpts);
+      } else {
+        convVal[key] = result;
+      }
+    }
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
   }
 
   private parseRecord(
@@ -847,6 +901,98 @@ export class ObjectType<T extends ObjectShape>
     let hasError = false;
     for (const key in value) {
       const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        errs[key] = this.buildPathError(result, key, parseOpts);
+      } else {
+        convVal[key] = result;
+      }
+    }
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
+  }
+
+  private parseMixRecord(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    for (const key in value) {
+      try {
+        ((this.objectShape[key] || keySig) as any).parse((value as any)[key], { suppressPathErrMsg: true });
+      } catch (err) {
+        throw this.buildPathError(err, key, parseOpts);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseMixRecordCollect(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    let hasError = false;
+    const errs: Record<string, ValidationError> = {};
+    for (const key in value) {
+      const result = (((this.objectShape[key] || keySig) as any) as any).try((value as any)[key], {
+        suppressPathErrMsg: true,
+      });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        errs[key] = this.buildPathError(result, key, parseOpts);
+      }
+    }
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, value);
+    }
+    return value as any;
+  }
+
+  private parseMixRecordConv(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    const convVal: any = {};
+    for (const key in value) {
+      try {
+        convVal[key] = (((this.objectShape[key] || keySig) as any) as any).parse((value as any)[key], {
+          suppressPathErrMsg: true,
+        });
+      } catch (err) {
+        throw this.buildPathError(err, key, parseOpts);
+      }
+    }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
+  }
+
+  private parseMixRecordConvCollect(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    const convVal: any = {};
+    const errs: any = {};
+    let hasError = false;
+    for (const key in value) {
+      const result = (((this.objectShape[key] || keySig) as any) as any).try((value as any)[key], {
+        suppressPathErrMsg: true,
+      });
       if (result instanceof ValidationError) {
         hasError = true;
         errs[key] = this.buildPathError(result, key, parseOpts);
