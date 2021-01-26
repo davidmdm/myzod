@@ -706,7 +706,9 @@ export class ObjectType<T extends ObjectShape>
     }
 
     if (keys.length === 0 && keySig) {
-      if ((this as any)[coercionTypeSymbol]) {
+      if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
+        return this.parseRecordConvCollect(value, keySig, parseOpts);
+      } else if ((this as any)[coercionTypeSymbol]) {
         return this.parseRecordConv(value, keySig, parseOpts);
       } else if (this.shouldCollectErrors) {
         return this.parseRecordCollect(value, keySig, parseOpts);
@@ -835,6 +837,39 @@ export class ObjectType<T extends ObjectShape>
         throw new ValidationError(msg, path);
       }
     }
+    if (this.predicates) {
+      applyPredicates(this.predicates, convVal);
+    }
+    return convVal;
+  }
+
+  private parseRecordConvCollect(
+    value: Object,
+    keySig: AnyType,
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
+    const convVal: any = {};
+    const errs: any = {};
+    let hasError = false;
+
+    for (const key in value) {
+      const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
+      if (result instanceof ValidationError) {
+        hasError = true;
+        const path = result.path ? [key, ...result.path] : [key];
+        const msg = parseOpts.suppressPathErrMsg
+          ? result.message
+          : `error parsing object at path: "${prettyPrintPath(path)}" - ${result.message}`;
+        errs[key] = new ValidationError(msg, path);
+      } else {
+        convVal[key] = result;
+      }
+    }
+
+    if (hasError) {
+      throw new ValidationError('', undefined, errs);
+    }
+
     if (this.predicates) {
       applyPredicates(this.predicates, convVal);
     }
