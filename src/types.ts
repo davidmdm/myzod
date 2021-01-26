@@ -718,23 +718,23 @@ export class ObjectType<T extends ObjectShape>
 
     if (keySig) {
       if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
-        return this.parseMixRecordConvCollect(value, keySig, parseOpts);
+        return this.parseMixRecordConvCollect(value, keys, keySig, parseOpts);
       } else if ((this as any)[coercionTypeSymbol]) {
-        return this.parseMixRecordConv(value, keySig, parseOpts);
+        return this.parseMixRecordConv(value, keys, keySig, parseOpts);
       } else if (this.shouldCollectErrors) {
-        return this.parseMixRecordCollect(value, keySig, parseOpts);
+        return this.parseMixRecordCollect(value, keys, keySig, parseOpts);
       }
-      return this.parseMixRecord(value, keySig, parseOpts);
+      return this.parseMixRecord(value, keys, keySig, parseOpts);
     }
 
     if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
-      return this.parseObjectConvCollect(value, parseOpts);
+      return this.parseObjectConvCollect(value, keys, parseOpts);
     } else if ((this as any)[coercionTypeSymbol]) {
-      return this.parseObjectConv(value, parseOpts);
+      return this.parseObjectConv(value, keys, parseOpts);
     } else if (this.shouldCollectErrors) {
-      return this.parseObjectCollect(value, parseOpts);
+      return this.parseObjectCollect(value, keys, parseOpts);
     }
-    return this.parseObject(value, parseOpts);
+    return this.parseObject(value, keys, parseOpts);
   }
 
   private buildPathError(err: ValidationError, key: string, parseOpts: PathOptions): ValidationError {
@@ -745,8 +745,8 @@ export class ObjectType<T extends ObjectShape>
     return new ValidationError(msg, path);
   }
 
-  private parseObject(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
-    for (const key in value) {
+  private parseObject(value: Object, keys: string[], parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+    for (const key of keys) {
       try {
         const schema = (this.objectShape as any)[key];
         if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
@@ -763,10 +763,14 @@ export class ObjectType<T extends ObjectShape>
     return value as any;
   }
 
-  private parseObjectCollect(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+  private parseObjectCollect(
+    value: Object,
+    keys: string[],
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
-    for (const key in value) {
+    for (const key of keys) {
       const schema = (this.objectShape as any)[key];
       if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
         throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
@@ -786,9 +790,13 @@ export class ObjectType<T extends ObjectShape>
     return value as any;
   }
 
-  private parseObjectConv(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+  private parseObjectConv(
+    value: Object,
+    keys: string[],
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
     const convVal: any = {};
-    for (const key in value) {
+    for (const key of keys) {
       try {
         const schema = (this.objectShape as any)[key];
         if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
@@ -805,11 +813,15 @@ export class ObjectType<T extends ObjectShape>
     return convVal;
   }
 
-  private parseObjectConvCollect(value: Object, parseOpts: ObjectOptions<any> & PathOptions): InferObjectShape<T> {
+  private parseObjectConvCollect(
+    value: Object,
+    keys: string[],
+    parseOpts: ObjectOptions<any> & PathOptions
+  ): InferObjectShape<T> {
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
-    for (const key in value) {
+    for (const key of keys) {
       const schema = (this.objectShape as any)[key];
       if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
         throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
@@ -919,10 +931,11 @@ export class ObjectType<T extends ObjectShape>
 
   private parseMixRecord(
     value: Object,
+    keys: string[],
     keySig: AnyType,
     parseOpts: ObjectOptions<any> & PathOptions
   ): InferObjectShape<T> {
-    for (const key in value) {
+    for (const key of new Set(Object.keys(value).concat(keys))) {
       try {
         ((this.objectShape[key] || keySig) as any).parse((value as any)[key], { suppressPathErrMsg: true });
       } catch (err) {
@@ -937,12 +950,13 @@ export class ObjectType<T extends ObjectShape>
 
   private parseMixRecordCollect(
     value: Object,
+    keys: string[],
     keySig: AnyType,
     parseOpts: ObjectOptions<any> & PathOptions
   ): InferObjectShape<T> {
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
-    for (const key in value) {
+    for (const key of new Set(Object.keys(value).concat(keys))) {
       const result = (((this.objectShape[key] || keySig) as any) as any).try((value as any)[key], {
         suppressPathErrMsg: true,
       });
@@ -962,11 +976,12 @@ export class ObjectType<T extends ObjectShape>
 
   private parseMixRecordConv(
     value: Object,
+    keys: string[],
     keySig: AnyType,
     parseOpts: ObjectOptions<any> & PathOptions
   ): InferObjectShape<T> {
     const convVal: any = {};
-    for (const key in value) {
+    for (const key of new Set(Object.keys(value).concat(keys))) {
       try {
         convVal[key] = (((this.objectShape[key] || keySig) as any) as any).parse((value as any)[key], {
           suppressPathErrMsg: true,
@@ -983,13 +998,14 @@ export class ObjectType<T extends ObjectShape>
 
   private parseMixRecordConvCollect(
     value: Object,
+    keys: string[],
     keySig: AnyType,
     parseOpts: ObjectOptions<any> & PathOptions
   ): InferObjectShape<T> {
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
-    for (const key in value) {
+    for (const key of new Set(Object.keys(value).concat(keys))) {
       const result = (((this.objectShape[key] || keySig) as any) as any).try((value as any)[key], {
         suppressPathErrMsg: true,
       });
