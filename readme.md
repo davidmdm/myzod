@@ -523,6 +523,30 @@ const personSchema = myzod
 const person = personSchema.parse(undefined); // => { name: 'John', lastName: 'Doe' }
 ```
 
+#### object.collectErrors
+
+Object schemas have an option to collect all validation errors instead of the default throwing on first error.
+This is useful for form validation, but does incur a slight performance hit.
+
+```typescript
+const personSchema = myzod
+  .object({ name: myzod.string(), lastName: myzod.string() })
+  .collectErrors();
+
+personSchema.parse({ name: 1, lastName: 2 })
+
+// throws an ValidationError with message:
+err.message = `
+  error parsing object at path: "name" - expected type to be string but got number
+  error parsing object at path: "lastName" - expected type to be string but got number
+`
+
+err.collectedErrors = {
+  name: ValidationError,
+  lastName: ValidationError,
+}
+```
+
 ##### Key Signatures
 
 In the next section myzod goes over "records" which is the simple and idiomatic way in typescript of describing an object with solely a key signature.

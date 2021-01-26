@@ -802,6 +802,36 @@ describe('Zod Parsing', () => {
       const partialed = base.partial();
       assert.equal((partialed as any).predicates, null);
     });
+
+    it('should collect errors', () => {
+      const schema = z.object({ a: z.string(), b: z.string(), c: z.string() }).collectErrors();
+      const err = schema.try({ a: 1, b: 2, c: 'hello' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(
+        err.message,
+        [
+          'error parsing object at path: "a" - expected type to be string but got number',
+          'error parsing object at path: "b" - expected type to be string but got number',
+        ].join('\n')
+      );
+      assert.ok(err.collectedErrors);
+      assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'b']);
+    });
+
+    it('should collect errors for mix object/record', () => {
+      const schema = z.object({ a: z.string(), b: z.string() }).and(z.record(z.number())).collectErrors();
+      const err = schema.try({ a: 1, b: 'hello', c: 'world', d: 2 });
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(
+        err.message,
+        [
+          'error parsing object at path: "a" - expected type to be string but got number',
+          'error parsing object at path: "c" - expected type to be number but got string',
+        ].join('\n')
+      );
+      assert.ok(err.collectedErrors);
+      assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'c']);
+    });
   });
 
   describe('object utility parsing', () => {
