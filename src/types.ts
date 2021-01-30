@@ -791,7 +791,7 @@ export class ObjectType<T extends ObjectShape>
       try {
         const schema = (this.objectShape as any)[key];
         if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
-          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+          throw (schema as any).typeError(`expected key "${key}" of unknown type to be present on object`);
         }
         schema.parse((value as any)[key], { suppressPathErrMsg: true });
       } catch (err) {
@@ -810,7 +810,13 @@ export class ObjectType<T extends ObjectShape>
     for (const key of keys) {
       const schema = (this.objectShape as any)[key];
       if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
-        throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+        hasError = true;
+        errs[key] = this.buildPathError(
+          (schema as any).typeError(`expected key "${key}" of unknown type to be present on object`),
+          key,
+          { suppressPathErrMsg: true }
+        );
+        continue;
       }
       const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
@@ -837,7 +843,7 @@ export class ObjectType<T extends ObjectShape>
       try {
         const schema = (this.objectShape as any)[key];
         if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
-          throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+          throw (schema as any).typeError(`expected key "${key}" of unknown type to be present on object`);
         }
         convVal[key] = (schema as any).parse((value as any)[key], { suppressPathErrMsg: true });
       } catch (err) {
@@ -857,7 +863,13 @@ export class ObjectType<T extends ObjectShape>
     for (const key of keys) {
       const schema = (this.objectShape as any)[key];
       if (schema instanceof UnknownType && !(value as any).hasOwnProperty(key)) {
-        throw new ValidationError(`expected key "${key}" of unknown type to be present on object`);
+        hasError = true;
+        errs[key] = this.buildPathError(
+          (schema as any).typeError(`expected key "${key}" of unknown type to be present on object`),
+          key,
+          { suppressPathErrMsg: true }
+        );
+        continue;
       }
       const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {

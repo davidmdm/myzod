@@ -865,6 +865,7 @@ describe('Zod Parsing', () => {
         .object({
           name: z.string().onTypeError('please enter a valid text field'),
           age: z.number().onTypeError('please enter a valid number'),
+          misc: z.unknown().onTypeError('misc must be provided!'),
         })
         .collectErrors();
 
@@ -876,6 +877,17 @@ describe('Zod Parsing', () => {
       assert.deepStrictEqual(err.collectedErrors?.name?.path, ['name']);
       assert.strictEqual(err.collectedErrors.age?.message, 'please enter a valid number');
       assert.deepStrictEqual(err.collectedErrors.age?.path, ['age']);
+      assert.strictEqual(err.collectedErrors.misc?.message, 'misc must be provided!');
+      assert.deepStrictEqual(err.collectedErrors.misc?.path, ['misc']);
+
+      assert.strictEqual(
+        err.message,
+        [
+          'error parsing object at path: "name" - please enter a valid text field',
+          'error parsing object at path: "age" - please enter a valid number',
+          'error parsing object at path: "misc" - misc must be provided!',
+        ].join('\n')
+      );
     });
   });
 
