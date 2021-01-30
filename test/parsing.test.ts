@@ -44,6 +44,15 @@ describe('Zod Parsing', () => {
       const err = schema.try('hello');
       assert.equal(err.message, 'mapping error');
     });
+
+    it('should be immutable with regards to root schema', () => {
+      const str = z.string();
+      const num = str.map(x => parseInt(x, 10) || 0);
+      assert.ok((num as any)[coercionTypeSymbol]);
+
+      assert.strictEqual(num.try('52'), 52);
+      assert.strictEqual(str.try('52'), '52');
+    });
   });
 
   describe('String parsing', () => {

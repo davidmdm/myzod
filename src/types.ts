@@ -1,4 +1,20 @@
-const _mapSymb = Symbol.for('_map');
+function clone<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(elem => clone(elem)) as any;
+  }
+  const cpy: any = Object.create(null);
+  for (const k in value) {
+    cpy[k] = clone(value[k]);
+  }
+  for (const s of Object.getOwnPropertySymbols(value)) {
+    cpy[s] = clone((value as any)[s]);
+  }
+  Object.setPrototypeOf(cpy, Object.getPrototypeOf(value));
+  return cpy;
+}
 
 export abstract class Type<T> {
   constructor() {}
@@ -31,10 +47,11 @@ export abstract class Type<T> {
     }
   }
   map<K>(fn: (value: T) => K): Type<K> {
-    (this as any)[_mapSymb] = fn;
-    const parse = this.parse.bind(this);
-    (this as any).parse = (value: any) => fn(parse(value));
-    return this as any;
+    const cpy = clone(this);
+    const parse = cpy.parse.bind(cpy);
+    (cpy as any).parse = (value: any) => fn(parse(value));
+    (cpy as any)[coercionTypeSymbol] = true;
+    return cpy as any;
   }
 }
 
