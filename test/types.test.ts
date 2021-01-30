@@ -258,7 +258,7 @@ describe('Types test', () => {
       assert.ok(innerSchema instanceof StringType);
 
       const doubleOpts = schema.optional();
-      assert.equal(schema, doubleOpts);
+      assert.deepStrictEqual(schema, doubleOpts);
     });
 
     it('should wrap schema in nullable type', () => {
@@ -279,7 +279,7 @@ describe('Types test', () => {
       assert.ok(innerSchema instanceof StringType);
 
       const doubleOpts = schema.nullable();
-      assert.equal(schema, doubleOpts);
+      assert.deepStrictEqual(schema, doubleOpts);
     });
 
     it('should return the correct shape for a dictionary', () => {

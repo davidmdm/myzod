@@ -69,6 +69,18 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'expected type to be string but got number');
     });
 
+    it('should return a validation error with the set type error', () => {
+      const err = schema.onTypeError('oopsie not a string baby!').try(42);
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'oopsie not a string baby!');
+    });
+
+    it('should return a validation error with the set type error function result', () => {
+      const err = schema.onTypeError(() => 'oopsie!').try(42);
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'oopsie!');
+    });
+
     it('should pass if matches provided pattern', () => {
       const schema = z.string().pattern(/^hello/);
       assert.equal(schema.parse('hello world'), 'hello world');
@@ -79,6 +91,12 @@ describe('Zod Parsing', () => {
       const err = catchError(schema.parse.bind(schema))('goodbye world');
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
+    });
+
+    it('should return a new schema instance on type error', () => {
+      const str = z.string();
+      const typErrStr = str.onTypeError('type error!');
+      assert.notStrictEqual(str, typErrStr);
     });
 
     it('should fail if string does not match pattern and use custom error message', () => {

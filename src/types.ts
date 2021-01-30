@@ -16,6 +16,8 @@ function clone<T>(value: T): T {
   return cpy;
 }
 
+const typeErrSym = Symbol.for('typeError');
+
 export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
@@ -27,7 +29,7 @@ export abstract class Type<T> {
   optional(): OptionalType<this>;
   optional(): any {
     if (this instanceof OptionalType) {
-      return this;
+      return clone(this);
     }
     return new OptionalType(this);
   }
@@ -35,7 +37,7 @@ export abstract class Type<T> {
   nullable(): NullableType<this>;
   nullable(): any {
     if (this instanceof NullableType) {
-      return this;
+      return clone(this);
     }
     return new NullableType(this);
   }
@@ -52,6 +54,25 @@ export abstract class Type<T> {
     (cpy as any).parse = (value: any) => fn(parse(value));
     (cpy as any)[coercionTypeSymbol] = true;
     return cpy as any;
+  }
+  onTypeError(msg: string | (() => string)): this {
+    const cpy = clone(this);
+    (cpy as any)[typeErrSym] = msg;
+    return cpy;
+  }
+
+  protected typeError(msg: string): ValidationError {
+    const errMsg: string = (() => {
+      const typErrValue = (this as any)[typeErrSym];
+      if (typErrValue === undefined) {
+        return msg;
+      }
+      if (typeof typErrValue === 'function') {
+        return typErrValue();
+      }
+      return typErrValue;
+    })();
+    return new ValidationError(errMsg);
   }
 }
 
@@ -235,7 +256,7 @@ export class StringType extends Type<string> implements WithPredicate<string>, D
   }
   parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): string {
     if (typeof value !== 'string') {
-      throw new ValidationError('expected type to be string but got ' + typeOf(value));
+      throw this.typeError('expected type to be string but got ' + typeOf(value));
     }
     if (this.predicates) {
       applyPredicates(this.predicates, value);
@@ -293,7 +314,7 @@ export class BooleanType extends Type<boolean> implements Defaultable<boolean> {
   }
   parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): boolean {
     if (typeof value !== 'boolean') {
-      throw new ValidationError('expected type to be boolean but got ' + typeOf(value));
+      throw this.typeError('expected type to be boolean but got ' + typeOf(value));
     }
     return value;
   }
@@ -336,12 +357,12 @@ export class NumberType extends Type<number> implements WithPredicate<number>, D
     if (this.coerceFlag && typeof value === 'string') {
       const number = parseFloat(value);
       if (isNaN(number)) {
-        throw new ValidationError('expected type to be number but got string');
+        throw this.typeError('expected type to be number but got string');
       }
       return this.parse(number);
     }
     if (typeof value !== 'number') {
-      throw new ValidationError('expected type to be number but got ' + typeOf(value));
+      throw this.typeError('expected type to be number but got ' + typeOf(value));
     }
     if (this.predicates) {
       applyPredicates(this.predicates, value);
@@ -413,7 +434,7 @@ export class BigIntType extends Type<bigint> implements WithPredicate<bigint>, D
       if (err instanceof ValidationError) {
         throw err;
       }
-      throw new ValidationError('expected type to be bigint interpretable - ' + err.message.toLowerCase());
+      throw this.typeError('expected type to be bigint interpretable - ' + err.message.toLowerCase());
     }
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
@@ -445,7 +466,7 @@ export class BigIntType extends Type<bigint> implements WithPredicate<bigint>, D
 export class UndefinedType extends Type<undefined> {
   parse(value: unknown): undefined {
     if (value !== undefined) {
-      throw new ValidationError('expected type to be undefined but got ' + typeOf(value));
+      throw this.typeError('expected type to be undefined but got ' + typeOf(value));
     }
     return value;
   }
@@ -461,7 +482,7 @@ export class NullType extends Type<null> implements Defaultable<null> {
   }
   parse(value: unknown = this.defaulted ? null : undefined): null {
     if (value !== null) {
-      throw new ValidationError('expected type to be null but got ' + typeOf(value));
+      throw this.typeError('expected type to be null but got ' + typeOf(value));
     }
     return value;
   }
@@ -485,7 +506,7 @@ export class LiteralType<T extends Literal> extends Type<T> implements Defaultab
   parse(value: unknown = this.defaultValue): T {
     if (value !== this.literal) {
       const typeofValue = typeof value !== 'object' ? JSON.stringify(value) : typeOf(value);
-      throw new ValidationError(`expected value to be literal ${JSON.stringify(this.literal)} but got ${typeofValue}`);
+      throw this.typeError(`expected value to be literal ${JSON.stringify(this.literal)} but got ${typeofValue}`);
     }
     return value as T;
   }
@@ -567,21 +588,6 @@ export type DateOptions = {
   default?: Date | (() => Date);
 };
 
-const stringToDate = (str: string): Date => {
-  const date = new Date(str);
-  if (isNaN(date.getTime())) {
-    throw new ValidationError(`expected date string to be valid date`);
-  }
-  return date;
-};
-
-const assertDate = (date: any): Date => {
-  if (!(date instanceof Date)) {
-    throw new ValidationError('expected type Date but got ' + typeOf(date));
-  }
-  return date;
-};
-
 export class DateType extends Type<Date> implements WithPredicate<Date>, Defaultable<Date> {
   private readonly predicates: Predicate<Date>[] | null;
   private readonly defaultValue?: Date | (() => Date);
@@ -592,7 +598,7 @@ export class DateType extends Type<Date> implements WithPredicate<Date>, Default
     this.defaultValue = opts?.default;
   }
   parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): Date {
-    const date = typeof value === 'string' ? stringToDate(value) : assertDate(value);
+    const date = typeof value === 'string' ? this.stringToDate(value) : this.assertDate(value);
     if (this.predicates) {
       applyPredicates(this.predicates, date);
     }
@@ -609,6 +615,21 @@ export class DateType extends Type<Date> implements WithPredicate<Date>, Default
   }
   default(value: Date | (() => Date)): DateType {
     return new DateType({ default: value, predicate: this.predicates || undefined });
+  }
+
+  private stringToDate(str: string): Date {
+    const date = new Date(str);
+    if (isNaN(date.getTime())) {
+      throw this.typeError(`expected date string to be valid date`);
+    }
+    return date;
+  }
+
+  private assertDate(date: any): Date {
+    if (!(date instanceof Date)) {
+      throw this.typeError('expected type Date but got ' + typeOf(date));
+    }
+    return date;
   }
 }
 
@@ -697,13 +718,13 @@ export class ObjectType<T extends ObjectShape>
     parseOpts: ObjectOptions<any> & PathOptions = {}
   ): InferObjectShape<T> {
     if (typeof value !== 'object') {
-      throw new ValidationError('expected type to be object but got ' + typeOf(value));
+      throw this.typeError('expected type to be object but got ' + typeOf(value));
     }
     if (value === null) {
-      throw new ValidationError('expected object but got null');
+      throw this.typeError('expected object but got null');
     }
     if (Array.isArray(value)) {
-      throw new ValidationError('expected type to be regular object but got array');
+      throw this.typeError('expected type to be regular object but got array');
     }
 
     const keys: string[] = (this as any)[shapekeysSymbol];
@@ -718,7 +739,7 @@ export class ObjectType<T extends ObjectShape>
         }
       }
       if (illegalKeys.length > 0) {
-        throw new ValidationError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
+        throw this.typeError('unexpected keys on object: ' + JSON.stringify(illegalKeys));
       }
     }
 
@@ -1240,7 +1261,7 @@ export class ArrayType<T extends AnyType>
       }
     }
     if (!Array.isArray(value)) {
-      throw new ValidationError('expected an array but got ' + typeOf(value));
+      throw this.typeError('expected an array but got ' + typeOf(value));
     }
     const convValue: any = (this as any)[coercionTypeSymbol] ? [] : undefined;
     for (let i = 0; i < value.length; i++) {
@@ -1363,10 +1384,10 @@ export class TupleType<T extends AnyType[]>
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue
   ): InferTuple<T> {
     if (!Array.isArray(value)) {
-      throw new ValidationError('expected tuple value to be type array but got ' + typeOf(value));
+      throw this.typeError('expected tuple value to be type array but got ' + typeOf(value));
     }
     if (value.length !== this.schemas.length) {
-      throw new ValidationError(`expected tuple length to be ${this.schemas.length} but got ${value.length}`);
+      throw this.typeError(`expected tuple length to be ${this.schemas.length} but got ${value.length}`);
     }
     const convValue: any = (this as any)[coercionTypeSymbol] ? [] : undefined;
     for (let i = 0; i < this.schemas.length; i++) {
@@ -1465,9 +1486,9 @@ export class UnionType<T extends AnyType[]>
     }
     const messages = Array.from(errors);
     if (messages.length === 1) {
-      throw new ValidationError(messages[0]);
+      throw this.typeError(messages[0]);
     }
-    throw new ValidationError('No union satisfied:\n  ' + messages.join('\n  '));
+    throw this.typeError('No union satisfied:\n  ' + messages.join('\n  '));
   }
   and<K extends AnyType>(schema: K): UnionIntersection<UnionType<T>, K> {
     const schemaIntersections: any = this.schemas.map(x => x.and(schema));
@@ -1527,7 +1548,7 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
       const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];
       const invalidKeys = Object.keys(value as any).filter((key: string) => !expectedShapeKeys.includes(key));
       if (invalidKeys.length > 0) {
-        throw new ValidationError('unexpected keys on object ' + JSON.stringify(invalidKeys));
+        throw this.typeError('unexpected keys on object ' + JSON.stringify(invalidKeys));
       }
     }
     return this._parse(value, opts);
@@ -1567,7 +1588,7 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
       coercedValue = value.toUpperCase();
     }
     if (!this.values.includes(coercedValue)) {
-      throw new ValidationError(`error ${JSON.stringify(value)} not part of enum values`);
+      throw this.typeError(`error ${JSON.stringify(value)} not part of enum values`);
     }
     return coercedValue as ValueOf<T>;
   }

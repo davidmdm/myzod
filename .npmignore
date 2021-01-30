@@ -7,4 +7,5 @@ src
 .prettierrc.json
 
 tsconfig.json
+tsconfig.test.json
 benchmarks.json
