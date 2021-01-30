@@ -1,3 +1,5 @@
+import { format } from 'util';
+
 function clone<T>(value: T): T {
   if (typeof value !== 'object' || value === null) {
     return value;
@@ -88,7 +90,7 @@ export class ValidationError extends Error {
   ) {
     if (collectedErrors !== undefined) {
       message = Object.values(collectedErrors)
-        .map(err => err?.message)
+        .map(err => format(`error parsing object at path: "%s" - %s`, prettyPrintPath(err?.path || []), err?.message))
         .join('\n');
     }
     super(message);
@@ -745,32 +747,33 @@ export class ObjectType<T extends ObjectShape>
 
     if (keys.length === 0 && keySig) {
       if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
-        return this.parseRecordConvCollect(value, keySig, parseOpts);
+        return this.parseRecordConvCollect(value, keySig);
       } else if ((this as any)[coercionTypeSymbol]) {
         return this.parseRecordConv(value, keySig, parseOpts);
       } else if (this.shouldCollectErrors) {
-        return this.parseRecordCollect(value, keySig, parseOpts);
+        return this.parseRecordCollect(value, keySig);
       }
       return this.parseRecord(value, keySig, parseOpts);
     }
 
     if (keySig) {
       if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
-        return this.parseMixRecordConvCollect(value, keys, keySig, parseOpts);
+        return this.parseMixRecordConvCollect(value, keys, keySig);
       } else if ((this as any)[coercionTypeSymbol]) {
         return this.parseMixRecordConv(value, keys, keySig, parseOpts);
       } else if (this.shouldCollectErrors) {
-        return this.parseMixRecordCollect(value, keys, keySig, parseOpts);
+        return this.parseMixRecordCollect(value, keys, keySig);
       }
       return this.parseMixRecord(value, keys, keySig, parseOpts);
     }
 
     if ((this as any)[coercionTypeSymbol] && this.shouldCollectErrors) {
-      return this.parseObjectConvCollect(value, keys, parseOpts);
+      return this.parseObjectConvCollect(value, keys);
     } else if ((this as any)[coercionTypeSymbol]) {
+      parseOpts;
       return this.parseObjectConv(value, keys, parseOpts);
     } else if (this.shouldCollectErrors) {
-      return this.parseObjectCollect(value, keys, parseOpts);
+      return this.parseObjectCollect(value, keys);
     }
     return this.parseObject(value, keys, parseOpts);
   }
@@ -801,11 +804,7 @@ export class ObjectType<T extends ObjectShape>
     return value as any;
   }
 
-  private parseObjectCollect(
-    value: Object,
-    keys: string[],
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseObjectCollect(value: Object, keys: string[]): InferObjectShape<T> {
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
     for (const key of keys) {
@@ -816,7 +815,7 @@ export class ObjectType<T extends ObjectShape>
       const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       }
     }
     if (hasError) {
@@ -851,11 +850,7 @@ export class ObjectType<T extends ObjectShape>
     return convVal;
   }
 
-  private parseObjectConvCollect(
-    value: Object,
-    keys: string[],
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseObjectConvCollect(value: Object, keys: string[]): InferObjectShape<T> {
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
@@ -867,7 +862,7 @@ export class ObjectType<T extends ObjectShape>
       const result = (schema as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       } else {
         convVal[key] = result;
       }
@@ -899,18 +894,14 @@ export class ObjectType<T extends ObjectShape>
     return value as any;
   }
 
-  private parseRecordCollect(
-    value: Object,
-    keySig: AnyType,
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseRecordCollect(value: Object, keySig: AnyType): InferObjectShape<T> {
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
     for (const key in value) {
       const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       }
     }
     if (hasError) {
@@ -941,11 +932,7 @@ export class ObjectType<T extends ObjectShape>
     return convVal;
   }
 
-  private parseRecordConvCollect(
-    value: Object,
-    keySig: AnyType,
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseRecordConvCollect(value: Object, keySig: AnyType): InferObjectShape<T> {
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
@@ -953,7 +940,7 @@ export class ObjectType<T extends ObjectShape>
       const result = (keySig as any).try((value as any)[key], { suppressPathErrMsg: true });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       } else {
         convVal[key] = result;
       }
@@ -986,12 +973,7 @@ export class ObjectType<T extends ObjectShape>
     return value as any;
   }
 
-  private parseMixRecordCollect(
-    value: Object,
-    keys: string[],
-    keySig: AnyType,
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseMixRecordCollect(value: Object, keys: string[], keySig: AnyType): InferObjectShape<T> {
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
     for (const key of new Set(Object.keys(value).concat(keys))) {
@@ -1000,7 +982,7 @@ export class ObjectType<T extends ObjectShape>
       });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       }
     }
     if (hasError) {
@@ -1034,12 +1016,7 @@ export class ObjectType<T extends ObjectShape>
     return convVal;
   }
 
-  private parseMixRecordConvCollect(
-    value: Object,
-    keys: string[],
-    keySig: AnyType,
-    parseOpts: ObjectOptions<any> & PathOptions
-  ): InferObjectShape<T> {
+  private parseMixRecordConvCollect(value: Object, keys: string[], keySig: AnyType): InferObjectShape<T> {
     const convVal: any = {};
     const errs: any = {};
     let hasError = false;
@@ -1049,7 +1026,7 @@ export class ObjectType<T extends ObjectShape>
       });
       if (result instanceof ValidationError) {
         hasError = true;
-        errs[key] = this.buildPathError(result, key, parseOpts);
+        errs[key] = this.buildPathError(result, key, { suppressPathErrMsg: true });
       } else {
         convVal[key] = result;
       }

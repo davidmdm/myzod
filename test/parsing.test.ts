@@ -859,6 +859,24 @@ describe('Zod Parsing', () => {
       assert.ok(err.collectedErrors);
       assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'c']);
     });
+
+    it('should collect errors with user defined messages', () => {
+      const schema = z
+        .object({
+          name: z.string().onTypeError('please enter a valid text field'),
+          age: z.number().onTypeError('please enter a valid number'),
+        })
+        .collectErrors();
+
+      const err = schema.try({ name: true, age: false });
+      assert.ok(err instanceof z.ValidationError);
+      assert.ok(err.collectedErrors);
+
+      assert.strictEqual(err.collectedErrors.name?.message, 'please enter a valid text field');
+      assert.deepStrictEqual(err.collectedErrors?.name?.path, ['name']);
+      assert.strictEqual(err.collectedErrors.age?.message, 'please enter a valid number');
+      assert.deepStrictEqual(err.collectedErrors.age?.path, ['age']);
+    });
   });
 
   describe('object utility parsing', () => {
