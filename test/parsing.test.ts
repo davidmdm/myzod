@@ -24,6 +24,19 @@ const catchError = <T extends (...args: any[]) => any>(fn: T): ((...args: Argume
 };
 
 describe('Zod Parsing', () => {
+  describe('type.onTypeError', () => {
+    it('should not need to be defined last to take and keep effect', () => {
+      const schema = z.string().onTypeError('not a string?!').min(3, 'should be three characters at least!');
+      const err = schema.try(123);
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'not a string?!');
+
+      const minErr = schema.try('hi');
+      assert.ok(minErr instanceof z.ValidationError);
+      assert.strictEqual(minErr.message, 'should be three characters at least!');
+    });
+  });
+
   describe('type.map parsing', () => {
     it('should parse and apply map function', () => {
       const schema = z.string().map(x => x.length);
