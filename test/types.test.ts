@@ -108,7 +108,7 @@ describe('Types test', () => {
         b: string;
         c: {
           d?: undefined;
-          e: unknown;
+          e?: unknown;
           y?: number | undefined;
         };
         f: Record<string, string>;
@@ -236,6 +236,12 @@ describe('Types test', () => {
       { deep: true }
     );
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c?: number; d?: { e?: number } } }> = true;
+    x;
+  });
+
+  it('unknown', () => {
+    const schema = z.unknown();
+    const x: AssertEqual<z.Infer<typeof schema>, unknown> = true;
     x;
   });
 

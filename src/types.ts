@@ -122,7 +122,7 @@ function prettyPrintPath(path: (number | string)[]): string {
   }, '');
 }
 
-export type Eval<T> = T extends any[] | Date ? T : { [Key in keyof T]: T[Key] } & {};
+export type Eval<T> = T extends any[] | Date | unknown ? T : { [Key in keyof T]: T[Key] } & {};
 export type AnyType = Type<any>;
 export type Infer<T> = T extends AnyType ? (T extends Type<infer K> ? Eval<K> : any) : T;
 
