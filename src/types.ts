@@ -1203,16 +1203,16 @@ export class ArrayType<T extends AnyType>
 
     let self: ArrayType<T> = this;
     if (typeof opts.length !== 'undefined') {
-      self = this.length(opts.length);
+      self = self.length(opts.length);
     }
     if (typeof opts.min !== 'undefined') {
-      self = this.min(opts.min);
+      self = self.min(opts.min);
     }
     if (typeof opts.max !== 'undefined') {
-      self = this.max(opts.max);
+      self = self.max(opts.max);
     }
     if (opts.unique === true) {
-      self = this.unique();
+      self = self.unique();
     }
     return self;
   }
