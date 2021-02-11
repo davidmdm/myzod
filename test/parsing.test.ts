@@ -1322,6 +1322,13 @@ describe('Zod Parsing', () => {
         .map(f => f[0]);
       assert.equal(strArrayFields[0], 'two');
     });
+
+    it('should fail if unique array does not meet minimum length', () => {
+      const schema = z.array(z.number(), {unique: true, min: 1});
+      const err = catchError(schema.parse.bind(schema))([]);
+      assert.equal(err instanceof z.ValidationError, true);
+      assert.equal(err.message, 'expected array to have length greater than or equal to 1 but got 0');
+    });
   });
 
   describe('union parsing', () => {
