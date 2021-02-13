@@ -124,10 +124,7 @@ function prettyPrintPath(path: (number | string)[]): string {
 
 export type Eval<T> = T extends any[] | Date | unknown ? T : { [Key in keyof T]: T[Key] } & {};
 export type AnyType = Type<any>;
-
-type Flat<T> = T extends {} ? (T extends Date ? T : { [key in keyof T]: T[key] }) : T;
-
-export type Infer<T> = Flat<T extends AnyType ? (T extends Type<infer K> ? Eval<K> : any) : T>;
+export type Infer<T> = T extends AnyType ? (T extends Type<infer K> ? Eval<K> : any) : T;
 
 const allowUnknownSymbol = Symbol.for('allowUnknown');
 const shapekeysSymbol = Symbol.for('shapeKeys');
@@ -643,6 +640,8 @@ type InferKeySignature<T extends ObjectShape> = T extends { [keySignature]: AnyT
       : {}
     : {}
   : {};
+
+type Flat<T> = T extends {} ? (T extends Date ? T : { [key in keyof T]: T[key] }) : T;
 
 type InferObjectShape<T extends ObjectShape> = Flat<
   Eval<
