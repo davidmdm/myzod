@@ -729,6 +729,25 @@ describe('Zod Parsing', () => {
       assert.deepEqual(ret, { a: 1 });
     });
 
+    it('should allow unknown when set via fluent syntax', () => {
+      const schema = z.object({ name: z.string() });
+      const err = schema.try({ name: 'myzod', age: 1 });
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["age"]');
+
+      const value = schema.allowUnknownKeys().try({ name: 'myzod', age: 1 });
+      assert.deepStrictEqual(value, { name: 'myzod' });
+    });
+
+    it('should allow for using allowUnknownKeys for object from intersection', () => {
+      const schema = z
+        .object({ name: z.string() })
+        .and(z.object({ age: z.number() }))
+        .allowUnknownKeys();
+
+      assert.deepStrictEqual(schema.try({ name: 'myzod', age: 1, cool: true }), { name: 'myzod', age: 1 });
+    });
+
     it('should return object with correct object shape - simple', () => {
       const schema = z.object({ name: z.string() });
       const ret = schema.parse({ name: 'Bobby' });
@@ -1324,7 +1343,7 @@ describe('Zod Parsing', () => {
     });
 
     it('should fail if unique array does not meet minimum length', () => {
-      const schema = z.array(z.number(), {unique: true, min: 1});
+      const schema = z.array(z.number(), { unique: true, min: 1 });
       const err = catchError(schema.parse.bind(schema))([]);
       assert.equal(err instanceof z.ValidationError, true);
       assert.equal(err.message, 'expected array to have length greater than or equal to 1 but got 0');

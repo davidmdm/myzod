@@ -446,6 +446,16 @@ const personSchema = myzod.object({
 const shape = personSchema.shape(); // => returns { name: myzod.string() }
 ```
 
+#### object.allowUnknownKeys
+
+A new schema can be build via fluent syntax to allow for unknown keys
+```typescript
+const schema = z.object({ name: z.string(), age: z.number() }).allowUnknownKeys()
+
+const value = schema.try({ name: 'myzod', age: 1, cool: true }); // value is { name: 'myzod', age: 1 }
+
+```
+
 #### object.withPredicate
 
 You can add predicate functions to object schemas. Note that these predicate functions will not be kept around for schemas produces from object.pick/omit/partial as they predicate function signatures need to change for those signatures.

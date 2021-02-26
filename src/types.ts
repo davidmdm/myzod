@@ -691,20 +691,23 @@ export class ObjectType<T extends ObjectShape>
   implements WithPredicate<InferObjectShape<T>>, Defaultable<InferObjectShape<T>> {
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
   private readonly defaultValue?: InferObjectShape<T> | (() => InferObjectShape<T>);
-  private readonly allowUnknown: boolean;
+  public [allowUnknownSymbol]: boolean;
+  public [shapekeysSymbol]: string[];
+  public [coercionTypeSymbol]: boolean;
+  public [keySignature]: AnyType | undefined;
   private shouldCollectErrors: boolean;
   constructor(private readonly objectShape: T, opts?: ObjectOptions<T>) {
     super();
     this.predicates = normalizePredicates(opts?.predicate);
     this.defaultValue = opts?.default;
-    this.allowUnknown = opts?.allowUnknown === true;
     this.shouldCollectErrors = opts?.collectErrors === true;
     const keys = Object.keys(this.objectShape);
-    (this as any)[keySignature] = this.objectShape[keySignature];
-    (this as any)[allowUnknownSymbol] = this.allowUnknown;
-    (this as any)[shapekeysSymbol] = keys;
-    (this as any)[coercionTypeSymbol] =
+    this[keySignature] = this.objectShape[keySignature];
+    this[allowUnknownSymbol] = opts?.allowUnknown === true;
+    this[shapekeysSymbol] = keys;
+    this[coercionTypeSymbol] =
       this.defaultValue !== undefined ||
+      this[allowUnknownSymbol] ||
       Object.values(this.objectShape).some(schema => (schema as any)[coercionTypeSymbol]) ||
       !!(this.objectShape[keySignature] && (this.objectShape[keySignature] as any)[coercionTypeSymbol]);
   }
@@ -722,8 +725,8 @@ export class ObjectType<T extends ObjectShape>
       throw this.typeError('expected type to be regular object but got array');
     }
 
-    const keys: string[] = (this as any)[shapekeysSymbol];
-    const allowUnknown = typeof parseOpts.allowUnknown === 'boolean' ? parseOpts.allowUnknown : this.allowUnknown;
+    const keys: string[] = this[shapekeysSymbol];
+    const allowUnknown = parseOpts.allowUnknown || this[allowUnknownSymbol];
     const keySig = this.objectShape[keySignature];
 
     if (!allowUnknown && !keySig) {
@@ -1141,7 +1144,7 @@ export class ObjectType<T extends ObjectShape>
       }
     }
     // Do not transfer predicates or default value to new object shape as this would not be type-safe
-    return new ObjectType(shape as any, { allowUnknown: this.allowUnknown });
+    return new ObjectType(shape as any, { allowUnknown: this[allowUnknownSymbol] });
   }
 
   shape(): T {
@@ -1159,6 +1162,13 @@ export class ObjectType<T extends ObjectShape>
   collectErrors(value: boolean = true): ObjectType<T> {
     const cpy = clone(this);
     cpy.shouldCollectErrors = value;
+    return cpy;
+  }
+
+  allowUnknownKeys(value: boolean = true): ObjectType<T> {
+    const cpy = clone(this);
+    cpy[allowUnknownSymbol] = value;
+    cpy[coercionTypeSymbol] = cpy[coercionTypeSymbol] || value;
     return cpy;
   }
 }
