@@ -719,21 +719,14 @@ export class ObjectType<T extends ObjectShape>
     value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue,
     parseOpts: ObjectOptions<any> & PathOptions = {}
   ): InferObjectShape<T> {
-    if (typeof value !== 'object') {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       throw this.typeError('expected type to be object but got ' + typeOf(value));
-    }
-    if (value === null) {
-      throw this.typeError('expected object but got null');
-    }
-    if (Array.isArray(value)) {
-      throw this.typeError('expected type to be regular object but got array');
     }
 
     const keys: string[] = this[shapekeysSymbol];
     const allowUnknown = parseOpts.allowUnknown || this[allowUnknownSymbol];
-    const keySig = this.objectShape[keySignature];
 
-    if (!allowUnknown && !keySig) {
+    if (!allowUnknown && !this.objectShape[keySignature]) {
       const illegalKeys: string[] = [];
       for (const k in value) {
         if (!keys.includes(k)) {

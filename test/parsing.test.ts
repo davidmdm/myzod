@@ -709,13 +709,13 @@ describe('Zod Parsing', () => {
     it('should fail if value provided is null', () => {
       const err = catchError(emptySchema.parse.bind(emptySchema))(null);
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected object but got null');
+      assert.equal(err.message, 'expected type to be object but got null');
     });
 
     it('should fail if value provided is an array', () => {
       const err = catchError(emptySchema.parse.bind(emptySchema))([]);
       assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be regular object but got array');
+      assert.equal(err.message, 'expected type to be object but got array');
     });
 
     it('should fail if there are unknown keys', () => {
