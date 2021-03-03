@@ -195,6 +195,7 @@ describe('Types test', () => {
         }),
       })
     );
+
     const x: AssertEqual<z.Infer<typeof schema>, { a?: string; b?: { c: number; d: { e: number } } }> = true;
     x;
 
