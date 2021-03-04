@@ -1677,7 +1677,7 @@ describe('Zod Parsing', () => {
         subCategories: z.array(z.lazy(() => categorySchema)),
       });
 
-      const schema = personSchema.and(categorySchema);
+      const schema = z.intersection(personSchema, categorySchema);
 
       const ret = schema.parse({
         name: 'David',
@@ -2300,15 +2300,37 @@ describe('Zod Parsing', () => {
         name: z.string(),
         subCategories: z.array(z.lazy(() => schema)),
       });
-      const err = catchError(schema.parse.bind(schema))({
+      const err = schema.try({
         name: 'Horror',
         subCategories: [{ name: 'Gore', subCategories: [{ name: 'super gore', subCategories: null }] }],
       });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'error parsing object at path: "subCategories[0].subCategories[0].subCategories" - expected an array but got null'
       );
+    });
+
+    it('should handle cyclical values', () => {
+      type Category = {
+        name: string;
+        subCategories: Category[];
+      };
+      const schema: z.Type<Category> = z.object({
+        name: z.string(),
+        subCategories: z.array(z.lazy(() => schema)),
+      });
+
+      const value: Category = {
+        name: 'cyclical',
+        subCategories: [],
+      };
+      value.subCategories = [value];
+
+      const result = schema.try(value);
+
+      assert.notStrictEqual(result, value);
+      assert.deepStrictEqual(result, value);
     });
 
     it('should coerce values', () => {

@@ -880,7 +880,7 @@ type Named = myzod.Infer<typeof nameSchema>; // => { name: string; lastName: str
 
 #### Lazy
 
-The myzod.lazy function takes a function that returns a schema and lazily evaluates it at parse. The advantage with this approach is that you can create schemas that reference themselves. Unfortunately typescript cannot resolve this type and it will be the user's responsibility to provide the corresponding myzod type. Fortunately if the user's provided type is incompatible with the given schema it will fail to compile so there is some hope.
+The myzod.lazy function takes a function that returns a schema and lazily evaluates it at parse. The advantage with this approach is that you can create schemas that reference themselves. Unfortunately typescript cannot resolve this type and it will be the user's responsibility to provide the corresponding myzod type. Fortunately if the user's provided type is incompatible with the given schema it will fail to compile so there is some hope. New since version 1.5.1, cyclical values are supported.
 
 ```typescript
 type Person = {

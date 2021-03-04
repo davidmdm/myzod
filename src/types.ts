@@ -18,7 +18,7 @@ function clone<T>(value: T): T {
   return cpy;
 }
 
-const typeErrSym = Symbol.for('typeError');
+const typeErrSym = Symbol('typeError');
 
 export abstract class Type<T> {
   constructor() {}
@@ -126,9 +126,9 @@ export type Eval<T> = T extends any[] | Date | unknown ? T : { [Key in keyof T]:
 export type AnyType = Type<any>;
 export type Infer<T> = T extends AnyType ? (T extends Type<infer K> ? Eval<K> : any) : T;
 
-const allowUnknownSymbol = Symbol.for('allowUnknown');
-const shapekeysSymbol = Symbol.for('shapeKeys');
-export const coercionTypeSymbol = Symbol.for('coercion');
+const allowUnknownSymbol = Symbol('allowUnknown');
+const shapekeysSymbol = Symbol('shapeKeys');
+export const coercionTypeSymbol = Symbol('coercion');
 
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
@@ -624,7 +624,7 @@ export class DateType extends Type<Date> implements WithPredicate<Date>, Default
   }
 }
 
-export const keySignature = Symbol.for('keySignature');
+export const keySignature = Symbol('keySignature');
 export type ObjectShape = { [key: string]: AnyType; [keySignature]?: AnyType };
 
 type OptionalKeys<T extends ObjectShape> = {
@@ -1616,14 +1616,32 @@ export class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
   }
 }
 
+const visited = Symbol('visited')
+
 export class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
   constructor(private readonly fn: T) {
     super();
     // Since we can't know what the schema is we can't assume its not a coercionType and we need to disable the optimization
     (this as any)[coercionTypeSymbol] = true;
+
+    const parse = this.parse.bind(this)
+    this.parse = (value: unknown, opts?: PathOptions): Infer<ReturnType<T>> => {
+      const ret = parse(value, opts);
+      delete (ret as any)[visited]
+      return ret
+    }
+
   }
   parse(value: unknown, opts?: PathOptions): Infer<ReturnType<T>> {
+    if (typeof value === 'object'&& value !== null) {
+      if ((value as any)[visited]) {
+        return value as any;
+      }
+      (value as any)[visited] = true;
+    }
+
     const schema = this.fn();
+
     if (opts?.suppressPathErrMsg && schema instanceof ObjectType) {
       return schema.parse(value, opts) as any;
     }
