@@ -1,16 +1,12 @@
 import * as assert from 'assert';
 import * as z from '../src/index';
-import {
-  ObjectType,
-  ObjectShape,
-  coercionTypeSymbol,
-  EnumType,
-  OptionalType,
-  ArrayType,
-  StringType,
-} from '../src/types';
+import { ObjectType, ObjectShape, EnumType, OptionalType, ArrayType, StringType } from '../src/types';
 
 type ArgumentsType<T extends (...args: any[]) => any> = T extends (...args: (infer K)[]) => any ? K : any;
+
+const coercionTypeSymbol = Object.getOwnPropertySymbols(z.number().coerce()).find(
+  x => x.toString() === 'Symbol(coercion)'
+) as any;
 
 const catchError = <T extends (...args: any[]) => any>(fn: T): ((...args: ArgumentsType<T>[]) => Error) => {
   return function (...args) {
@@ -61,6 +57,9 @@ describe('Zod Parsing', () => {
     it('should be immutable with regards to root schema', () => {
       const str = z.string();
       const num = str.map(x => parseInt(x, 10) || 0);
+
+      const coercionTypeSymbol: any = Object.getOwnPropertySymbols(num).find(x => x.toString() === 'Symbol(coercion)');
+
       assert.ok((num as any)[coercionTypeSymbol]);
 
       assert.strictEqual(num.try('52'), 52);

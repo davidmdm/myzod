@@ -18,8 +18,8 @@ function clone<T>(value: T): T {
   return cpy;
 }
 
-const typeErrSym = Symbol.for('typeError');
-export const coercionTypeSymbol = Symbol.for('coercion');
+const typeErrSym = Symbol('typeError');
+const coercionTypeSymbol = Symbol('coercion');
 
 export abstract class Type<T> {
   public [typeErrSym]?: string | (() => string);
@@ -129,8 +129,8 @@ export type Eval<T> = T extends any[] | Date | unknown ? T : Flat<T>;
 export type AnyType = Type<any>;
 export type Infer<T> = T extends AnyType ? (T extends Type<infer K> ? K : any) : T;
 
-const allowUnknownSymbol = Symbol.for('allowUnknown');
-const shapekeysSymbol = Symbol.for('shapeKeys');
+const allowUnknownSymbol = Symbol('allowUnknown');
+const shapekeysSymbol = Symbol('shapeKeys');
 
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
@@ -622,7 +622,7 @@ export class DateType extends Type<Date> implements WithPredicate<Date>, Default
   }
 }
 
-export const keySignature = Symbol.for('keySignature');
+export const keySignature = Symbol('keySignature');
 export type ObjectShape = { [key: string]: AnyType; [keySignature]?: AnyType };
 
 type OptionalKeys<T extends ObjectShape> = {
@@ -1065,7 +1065,7 @@ export class ObjectType<T extends ObjectShape>
   pick<K extends T extends { [keySignature]: AnyType } ? string : StringTypes<keyof T>>(
     keys: K[],
     opts?: ObjectOptions<
-      Eval<
+      Flat<
         Pick<T, Extract<StringTypes<keyof T>, ToUnion<typeof keys>>> &
           (T extends { [keySignature]: AnyType }
             ? T extends { [keySignature]: infer KeySig }
@@ -1075,7 +1075,7 @@ export class ObjectType<T extends ObjectShape>
       >
     >
   ): ObjectType<
-    Eval<
+    Flat<
       Pick<T, Extract<StringTypes<keyof T>, ToUnion<typeof keys>>> &
         (T extends { [keySignature]: AnyType }
           ? T extends { [keySignature]: infer KeySig }
@@ -1099,7 +1099,7 @@ export class ObjectType<T extends ObjectShape>
   omit<K extends StringTypes<keyof T>>(
     keys: K[],
     opts?: ObjectOptions<Eval<Omit<T, ToUnion<typeof keys>>>>
-  ): ObjectType<Eval<Omit<T, ToUnion<typeof keys>>>> {
+  ): ObjectType<Flat<Omit<T, ToUnion<typeof keys>>>> {
     const pickedKeys: K[] = ((this as any)[shapekeysSymbol] as K[]).filter((x: K) => !keys.includes(x));
     if (!(this as any)[keySignature]) {
       return this.pick(pickedKeys as any, opts as any) as any;
@@ -1111,7 +1111,7 @@ export class ObjectType<T extends ObjectShape>
 
   partial<K extends ObjectOptions<Eval<DeepPartialShape<T>>> & { deep: true }>(
     opts: K
-  ): ObjectType<Eval<DeepPartialShape<T>>>;
+  ): ObjectType<Flat<DeepPartialShape<T>>>;
   partial<K extends ObjectOptions<Eval<PartialShape<T>>> & PartialOpts>(opts?: K): ObjectType<Eval<PartialShape<T>>>;
   partial(opts?: any): any {
     const originalShape: ObjectShape = this.objectShape;
