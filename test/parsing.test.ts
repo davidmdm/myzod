@@ -1796,6 +1796,15 @@ describe('Zod Parsing', () => {
       const retR = schemaR.parse({ type: 'a', version: 2, date: 'now' });
       assert.deepEqual(retR, { type: 'a', version: 2, date: 'now' });
     });
+
+    it('should handle union-intersections of objects', () => {
+      const schema = z
+        .object({})
+        .and(z.union([ z.object({}) ]))
+        .and(z.object({ id: z.number() }));
+      const ret = schema.parse({ id: 0 });
+      assert.deepEqual(ret, { id: 0 });
+    });
   });
 
   describe('enum parsing', () => {
