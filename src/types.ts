@@ -1467,7 +1467,7 @@ function asUnionType(schema: AnyType): UnionType<any> | null {
   return null;
 }
 
-export class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
+export class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Flat<Infer<T> & Infer<K>>> {
   private _schema: AnyType | null;
 
   constructor(private readonly left: T, private readonly right: K) {
@@ -1503,7 +1503,7 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
     })();
   }
 
-  parse(value: unknown, opts?: PathOptions & ObjectOptions<any>): Eval<Infer<T> & Infer<K>> {
+  parse(value: unknown, opts?: PathOptions & ObjectOptions<any>): Flat<Infer<T> & Infer<K>> {
     const allowUnknown = opts?.allowUnknown || (this as any)[allowUnknownSymbol];
     if (!allowUnknown && (this as any)[shapekeysSymbol]) {
       const expectedShapeKeys: string[] = (this as any)[shapekeysSymbol];

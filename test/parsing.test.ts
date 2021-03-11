@@ -920,15 +920,6 @@ describe('Zod Parsing', () => {
         ].join('\n')
       );
     });
-
-    it('should handle union-intersections of objects', () => {
-      const schema = z
-        .object({})
-        .and(z.union([z.object({})]))
-        .and(z.object({ id: z.number() }));
-      const ret = schema.parse({ id: 0 });
-      assert.deepEqual(ret, { id: 0 });
-    });
   });
 
   describe('object utility parsing', () => {
@@ -1809,7 +1800,7 @@ describe('Zod Parsing', () => {
     it('should handle union-intersections of objects', () => {
       const schema = z
         .object({})
-        .and(z.union([ z.object({}) ]))
+        .and(z.union([z.object({})]))
         .and(z.object({ id: z.number() }));
       const ret = schema.parse({ id: 0 });
       assert.deepEqual(ret, { id: 0 });
