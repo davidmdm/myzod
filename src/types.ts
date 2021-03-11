@@ -1457,8 +1457,18 @@ export class UnionType<T extends AnyType[]>
   }
 }
 
+function asUnionType(schema: AnyType): UnionType<any> | null {
+  if (schema instanceof UnionType) {
+    return schema;
+  }
+  if (schema instanceof IntersectionType && (schema as any)._schema instanceof UnionType) {
+    return (schema as any)._schema;
+  }
+  return null;
+}
+
 export class IntersectionType<T extends AnyType, K extends AnyType> extends Type<Eval<Infer<T> & Infer<K>>> {
-  private readonly _parse: (value: unknown, opts?: PathOptions) => any;
+  private _schema: AnyType | null;
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
@@ -1474,29 +1484,22 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
       );
     }
 
-    this._parse = (() => {
-      // TODO Investigate why I unwrap partials in a new intersection again
-      if (this.left instanceof UnionType) {
-        const _schema = this.left.and(this.right);
-        return (value: unknown) => _schema.parse(value);
+    this._schema = (() => {
+      const leftUnion = asUnionType(this.left);
+      if (leftUnion) {
+        return leftUnion.and(this.right);
       }
-      if (this.right instanceof UnionType) {
-        const _schema = this.right.and(this.left);
-        return (value: unknown) => _schema.parse(value);
+      const rightUnion = asUnionType(this.right);
+      if (rightUnion) {
+        return rightUnion.and(this.left);
       }
       if (this.left instanceof PartialType) {
-        const _schema = new IntersectionType((this.left as any).schema, this.right);
-        return (value: unknown) => _schema.parse(value) as any;
+        return new IntersectionType((this.left as any).schema, this.right);
       }
       if (this.right instanceof PartialType) {
-        const _schema = new IntersectionType(this.left, (this.right as any).schema);
-        return (value: unknown) => _schema.parse(value) as any;
+        return new IntersectionType(this.left, (this.right as any).schema);
       }
-      return (value: unknown) => {
-        this.left.parse(value);
-        this.right.parse(value);
-        return value as any;
-      };
+      return null;
     })();
   }
 
@@ -1509,7 +1512,15 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
         throw this.typeError('unexpected keys on object ' + JSON.stringify(invalidKeys));
       }
     }
-    return this._parse(value, opts);
+
+    if (this._schema) {
+      // @ts-ignore
+      return this._schema.parse(value, opts);
+    }
+
+    this.left.parse(value);
+    this.right.parse(value);
+    return value as any;
   }
 
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
