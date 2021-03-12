@@ -1432,6 +1432,17 @@ describe('Zod Parsing', () => {
       assert.equal(schema.parse(undefined), 42);
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
+
+    it('should parse union of unions', () => {
+      const schema = z.union([
+        z.union([z.object({ a: z.number() }), z.object({ b: z.number() })]),
+        z.union([z.object({ c: z.number() }), z.object({ d: z.number() })]),
+      ]);
+      assert.deepStrictEqual(schema.parse({ a: 1 }), { a: 1 });
+
+      const err = schema.try({ a: '1' });
+      assert.ok(err instanceof z.ValidationError);
+    });
   });
 
   describe('intersection parsing', () => {
@@ -1804,6 +1815,26 @@ describe('Zod Parsing', () => {
         .and(z.object({ id: z.number() }));
       const ret = schema.parse({ id: 0 });
       assert.deepEqual(ret, { id: 0 });
+    });
+
+    it('should parse intersection of two unions', () => {
+      const u1 = z.union([z.object({ a: z.string() }), z.object({ b: z.string() })]);
+      const u2 = z.union([z.object({ c: z.string() }), z.object({ d: z.string() })]);
+      const schema = u1.and(u2);
+      const value = schema.parse({ a: 'hello', d: 'world' });
+      assert.deepStrictEqual(value, { a: 'hello', d: 'world' });
+
+      const err = schema.try({ a: 'hello', b: 'world' });
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(
+        err.message,
+        [
+          //
+          'No union satisfied:',
+          '  unexpected keys on object: ["b"]',
+          '  unexpected keys on object: ["a"]',
+        ].join('\n')
+      );
     });
   });
 
