@@ -53,12 +53,8 @@ export abstract class Type<T> {
       return err;
     }
   }
-  map<K>(fn: (value: T) => K): Type<K> {
-    const cpy = clone(this);
-    const parse = cpy.parse.bind(cpy);
-    (cpy as any).parse = (value: any) => fn(parse(value));
-    cpy[coercionTypeSymbol] = true;
-    return cpy as any;
+  map<K>(fn: (value: T) => K): MappedType<this, K> {
+    return new MappedType(this, fn);
   }
   onTypeError(msg: string | (() => string)): this {
     const cpy = clone(this);
@@ -78,6 +74,33 @@ export abstract class Type<T> {
       return typErrValue;
     })();
     return new ValidationError(errMsg);
+  }
+}
+
+class MappedType<T extends AnyType, K> extends Type<K> implements WithPredicate<K>, Defaultable<K> {
+  private predicates: Predicate<K>[] | null = null;
+  private defaultValue?: K | (() => K);
+  constructor(protected schema: T, protected mapFn: (value: Infer<T>) => K) {
+    super();
+    this[coercionTypeSymbol] = true;
+  }
+  parse(
+    value: unknown = typeof this.defaultValue === 'function' ? (this.defaultValue as any)() : this.defaultValue
+  ): K {
+    const ret = this.mapFn(this.schema.parse(value));
+    if (this.predicates) {
+      applyPredicates(this.predicates, ret);
+    }
+    return ret;
+  }
+  and<O extends AnyType>(other: O): Type<K & Infer<O>> {
+    return new IntersectionType(this, other);
+  }
+  withPredicate(fn: Predicate<K>['func'], errMsg?: ErrMsg<K>): MappedType<T, K> {
+    return withPredicate(this, { func: fn, errMsg });
+  }
+  default(value: K | (() => K)): MappedType<T, K> {
+    return withDefault(this, value);
   }
 }
 
