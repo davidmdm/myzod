@@ -36,7 +36,8 @@ describe('Zod Parsing', () => {
   describe('type.map parsing', () => {
     it('should parse and apply map function', () => {
       const schema = z.string().map(x => x.length);
-      assert.equal(schema.try('hello'), 5);
+      const value = schema.parse('hello');
+      assert.strictEqual(value, 5);
     });
 
     it('should return original validation error before mapping takes effect', () => {
@@ -46,7 +47,7 @@ describe('Zod Parsing', () => {
       assert.equal(err.message, 'expected type to be string but got boolean');
     });
 
-    it('should throw thrown by map function as is', () => {
+    it('should throw error thrown by map function as is', () => {
       const schema = z.string().map(() => {
         throw new Error('mapping error');
       });
@@ -64,6 +65,31 @@ describe('Zod Parsing', () => {
 
       assert.strictEqual(num.try('52'), 52);
       assert.strictEqual(str.try('52'), '52');
+    });
+
+    it('should apply predicates', () => {
+      const adultSchema = z
+        .number()
+        .map(age => ({ age }))
+        .withPredicate(value => value.age > 18, 'must be over 18 to ride the rollercoaster');
+
+      const value = adultSchema.parse(29);
+      assert.deepStrictEqual(value, { age: 29 });
+
+      const err = adultSchema.try(4);
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'must be over 18 to ride the rollercoaster');
+    });
+
+    it('can use defaults on mapped types', () => {
+      const childSchema = z
+        .number()
+        .map(age => ({ age }))
+        .withPredicate(value => value.age < 18, 'children only!')
+        .default({ age: 0 });
+
+      assert.deepStrictEqual(childSchema.parse(5), { age: 5 });
+      assert.deepStrictEqual(childSchema.parse(undefined), { age: 0 });
     });
   });
 

@@ -53,8 +53,8 @@ export abstract class Type<T> {
       return err;
     }
   }
-  map<K>(fn: (value: T) => K): MappedType<this, K> {
-    return new MappedType(this, fn);
+  map<K>(fn: (value: T) => K): MappedType<Type<T>, K> {
+    return new MappedType(this, fn) as any;
   }
   onTypeError(msg: string | (() => string)): this {
     const cpy = clone(this);
@@ -84,17 +84,21 @@ class MappedType<T extends AnyType, K> extends Type<K> implements WithPredicate<
     super();
     this[coercionTypeSymbol] = true;
   }
-  parse(
-    value: unknown = typeof this.defaultValue === 'function' ? (this.defaultValue as any)() : this.defaultValue
-  ): K {
-    const ret = this.mapFn(this.schema.parse(value));
+  parse(value: unknown): K {
+    const ret =
+      value === undefined && this.defaultValue
+        ? typeof this.defaultValue === 'function'
+          ? (this.defaultValue as any)()
+          : this.defaultValue
+        : this.mapFn(this.schema.parse(value));
+
     if (this.predicates) {
       applyPredicates(this.predicates, ret);
     }
     return ret;
   }
-  and<O extends AnyType>(other: O): Type<K & Infer<O>> {
-    return new IntersectionType(this, other);
+  and<O extends AnyType>(other: O): IntersectionType<this, O> {
+    return new IntersectionType(this, other) as any;
   }
   withPredicate(fn: Predicate<K>['func'], errMsg?: ErrMsg<K>): MappedType<T, K> {
     return withPredicate(this, { func: fn, errMsg });
