@@ -97,8 +97,8 @@ class MappedType<T extends AnyType, K> extends Type<K> implements WithPredicate<
     }
     return ret;
   }
-  and<O extends AnyType>(other: O): IntersectionType<this, O> {
-    return new IntersectionType(this, other) as any;
+  and<O extends AnyType>(other: O): never {
+    throw new Error('mapped types cannot be intersected');
   }
   withPredicate(fn: Predicate<K>['func'], errMsg?: ErrMsg<K>): MappedType<T, K> {
     return withPredicate(this, { func: fn, errMsg });
