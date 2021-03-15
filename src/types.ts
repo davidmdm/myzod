@@ -132,31 +132,37 @@ export type Infer<T> = T extends AnyType ? (T extends Type<infer K> ? K : any) :
 const allowUnknownSymbol = Symbol('allowUnknown');
 const shapekeysSymbol = Symbol('shapeKeys');
 
+type ObjectIntersection<O1 extends ObjectType<any>, O2 extends ObjectType<any>> = O1 extends ObjectType<infer Shape1>
+  ? O2 extends ObjectType<infer Shape2>
+    ? ObjectType<Flat<MergeShapes<Shape1, Shape2>>>
+    : never
+  : never;
+
+type ArrayIntersection<A1 extends ArrayType<any>, A2 extends ArrayType<any>> = A1 extends ArrayType<infer S1>
+  ? A2 extends ArrayType<infer S2>
+    ? ArrayType<IntersectionResult<S1, S2>>
+    : never
+  : never;
+
+type TupleIntersection<T1 extends TupleType<any>, T2 extends TupleType<any>> = T1 extends TupleType<infer S1>
+  ? T2 extends TupleType<infer S2>
+    ? TupleType<Join<S1, S2>>
+    : never
+  : never;
+
 export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
   T extends ObjectType<any>
     ? K extends ObjectType<any>
-      ? T extends ObjectType<infer Shape1>
-        ? K extends ObjectType<infer Shape2>
-          ? ObjectType<Eval<MergeShapes<Shape1, Shape2>>>
-          : never
-        : never
+      ? ObjectIntersection<T, K>
       : IntersectionType<T, K>
     : T extends ArrayType<any>
     ? K extends ArrayType<any>
-      ? T extends ArrayType<infer S1>
-        ? K extends ArrayType<infer S2>
-          ? ArrayType<IntersectionResult<S1, S2>>
-          : never
-        : never
-      : IntersectionType<T, K> //
+      ? ArrayIntersection<T, K>
+      : IntersectionType<T, K>
     : T extends TupleType<any>
     ? K extends TupleType<any>
-      ? T extends TupleType<infer S1>
-        ? K extends TupleType<infer S2>
-          ? TupleType<Join<S1, S2>>
-          : never
-        : never
+      ? TupleIntersection<T, K>
       : IntersectionType<T, K>
     : IntersectionType<T, K>;
 
