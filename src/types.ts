@@ -53,8 +53,8 @@ export abstract class Type<T> {
       return err;
     }
   }
-  map<K>(fn: (value: T) => K): MappedType<Type<T>, K> {
-    return new MappedType(this, fn) as any;
+  map<K>(fn: (value: T) => K): MappedType<K> {
+    return new MTypeClass(this, fn) as any;
   }
   onTypeError(msg: string | (() => string)): this {
     const cpy = clone(this);
@@ -77,7 +77,13 @@ export abstract class Type<T> {
   }
 }
 
-class MappedType<T extends AnyType, K> extends Type<K> implements WithPredicate<K>, Defaultable<K> {
+// TODO remove once we can get mapped types inferred properly or Predicate and default funcs move to abstract class Type
+type MappedType<T> = Type<T> & {
+  withPredicate: (fn: Predicate<T>['func'], errMsg?: ErrMsg<T>) => Type<T> & MappedType<T>;
+  default: (value: T | (() => T)) => Type<T> & MappedType<T>;
+};
+
+class MTypeClass<T extends AnyType, K> extends Type<K> implements WithPredicate<K>, Defaultable<K> {
   private predicates: Predicate<K>[] | null = null;
   private defaultValue?: K | (() => K);
   constructor(protected schema: T, protected mapFn: (value: Infer<T>) => K) {
@@ -100,10 +106,10 @@ class MappedType<T extends AnyType, K> extends Type<K> implements WithPredicate<
   and<O extends AnyType>(other: O): never {
     throw new Error('mapped types cannot be intersected');
   }
-  withPredicate(fn: Predicate<K>['func'], errMsg?: ErrMsg<K>): MappedType<T, K> {
+  withPredicate(fn: Predicate<K>['func'], errMsg?: ErrMsg<K>): MTypeClass<T, K> {
     return withPredicate(this, { func: fn, errMsg });
   }
-  default(value: K | (() => K)): MappedType<T, K> {
+  default(value: K | (() => K)): MTypeClass<T, K> {
     return withDefault(this, value);
   }
 }
@@ -191,6 +197,10 @@ export type IntersectionResult<T extends AnyType, K extends AnyType> =
     ? K extends TupleType<any>
       ? TupleIntersection<T, K>
       : IntersectionType<T, K>
+    : T extends MTypeClass<any, any>
+    ? never
+    : K extends MTypeClass<any, any>
+    ? never
     : IntersectionType<T, K>;
 
 type ErrMsg<T> = string | ((value: T) => string);
@@ -1505,11 +1515,16 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
 
   constructor(private readonly left: T, private readonly right: K) {
     super();
-    (this as any)[coercionTypeSymbol] =
-      (this.left as any)[coercionTypeSymbol] || (this.right as any)[coercionTypeSymbol];
+
+    this[coercionTypeSymbol] = (this.left as any)[coercionTypeSymbol] && (this.right as any)[coercionTypeSymbol];
+
+    // if (this[coercionTypeSymbol] && Object.getPrototypeOf(this.left) !== Object.getPrototypeOf(this.right)) {
+    // }
+
     (this as any)[allowUnknownSymbol] = !!(
       (this.left as any)[allowUnknownSymbol] || (this.right as any)[allowUnknownSymbol]
     );
+
     if ((this.left as any)[shapekeysSymbol] && (this.right as any)[shapekeysSymbol]) {
       //@ts-ignore
       this[shapekeysSymbol] = Array.from(
@@ -1518,6 +1533,13 @@ export class IntersectionType<T extends AnyType, K extends AnyType> extends Type
     }
 
     this._schema = (() => {
+      if (this.left instanceof MTypeClass) {
+        this.left.and(this.right); // throw error
+      }
+      if (this.right instanceof MTypeClass) {
+        this.right.and(this.left); // throw err
+      }
+
       const leftUnion = asUnionType(this.left);
       if (leftUnion) {
         return leftUnion.and(this.right);

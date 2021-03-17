@@ -40,6 +40,12 @@ describe('Zod Parsing', () => {
       assert.strictEqual(value, 5);
     });
 
+    it('should work as part of object schema', () => {
+      const schema = z.object({ age: z.string().map(Number) });
+      const value = schema.parse({ age: '12' });
+      assert.deepStrictEqual(value, { age: 12 });
+    });
+
     it('should return original validation error before mapping takes effect', () => {
       const schema = z.string().map(x => x.length);
       const err = schema.try(true);
@@ -1861,6 +1867,18 @@ describe('Zod Parsing', () => {
           '  unexpected keys on object: ["a"]',
         ].join('\n')
       );
+    });
+
+    it('should throw on intersection of mapped types', () => {
+      assert.throws(() => z.intersection(z.string().map(Number), z.number()), /mapped types cannot be intersected/);
+      assert.throws(() => z.string().map(Number).and(z.number()), /mapped types cannot be intersected/);
+      assert.throws(() => z.number().and(z.string().map(Number)), /mapped types cannot be intersected/);
+    });
+
+    xit('handles coercion', () => {
+      const schema = z.number().coerce().and(z.date());
+      const value = schema.parse('2019');
+      assert.strictEqual(value, 2);
     });
   });
 
