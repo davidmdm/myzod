@@ -728,6 +728,16 @@ describe('Zod Parsing', () => {
         .map(f => f[0]);
       assert.equal(enumFields[0], 'field');
     });
+
+    it('should unwrap itself via require optional type', () => {
+      const schema = z.string().optional().required();
+      assert.ok(schema instanceof StringType);
+    });
+
+    it('should unwrap itself via require nullable type', () => {
+      const schema = z.string().optional().required();
+      assert.ok(schema instanceof StringType);
+    });
   });
 
   describe('object parsing', () => {

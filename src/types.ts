@@ -30,6 +30,7 @@ export abstract class Type<T> {
   or<K extends AnyType>(schema: K): UnionType<[this, K]> {
     return new UnionType([this, schema]);
   }
+
   optional(this: OptionalType<any>): this;
   optional(): OptionalType<this>;
   optional(): any {
@@ -467,7 +468,7 @@ export class BigIntType extends Type<bigint> implements WithPredicate<bigint>, D
   }
   parse(value: unknown = typeof this.defaultValue === 'function' ? this.defaultValue() : this.defaultValue): bigint {
     try {
-      const int = BigInt(value);
+      const int = BigInt(value as any);
       if (this.predicates) {
         applyPredicates(this.predicates, int);
       }
@@ -585,6 +586,9 @@ export class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> 
     //@ts-ignore
     return this.schema.parse(value, opts);
   }
+  required(): T {
+    return clone(this.schema);
+  }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
   }
@@ -593,7 +597,7 @@ export class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> 
 type Nullable<T> = T | null;
 export class NullableType<T extends AnyType> extends Type<Infer<T> | null> implements Defaultable<Infer<T> | null> {
   private readonly defaultValue?: Nullable<Infer<T>> | (() => Nullable<Infer<T>>);
-  constructor(private readonly schema: T) {
+  constructor(readonly schema: T) {
     super();
     (this as any)[coercionTypeSymbol] = (this.schema as any)[coercionTypeSymbol];
     (this as any)[shapekeysSymbol] = (this.schema as any)[shapekeysSymbol];
@@ -610,6 +614,9 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> imple
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
+  }
+  required(): T {
+    return clone(this.schema);
   }
   default(value: Nullable<Infer<T>> | (() => Nullable<Infer<T>>)) {
     return withDefault(this, value);

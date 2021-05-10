@@ -159,6 +159,13 @@ const optionalStringSchema = myzod.string().optional(); // => OptionalType<Strin
 type StringOrUndefined = Infer<typeof optionalStringSchema>; // => string | undefined
 ```
 
+It is possible to unwrap an optional schema via a call to require:
+
+```typescript
+const optionalSchema = myzod.string().optional();
+const schema = optionalSchema.require();
+```
+
 ##### Type.nullable
 
 Returns a new schema which is a wrapped NullableType of the current schema.
@@ -169,14 +176,22 @@ const nullableStringSchema = myzod.string().nullable(); // => NullableType<Strin
 type StringOrUndefined = Infer<typeof nullableStringSchema>; // => string | null
 ```
 
+It is possible to unwrap an optional schema via a call to require:
+
+```typescript
+const optionalSchema = myzod.string().nullable();
+const schema = optionalSchema.require();
+```
+
 ##### Type.map
 
 Returns a new generic schema to the mapped type. Useful for transforming validated input into a new type on parse.
+
 ```typescript
 const ObjectIDSchema = myzod
-                         .string()
-                         .withPredicate(ObjectId.isValid, 'must be an object ID')
-                         .map(value => new ObjectId(value));
+  .string()
+  .withPredicate(ObjectId.isValid, 'must be an object ID')
+  .map(value => new ObjectId(value));
 
 // Infer<ObjectIDSchema> === ObjectId
 
@@ -449,11 +464,11 @@ const shape = personSchema.shape(); // => returns { name: myzod.string() }
 #### object.allowUnknownKeys
 
 A new schema can be build via fluent syntax to allow for unknown keys
+
 ```typescript
-const schema = z.object({ name: z.string(), age: z.number() }).allowUnknownKeys()
+const schema = z.object({ name: z.string(), age: z.number() }).allowUnknownKeys();
 
 const value = schema.try({ name: 'myzod', age: 1, cool: true }); // value is { name: 'myzod', age: 1 }
-
 ```
 
 #### object.withPredicate
@@ -539,22 +554,20 @@ Object schemas have an option to collect all validation errors instead of the de
 This is useful for form validation, but does incur a slight performance hit.
 
 ```typescript
-const personSchema = myzod
-  .object({ name: myzod.string(), lastName: myzod.string() })
-  .collectErrors();
+const personSchema = myzod.object({ name: myzod.string(), lastName: myzod.string() }).collectErrors();
 
-personSchema.parse({ name: 1, lastName: 2 })
+personSchema.parse({ name: 1, lastName: 2 });
 
 // throws an ValidationError with message:
 err.message = `
   error parsing object at path: "name" - expected type to be string but got number
   error parsing object at path: "lastName" - expected type to be string but got number
-`
+`;
 
 err.collectedErrors = {
   name: ValidationError,
   lastName: ValidationError,
-}
+};
 ```
 
 ##### Key Signatures
