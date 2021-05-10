@@ -1,3 +1,4 @@
+import { NullableType } from './types';
 import {
   ValidationError,
   Type,
@@ -147,6 +148,7 @@ export default {
   partial,
   pick,
   omit,
+  required,
   lazy,
   undefined: undefinedValue,
   null: nullValue,
@@ -154,3 +156,19 @@ export default {
   ValidationError,
   keySignature,
 };
+
+type Require<T extends AnyType> = T extends NullableType<infer S>
+  ? Require<S>
+  : T extends OptionalType<infer S>
+  ? Require<S>
+  : T;
+
+export function required<T extends AnyType>(schema: T): Require<T> {
+  if (schema instanceof NullableType) {
+    return required(schema.required());
+  }
+  if (schema instanceof OptionalType) {
+    return required(schema.required());
+  }
+  return schema as any;
+}

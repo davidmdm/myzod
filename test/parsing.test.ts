@@ -738,6 +738,11 @@ describe('Zod Parsing', () => {
       const schema = z.string().optional().required();
       assert.ok(schema instanceof StringType);
     });
+
+    it('should unwrap both optional and nullable via required helper func', () => {
+      const schema = z.required(z.string().optional().nullable());
+      assert.ok(schema instanceof StringType);
+    });
   });
 
   describe('object parsing', () => {

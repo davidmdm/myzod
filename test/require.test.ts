@@ -24,12 +24,13 @@ const expectedExports = [
   'partial',
   'pick',
   'record',
+  'required',
   'string',
   'tuple',
   'undefined',
   'union',
   'unknown',
-];
+].sort();
 
 const idxOfDefault = expectedExports.findIndex(x => x === 'default');
 const expectedExportsWithoutDefault = [
@@ -39,7 +40,7 @@ const expectedExportsWithoutDefault = [
 
 describe('Test functioning exports', () => {
   it('default exports', () => {
-    assert.deepEqual(Object.keys(myzod).sort(), expectedExportsWithoutDefault);
+    assert.deepStrictEqual(Object.keys(myzod).sort(), expectedExportsWithoutDefault);
 
     // make sure typescript compiles with myzod.func
     const schema = myzod.string();
@@ -48,6 +49,6 @@ describe('Test functioning exports', () => {
 
   it('commonjs', () => {
     const z = require('../src/index');
-    assert.deepEqual(Object.keys(z).sort(), expectedExports);
+    assert.deepStrictEqual(Object.keys(z).sort(), expectedExports);
   });
 });
