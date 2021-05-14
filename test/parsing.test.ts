@@ -685,6 +685,18 @@ describe('Zod Parsing', () => {
     const optionalSchema = z.string().optional();
     const nullableSchema = z.string().nullable();
 
+    it('should accept both null and undefined for an optional/nullable schema', () => {
+      const schema = z.string().optional().nullable();
+      assert.deepStrictEqual(schema.parse(undefined), undefined);
+      assert.deepStrictEqual(schema.parse(null), null);
+    });
+
+    it('should accept both null and undefined for an nullable/optional schema', () => {
+      const schema = z.string().nullable().optional();
+      assert.deepStrictEqual(schema.parse(undefined), undefined);
+      assert.deepStrictEqual(schema.parse(null), null);
+    });
+
     it('should accept undefined as a value when optional schema', () => {
       const ret = optionalSchema.parse(undefined);
       assert.equal(ret, undefined);

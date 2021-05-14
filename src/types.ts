@@ -31,6 +31,7 @@ export abstract class Type<T> {
     return new UnionType([this, schema]);
   }
 
+  optional(this: NullableType<any>): OptionalType<this>;
   optional(this: OptionalType<any>): this;
   optional(): OptionalType<this>;
   optional(): any {
@@ -39,6 +40,7 @@ export abstract class Type<T> {
     }
     return new OptionalType(this);
   }
+  nullable(this: OptionalType<any>): NullableType<this>;
   nullable(this: NullableType<any>): this;
   nullable(): NullableType<this>;
   nullable(): any {
@@ -736,7 +738,8 @@ export type ObjectOptions<T extends ObjectShape> = {
 
 export class ObjectType<T extends ObjectShape>
   extends Type<InferObjectShape<T>>
-  implements WithPredicate<InferObjectShape<T>>, Defaultable<InferObjectShape<T>> {
+  implements WithPredicate<InferObjectShape<T>>, Defaultable<InferObjectShape<T>>
+{
   private readonly predicates: Predicate<InferObjectShape<T>>[] | null;
   private readonly defaultValue?: InferObjectShape<T> | (() => InferObjectShape<T>);
   public [allowUnknownSymbol]: boolean;
@@ -1024,7 +1027,7 @@ export class ObjectType<T extends ObjectShape>
     let hasError = false;
     const errs: Record<string, ValidationError> = {};
     for (const key of new Set(Object.keys(value).concat(this[shapekeysSymbol]))) {
-      const result = (((this.objectShape[key] || this[keySignature]) as any) as any).try((value as any)[key], {
+      const result = ((this.objectShape[key] || this[keySignature]) as any as any).try((value as any)[key], {
         suppressPathErrMsg: true,
       });
       if (result instanceof ValidationError) {
@@ -1049,7 +1052,7 @@ export class ObjectType<T extends ObjectShape>
     const convVal: any = {};
     for (const key of new Set(Object.keys(value).concat(this[shapekeysSymbol]))) {
       try {
-        convVal[key] = (((this.objectShape[key] || this[keySignature]) as any) as any).parse((value as any)[key], {
+        convVal[key] = ((this.objectShape[key] || this[keySignature]) as any as any).parse((value as any)[key], {
           suppressPathErrMsg: true,
         });
       } catch (err) {
@@ -1067,7 +1070,7 @@ export class ObjectType<T extends ObjectShape>
     const errs: any = {};
     let hasError = false;
     for (const key of new Set(Object.keys(value).concat(this[shapekeysSymbol]))) {
-      const result = (((this.objectShape[key] || this[keySignature]) as any) as any).try((value as any)[key], {
+      const result = ((this.objectShape[key] || this[keySignature]) as any as any).try((value as any)[key], {
         suppressPathErrMsg: true,
       });
       if (result instanceof ValidationError) {
@@ -1227,7 +1230,8 @@ export type ArrayOptions<T extends AnyType> = {
 
 export class ArrayType<T extends AnyType>
   extends Type<Infer<T>[]>
-  implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]> {
+  implements WithPredicate<Infer<T>[]>, Defaultable<Infer<T>[]>
+{
   private readonly predicates: Predicate<Infer<T>[]>[] | null;
   private readonly defaultValue?: Infer<T>[] | (() => Infer<T>[]);
   private readonly coerceFn?: (v: any) => Infer<T>[];
@@ -1384,7 +1388,8 @@ type TupleOptions<T extends any[]> = {
 
 export class TupleType<T extends AnyType[]>
   extends Type<InferTuple<T>>
-  implements WithPredicate<InferTuple<T>>, Defaultable<InferTuple<T>> {
+  implements WithPredicate<InferTuple<T>>, Defaultable<InferTuple<T>>
+{
   private readonly predicates: Predicate<InferTuple<T>>[] | null;
   private readonly defaultValue?: InferTuple<T> | (() => InferTuple<T>);
   constructor(private readonly schemas: T, opts?: TupleOptions<T>) {
@@ -1467,7 +1472,8 @@ type UnionIntersection<U extends UnionType<any>, T extends AnyType> = U extends 
 
 export class UnionType<T extends AnyType[]>
   extends Type<InferTupleUnion<T>>
-  implements Defaultable<InferTupleUnion<T>> {
+  implements Defaultable<InferTupleUnion<T>>
+{
   private readonly strict: boolean;
   private readonly defaultValue?: InferTupleUnion<T> | (() => InferTupleUnion<T>);
   constructor(private readonly schemas: T, opts?: UnionOptions<T>) {

@@ -77,6 +77,18 @@ describe('Types test', () => {
     x;
   });
 
+  it('optional/nullable primitive', () => {
+    const schema = z.string().optional().nullable();
+    const x: AssertEqual<z.Infer<typeof schema>, string | null | undefined> = true;
+    x;
+  });
+
+  it('nullable/optional primitive', () => {
+    const schema = z.string().nullable().optional();
+    const x: AssertEqual<z.Infer<typeof schema>, string | null | undefined> = true;
+    x;
+  });
+
   it('object', () => {
     enum Color {
       red = 'red',
