@@ -1,5 +1,3 @@
-import { format } from 'util';
-
 function clone<T>(value: T): T {
   if (typeof value !== 'object' || value === null) {
     return value;
@@ -129,7 +127,7 @@ export class ValidationError extends Error {
   ) {
     if (collectedErrors !== undefined) {
       message = Object.values(collectedErrors)
-        .map(err => format(`error parsing object at path: "%s" - %s`, prettyPrintPath(err?.path || []), err?.message))
+        .map(err => `error parsing object at path: "${prettyPrintPath(err?.path || [])}" - ${err?.message}`)
         .join('\n');
     }
     super(message);
