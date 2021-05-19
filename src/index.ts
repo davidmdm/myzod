@@ -154,7 +154,7 @@ export default {
   null: nullValue,
   enum: enumValue,
   ValidationError,
-  keySignature,
+  keySignature: keySignature as typeof keySignature,
 };
 
 type Require<T extends AnyType> = T extends NullableType<infer S>
