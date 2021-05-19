@@ -50,7 +50,7 @@ describe('Zod Parsing', () => {
       const schema = z.string().map(x => x.length);
       const err = schema.try(true);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be string but got boolean');
+      assert.strictEqual(err.message, 'expected type to be string but got boolean');
     });
 
     it('should throw error thrown by map function as is', () => {
@@ -58,7 +58,7 @@ describe('Zod Parsing', () => {
         throw new Error('mapping error');
       });
       const err = schema.try('hello');
-      assert.equal(err.message, 'mapping error');
+      assert.strictEqual(err.message, 'mapping error');
     });
 
     it('should be immutable with regards to root schema', () => {
@@ -104,13 +104,13 @@ describe('Zod Parsing', () => {
 
     it('should return valid string', () => {
       const ret = schema.parse('hello world');
-      assert.equal(ret, 'hello world');
+      assert.strictEqual(ret, 'hello world');
     });
 
     it('should throw a ValidationError if not a string', () => {
       const err = catchError(schema.parse.bind(schema))(123);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be string but got number');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be string but got number');
     });
 
     it('should return a validation error with the set type error', () => {
@@ -127,14 +127,14 @@ describe('Zod Parsing', () => {
 
     it('should pass if matches provided pattern', () => {
       const schema = z.string().pattern(/^hello/);
-      assert.equal(schema.parse('hello world'), 'hello world');
+      assert.strictEqual(schema.parse('hello world'), 'hello world');
     });
 
     it('should fail if string does not match pattern ', () => {
       const schema = z.string().pattern(/^hello/);
       const err = catchError(schema.parse.bind(schema))('goodbye world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to match pattern /^hello/ but did not');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected string to match pattern /^hello/ but did not');
     });
 
     it('should return a new schema instance on type error', () => {
@@ -146,20 +146,20 @@ describe('Zod Parsing', () => {
     it('should fail if string does not match pattern and use custom error message', () => {
       const schema = z.string().pattern(/^hello/, 'value should start with hello');
       const err = catchError(schema.parse.bind(schema))('goodbye world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'value should start with hello');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'value should start with hello');
     });
 
     it('should fail if string does not match pattern and use custom error message function', () => {
       const schema = z.string().pattern(/^hello/, value => `value ${JSON.stringify(value)} did notmatch regexp`);
       const err = catchError(schema.parse.bind(schema))('goodbye world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'value "goodbye world" did notmatch regexp');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'value "goodbye world" did notmatch regexp');
     });
 
     it('should pass if string length is within the range', () => {
       const schema = z.string({ min: 3, max: 6 });
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should fail if string length is outside  length the range', () => {
@@ -168,11 +168,11 @@ describe('Zod Parsing', () => {
 
       const minErr = parse('hi');
       assert.ok(minErr instanceof z.ValidationError);
-      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+      assert.strictEqual(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
 
       const maxErr = parse('heellloo');
       assert.ok(maxErr instanceof z.ValidationError);
-      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+      assert.strictEqual(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
     });
 
     it('should fail if string length is outside  length the range - fluent syntax', () => {
@@ -181,70 +181,70 @@ describe('Zod Parsing', () => {
 
       const minErr = parse('hi');
       assert.ok(minErr instanceof z.ValidationError);
-      assert.equal(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
+      assert.strictEqual(minErr.message, 'expected string to have length greater than or equal to 3 but had length 2');
 
       const maxErr = parse('heellloo');
       assert.ok(maxErr instanceof z.ValidationError);
-      assert.equal(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
+      assert.strictEqual(maxErr.message, 'expected string to have length less than or equal to 6 but had length 8');
     });
 
     it('should pass if string length is within the range - fluent syntax', () => {
       const schema = z.string().min(3).max(6);
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should fail if string length is less than min', () => {
       const schema = z.string({ min: 3 });
       const err = catchError(schema.parse.bind(schema))('hi');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
     });
 
     it('should fail if string length is less than min - fluent syntax', () => {
       const schema = z.string().min(3);
       const err = catchError(schema.parse.bind(schema))('hi');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected string to have length greater than or equal to 3 but had length 2');
     });
 
     it('should fail if string length is greater than max', () => {
       const schema = z.string().max(6);
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected string to have length less than or equal to 6 but had length 11');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected string to have length less than or equal to 6 but had length 11');
     });
 
     it('should pass if predicate function returns true', () => {
       const schema = z.string().withPredicate(() => true);
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should fail if predicate function returns false', () => {
       const schema = z.string().withPredicate(() => false);
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'failed anonymous predicate function');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'failed anonymous predicate function');
     });
 
     it('should fail if predicate function returns false - fluent syntax', () => {
       const schema = z.string().withPredicate(() => false);
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'failed anonymous predicate function');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'failed anonymous predicate function');
     });
 
     it('should fail with predicate error message if predicate function returns false', () => {
       const schema = z.string({ predicate: { func: () => false, errMsg: 'custom predicate message' } });
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'custom predicate message');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'custom predicate message');
     });
 
     it('should fail with predicate error message if predicate function returns false - fluent syntax', () => {
       const schema = z.string().withPredicate(() => false, 'custom predicate message');
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'custom predicate message');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'custom predicate message');
     });
 
     it('should support multiple predicates - fluent syntax', () => {
@@ -252,7 +252,7 @@ describe('Zod Parsing', () => {
         .string()
         .withPredicate(value => isNaN(Number(value)), 'value must not be a number')
         .withPredicate(value => value.startsWith('hello'), 'value must start with hello');
-      assert.equal(schema.parse('hello world'), 'hello world');
+      assert.strictEqual(schema.parse('hello world'), 'hello world');
     });
 
     it('should fail if not all predicates are met', () => {
@@ -267,11 +267,11 @@ describe('Zod Parsing', () => {
 
       const pred1Err = parse('123');
       assert.ok(pred1Err instanceof z.ValidationError);
-      assert.equal(pred1Err.message, 'value must not be a number');
+      assert.strictEqual(pred1Err.message, 'value must not be a number');
 
       const pred2Err = parse('goodbye world');
       assert.ok(pred2Err instanceof z.ValidationError);
-      assert.equal(pred2Err.message, 'value must start with hello');
+      assert.strictEqual(pred2Err.message, 'value must start with hello');
     });
 
     it('should fail if not all predicates are met - fluent syntax', () => {
@@ -284,11 +284,11 @@ describe('Zod Parsing', () => {
 
       const pred1Err = parse('123');
       assert.ok(pred1Err instanceof z.ValidationError);
-      assert.equal(pred1Err.message, 'value must not be a number');
+      assert.strictEqual(pred1Err.message, 'value must not be a number');
 
       const pred2Err = parse('goodbye world');
       assert.ok(pred2Err instanceof z.ValidationError);
-      assert.equal(pred2Err.message, 'value must start with hello');
+      assert.strictEqual(pred2Err.message, 'value must start with hello');
     });
 
     it('should fail with same error message as predicate function if it throws', () => {
@@ -296,51 +296,51 @@ describe('Zod Parsing', () => {
         throw new Error('predicate error message');
       });
       const err = catchError(schema.parse.bind(schema))('hello world');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'predicate error message');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'predicate error message');
     });
 
     it('should "and" with another type', () => {
       const schema = z.boolean().and(z.boolean().or(z.string()));
-      assert.equal(schema.parse(true), true);
+      assert.strictEqual(schema.parse(true), true);
     });
 
     it('should fail "and" with another type', () => {
       const schema = z.boolean().and(z.boolean().or(z.string()));
       const err = schema.try('hello');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be boolean but got string');
+      assert.strictEqual(err.message, 'expected type to be boolean but got string');
     });
 
     it('should pass if value is within valid strings', () => {
       const schema = z.string().valid(['hello', 'world']);
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should fail if value is not within valid strings', () => {
       const schema = z.string().valid(['hello', 'world']);
       const err = catchError(schema.parse.bind(schema))('hi my dudes');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected string to be one of: ["hello","world"]');
+      assert.strictEqual(err.message, 'expected string to be one of: ["hello","world"]');
     });
 
     it('should return default schema value when parsing undefined', () => {
       const schema = z.string().default('hello world!');
-      assert.equal(schema.parse(undefined), 'hello world!');
+      assert.strictEqual(schema.parse(undefined), 'hello world!');
     });
 
     it('should run default schema function every call with undefined', () => {
       let def = 'hello world';
       const schema = z.string().default(() => (def += '!'));
-      assert.equal(schema.parse(undefined), 'hello world!');
-      assert.equal(schema.parse('hello'), 'hello');
-      assert.equal(schema.parse(undefined), 'hello world!!');
+      assert.strictEqual(schema.parse(undefined), 'hello world!');
+      assert.strictEqual(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse(undefined), 'hello world!!');
     });
 
     it('should preserve default schema value when creating new string schemas with predicate', () => {
       const base = z.string().default('Oh Hello');
       const schema = base.withPredicate(v => v.length > 3);
-      assert.equal(schema.try(undefined), 'Oh Hello');
+      assert.strictEqual(schema.try(undefined), 'Oh Hello');
     });
   });
 
@@ -349,30 +349,30 @@ describe('Zod Parsing', () => {
 
     it('should return valid boolean', () => {
       const ret = schema.parse(false);
-      assert.equal(ret, false);
+      assert.strictEqual(ret, false);
     });
 
     it('should throw a ValidationError if not a boolean', () => {
       const err = catchError(schema.parse.bind(schema))({});
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be boolean but got object');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be boolean but got object');
     });
 
     it('should take default value', () => {
       const schema = z.boolean().default(false);
-      assert.equal(schema.parse(undefined), false);
+      assert.strictEqual(schema.parse(undefined), false);
     });
 
     it('should take default value - func', () => {
       const schema = z.boolean().default(() => true);
-      assert.equal(schema.parse(undefined), true);
+      assert.strictEqual(schema.parse(undefined), true);
     });
 
     it('should fail with null even when default value', () => {
       const schema = z.boolean().default(false);
       const err = catchError(schema.parse.bind(schema))(null);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be boolean but got null');
+      assert.strictEqual(err.message, 'expected type to be boolean but got null');
     });
   });
 
@@ -381,46 +381,46 @@ describe('Zod Parsing', () => {
 
     it('should return valid number', () => {
       const ret = schema.parse(321);
-      assert.equal(ret, 321);
+      assert.strictEqual(ret, 321);
     });
 
     it('should throw a ValidationError if not a number', () => {
       const err = catchError(schema.parse.bind(schema))(null);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be number but got null');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be number but got null');
     });
 
     it('should succeed if number is with range', () => {
       const schema = z.number({ min: 0, max: 10 });
       const ret = schema.parse(5);
-      assert.equal(ret, 5);
+      assert.strictEqual(ret, 5);
     });
 
     it('should succeed if number is equal to min or max', () => {
       const schema = z.number({ min: 0, max: 10 });
-      assert.equal(schema.parse(0), 0);
-      assert.equal(schema.parse(10), 10);
+      assert.strictEqual(schema.parse(0), 0);
+      assert.strictEqual(schema.parse(10), 10);
     });
 
     it('should fail if number is below min', () => {
       const schema = z.number({ min: 0 });
       const err = catchError(schema.parse.bind(schema))(-1);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected number to be greater than or equal to 0 but got -1');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected number to be greater than or equal to 0 but got -1');
     });
 
     it('should fail if number is below min - fluent syntax', () => {
       const schema = z.number().min(0);
       const err = catchError(schema.parse.bind(schema))(-1);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected number to be greater than or equal to 0 but got -1');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected number to be greater than or equal to 0 but got -1');
     });
 
     it('should fail if number is greater than max - fluent syntax', () => {
       const schema = z.number().max(10);
       const err = catchError(schema.parse.bind(schema))(20);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected number to be less than or equal to 10 but got 20');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected number to be less than or equal to 10 but got 20');
     });
 
     it('should fail if number fails predicate', () => {
@@ -430,7 +430,7 @@ describe('Zod Parsing', () => {
       );
       const err = catchError(schema.parse.bind(schema))(1);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected value 1 to be even');
+      assert.strictEqual(err.message, 'expected value 1 to be even');
     });
 
     it('should maintain coercion after an applied predicate', () => {
@@ -441,59 +441,59 @@ describe('Zod Parsing', () => {
           value => value % 2 === 0,
           value => `expected value ${value} to be even`
         );
-      assert.equal(schema.parse('2'), 2);
+      assert.strictEqual(schema.parse('2'), 2);
     });
 
     it('should convert a string to a number if coerce is true', () => {
       const schema = z.number({ coerce: true });
       const ret = schema.parse('42');
-      assert.equal(ret, 42);
+      assert.strictEqual(ret, 42);
     });
 
     it('should convert a string to a number if coerce is true - fluent syntax', () => {
       const schema = z.number().coerce();
       const ret = schema.parse('42');
-      assert.equal(ret, 42);
+      assert.strictEqual(ret, 42);
     });
 
     it('should fail to convert an empty string', () => {
       const schema = z.number().coerce();
       const err = catchError(schema.parse.bind(schema))('');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be number but got string');
+      assert.strictEqual(err.message, 'expected type to be number but got string');
     });
 
     it('should fail to convert a non numeric string', () => {
       const schema = z.number().coerce();
       const err = catchError(schema.parse.bind(schema))('hello');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be number but got string');
+      assert.strictEqual(err.message, 'expected type to be number but got string');
     });
 
     it('should apply validators with coerced values', () => {
       const schema = z.number().coerce().min(42);
       const err = catchError(schema.parse.bind(schema))('5');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected number to be greater than or equal to 42 but got 5');
+      assert.strictEqual(err.message, 'expected number to be greater than or equal to 42 but got 5');
     });
 
     it('should "and" with another schema', () => {
       const schema = z.number().and(z.number().or(z.string()));
-      assert.equal(schema.parse(42), 42);
+      assert.strictEqual(schema.parse(42), 42);
     });
 
     it('should fail "and" with another schema', () => {
       const schema = z.number().and(z.number().or(z.string()));
       const err = catchError(schema.parse.bind(schema))('5');
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type to be number but got string');
+      assert.strictEqual(err.message, 'expected type to be number but got string');
     });
 
     it('should return the same instance if object contains non coercable number', () => {
       const schema = z.object({ a: z.number() });
       const data = { a: 5 };
       const ret = schema.parse(data);
-      assert.equal(ret, data);
+      assert.strictEqual(ret, data);
     });
 
     it('should return the different instance if object contains coercable number', () => {
@@ -501,21 +501,21 @@ describe('Zod Parsing', () => {
       const data = { a: 5 };
       const ret = schema.parse(data);
       assert.notEqual(ret, data);
-      assert.deepEqual(ret, data);
+      assert.deepStrictEqual(ret, data);
     });
 
     it('should return the default value when parsing undefined', () => {
       const schema = z.number().default(0);
-      assert.equal(schema.parse(undefined), 0);
+      assert.strictEqual(schema.parse(undefined), 0);
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
     it('should return the default value when parsing undefined - func', () => {
       let num = 0;
       const schema = z.number().default(() => num++);
-      assert.equal(schema.parse(undefined), 0);
-      assert.equal(schema.parse(100), 100);
-      assert.equal(schema.parse(undefined), 1);
+      assert.strictEqual(schema.parse(undefined), 0);
+      assert.strictEqual(schema.parse(100), 100);
+      assert.strictEqual(schema.parse(undefined), 1);
     });
   });
 
@@ -524,13 +524,13 @@ describe('Zod Parsing', () => {
 
     it('should return undefined', () => {
       const ret = schema.parse(undefined);
-      assert.equal(ret, undefined);
+      assert.strictEqual(ret, undefined);
     });
 
     it('should throw a ValidationError if not undefined', () => {
       const err = catchError(schema.parse.bind(schema))('hello');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be undefined but got string');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be undefined but got string');
     });
   });
 
@@ -539,13 +539,13 @@ describe('Zod Parsing', () => {
 
     it('should return null', () => {
       const ret = schema.parse(null);
-      assert.equal(ret, null);
+      assert.strictEqual(ret, null);
     });
 
     it('should throw a ValidationError if not null', () => {
       const err = catchError(schema.parse.bind(schema))(123);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be null but got number');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be null but got number');
     });
   });
 
@@ -555,31 +555,31 @@ describe('Zod Parsing', () => {
     it('should return the literal if match', () => {
       const ret = schema.parse('123');
       assert.ok(!(schema as any)[coercionTypeSymbol]);
-      assert.equal(ret, '123');
+      assert.strictEqual(ret, '123');
     });
 
     it('should throw a ValidationError if not the same type', () => {
       const err = catchError(schema.parse.bind(schema))(123);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, `expected value to be literal "123" but got 123`);
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, `expected value to be literal "123" but got 123`);
     });
 
     it('should throw validation error if literal is not the same value', () => {
       const err = catchError(schema.parse.bind(schema))('321');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, `expected value to be literal "123" but got "321"`);
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, `expected value to be literal "123" but got "321"`);
     });
 
     it('should create a union of literals', () => {
       const schema = z.literals('hello', 'world');
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should fail if value is not in union of literals', () => {
       const schema = z.literals('hello', 'world');
       const err = catchError(schema.parse.bind(schema))(null);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'No union satisfied:\n  expected value to be literal "hello" but got null\n  expected value to be literal "world" but got null'
       );
@@ -588,7 +588,7 @@ describe('Zod Parsing', () => {
     it('should return literal when default is set', () => {
       const schema = z.literal('hello').default();
       assert.ok((schema as any)[coercionTypeSymbol]);
-      assert.equal(schema.parse(undefined), 'hello');
+      assert.strictEqual(schema.parse(undefined), 'hello');
     });
   });
 
@@ -597,14 +597,14 @@ describe('Zod Parsing', () => {
       const schema = z.date();
       const date = new Date();
       const ret = schema.parse(date);
-      assert.equal(ret, date);
+      assert.strictEqual(ret, date);
     });
 
     it('should fail if non date or string-date type', () => {
       const schema = z.date();
       const err = catchError(schema.parse.bind(schema))(true);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected type Date but got boolean');
+      assert.strictEqual(err.message, 'expected type Date but got boolean');
     });
 
     it('should convert a date string to a date', () => {
@@ -613,7 +613,7 @@ describe('Zod Parsing', () => {
       const ret = schema.parse(date.toISOString());
       assert.ok(ret instanceof Date);
       assert.notEqual(ret, date);
-      assert.equal(ret.getTime(), date.getTime());
+      assert.strictEqual(ret.getTime(), date.getTime());
     });
 
     it('should apply predicates', () => {
@@ -628,24 +628,24 @@ describe('Zod Parsing', () => {
       const pastDate = new Date(Date.now() - 3600);
       const pastErr = parse(pastDate);
       assert.ok(pastErr instanceof z.ValidationError);
-      assert.equal(pastErr.message, 'expected date to be after than current moment');
+      assert.strictEqual(pastErr.message, 'expected date to be after than current moment');
 
       const weekendDate = 'Sun Jul 30 2023';
       const weekendErr = parse(weekendDate);
       assert.ok(weekendErr instanceof z.ValidationError);
-      assert.equal(weekendErr.message, 'expected date to be a weekday');
+      assert.strictEqual(weekendErr.message, 'expected date to be a weekday');
     });
 
     it('should return default date when parsing undefined', () => {
       const date = new Date();
       const schema = z.date().default(date);
-      assert.equal(schema.parse(undefined), date);
+      assert.strictEqual(schema.parse(undefined), date);
     });
 
     it('should return default date when parsing undefined - func', () => {
       const date = new Date();
       const schema = z.date().default(() => date);
-      assert.equal(schema.parse(undefined), date);
+      assert.strictEqual(schema.parse(undefined), date);
     });
   });
 
@@ -654,14 +654,14 @@ describe('Zod Parsing', () => {
       const schema = z.unknown();
       assert.ok(!(schema as any)[coercionTypeSymbol]);
       const ret = schema.parse('hello');
-      assert.equal(ret, 'hello');
+      assert.strictEqual(ret, 'hello');
     });
 
     it('should force a key to be required within an object schema', () => {
       const schema = z.object({ required: z.unknown() });
       const err = schema.try({});
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         `error parsing object at path: "required" - expected key "required" of unknown type to be present on object`
       );
@@ -670,14 +670,14 @@ describe('Zod Parsing', () => {
     it('should force a key to be required within an object schema even if key value is undefined', () => {
       const schema = z.object({ required: z.unknown() });
       const ret = schema.parse({ required: undefined });
-      assert.deepEqual(ret, { required: undefined });
-      assert.equal(ret.hasOwnProperty('required'), true);
+      assert.deepStrictEqual(ret, { required: undefined });
+      assert.strictEqual(ret.hasOwnProperty('required'), true);
     });
 
     it('should return default value', () => {
       const schema = z.unknown().default('hello');
       assert.ok((schema as any)[coercionTypeSymbol]);
-      assert.equal(schema.parse(undefined), 'hello');
+      assert.strictEqual(schema.parse(undefined), 'hello');
     });
   });
 
@@ -699,31 +699,31 @@ describe('Zod Parsing', () => {
 
     it('should accept undefined as a value when optional schema', () => {
       const ret = optionalSchema.parse(undefined);
-      assert.equal(ret, undefined);
+      assert.strictEqual(ret, undefined);
     });
 
     it('should accept null as a value when nullable schema', () => {
       const ret = nullableSchema.parse(null);
-      assert.equal(ret, null);
+      assert.strictEqual(ret, null);
     });
 
     it('should not allow null when optional schema', () => {
       const err = catchError(optionalSchema.parse.bind(optionalSchema))(null);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be string but got null');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be string but got null');
     });
 
     it('should not allow undefined when nullable schema', () => {
       const err = catchError(nullableSchema.parse.bind(nullableSchema))(undefined);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be string but got undefined');
     });
 
     it('should return a nullable modifiers default value if parsing undefined', () => {
       const nullDefaultSchema = z.number().nullable().default(null);
       const numberDefaultSchema = z.number().nullable().default(123);
-      assert.equal(nullDefaultSchema.parse(undefined), null);
-      assert.equal(numberDefaultSchema.parse(undefined), 123);
+      assert.strictEqual(nullDefaultSchema.parse(undefined), null);
+      assert.strictEqual(numberDefaultSchema.parse(undefined), 123);
       assert.ok((nullDefaultSchema as any)[coercionTypeSymbol]);
     });
 
@@ -738,7 +738,7 @@ describe('Zod Parsing', () => {
       const enumFields = Object.entries(s.shape())
         .filter(f => f[1] instanceof OptionalType && f[1].schema instanceof EnumType)
         .map(f => f[0]);
-      assert.equal(enumFields[0], 'field');
+      assert.strictEqual(enumFields[0], 'field');
     });
 
     it('should unwrap itself via require optional type', () => {
@@ -761,30 +761,30 @@ describe('Zod Parsing', () => {
     const emptySchema = z.object({});
     it('should only accept empty object', () => {
       const ret = emptySchema.parse({});
-      assert.deepEqual(ret, {});
+      assert.deepStrictEqual(ret, {});
     });
 
     it('should fail if value provided is null', () => {
       const err = catchError(emptySchema.parse.bind(emptySchema))(null);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be object but got null');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be object but got null');
     });
 
     it('should fail if value provided is an array', () => {
       const err = catchError(emptySchema.parse.bind(emptySchema))([]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be object but got array');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be object but got array');
     });
 
     it('should fail if there are unknown keys', () => {
       const err = catchError(emptySchema.parse.bind(emptySchema))({ key: 'unkown', value: 'unknown' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["key","value"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["key","value"]');
     });
 
     it('should allow unknown keys', () => {
       const ret = emptySchema.parse({ a: 1 }, { allowUnknown: true });
-      assert.deepEqual(ret, { a: 1 });
+      assert.deepStrictEqual(ret, { a: 1 });
     });
 
     it('should allow unknown when set via fluent syntax', () => {
@@ -809,7 +809,7 @@ describe('Zod Parsing', () => {
     it('should return object with correct object shape - simple', () => {
       const schema = z.object({ name: z.string() });
       const ret = schema.parse({ name: 'Bobby' });
-      assert.deepEqual(ret, { name: 'Bobby' });
+      assert.deepStrictEqual(ret, { name: 'Bobby' });
     });
 
     it('should allow omitted properties on optional keys but include them in returned object', () => {
@@ -818,34 +818,37 @@ describe('Zod Parsing', () => {
         age: z.number().optional(),
       });
       const ret = schema.parse({ name: 'Bobby Darrin' });
-      assert.deepEqual(ret, { name: 'Bobby Darrin' });
+      assert.deepStrictEqual(ret, { name: 'Bobby Darrin' });
     });
 
     it('should fail if object has wrong shape', () => {
       const schema = z.object({ name: z.string() });
       const err = catchError(schema.parse.bind(schema))({ name: 5 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "name" - expected type to be string but got number');
-      assert.equal((err as z.ValidationError).path, 'name');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "name" - expected type to be string but got number'
+      );
+      assert.deepStrictEqual((err as z.ValidationError).path, ['name']);
     });
 
     it('should give meaningful error for nested objects errors', () => {
       const schema = z.object({ person: z.object({ name: z.string() }) });
       const topLevelError = catchError(schema.parse.bind(schema))({ person: 5 });
-      assert.equal(topLevelError instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(topLevelError instanceof z.ValidationError, true);
+      assert.strictEqual(
         topLevelError.message,
         'error parsing object at path: "person" - expected type to be object but got number'
       );
-      assert.equal((topLevelError as z.ValidationError).path, 'person');
+      assert.deepStrictEqual((topLevelError as z.ValidationError).path, ['person']);
 
       const nestedError = catchError(schema.parse.bind(schema))({ person: { name: 5 } });
-      assert.equal(nestedError instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(nestedError instanceof z.ValidationError, true);
+      assert.strictEqual(
         nestedError.message,
         'error parsing object at path: "person.name" - expected type to be string but got number'
       );
-      assert.deepEqual((nestedError as z.ValidationError).path, ['person', 'name']);
+      assert.deepStrictEqual((nestedError as z.ValidationError).path, ['person', 'name']);
     });
 
     it('should give meaningful path error for errors occuring within array', () => {
@@ -873,12 +876,12 @@ describe('Zod Parsing', () => {
         },
       });
 
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
         err.message,
         'error parsing object at path: "person.friends[1].cars[1].year" - expected type to be number but got string'
       );
-      assert.deepEqual((err as z.ValidationError).path, ['person', 'friends', 1, 'cars', 1, 'year']);
+      assert.deepStrictEqual((err as z.ValidationError).path, ['person', 'friends', 1, 'cars', 1, 'year']);
     });
 
     it('should convert string dates to dates', () => {
@@ -886,13 +889,13 @@ describe('Zod Parsing', () => {
       const date = new Date();
       const ret = schema.parse({ value: date.toISOString() });
       assert.ok(ret.value instanceof Date);
-      assert.equal(ret.value.getTime(), date.getTime());
+      assert.strictEqual(ret.value.getTime(), date.getTime());
     });
 
     it('should convert string numbers to numbers with coercion', () => {
       const schema = z.object({ value: z.number().coerce() });
       const ret = schema.parse({ value: '42' });
-      assert.deepEqual(ret, { value: 42 });
+      assert.deepStrictEqual(ret, { value: 42 });
     });
 
     it('should fail if object does not pass predicate', () => {
@@ -902,22 +905,22 @@ describe('Zod Parsing', () => {
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected properties "hello" and "world" to be equal');
+      assert.strictEqual(err.message, 'expected properties "hello" and "world" to be equal');
     });
 
     it('should not transfer predicates over to a pick/omit/partial schema from an object', () => {
       const base = z.object({ a: z.string() }).withPredicate(() => true);
       assert.ok(Array.isArray((base as any).predicates));
-      assert.equal((base as any).predicates.length, 1);
+      assert.strictEqual((base as any).predicates.length, 1);
 
       const picked = base.pick(['a']);
-      assert.equal((picked as any).predicates, null);
+      assert.strictEqual((picked as any).predicates, null);
 
       const omitted = base.omit(['a']);
-      assert.equal((omitted as any).predicates, null);
+      assert.strictEqual((omitted as any).predicates, null);
 
       const partialed = base.partial();
-      assert.equal((partialed as any).predicates, null);
+      assert.strictEqual((partialed as any).predicates, null);
     });
 
     it('should collect errors', () => {
@@ -985,55 +988,58 @@ describe('Zod Parsing', () => {
     it('should pick some keys', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
       const ret = schema.parse({ a: 'hello', b: 42 });
-      assert.deepEqual(ret, { a: 'hello', b: 42 });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 42 });
     });
 
     it('should fail unexpected key in object.pick', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 42, c: false });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if missing key in object.pick', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "b" - expected type to be number but got undefined'
+      );
     });
 
     it('should create an equivalent object between omit and pick', () => {
       const root = z.object({ a: z.string(), b: z.number(), c: z.boolean() });
       const picked = root.pick(['a', 'b']);
       const omitted = root.omit(['c']);
-      assert.deepEqual(picked, omitted);
+      assert.deepStrictEqual(picked, omitted);
     });
 
     it('should create a partial of the object', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).partial();
       const ret = schema.parse({});
-      assert.deepEqual(ret, {});
+      assert.deepStrictEqual(ret, {});
     });
 
     it('should fail if value contains an unknown key in object.partial', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).partial();
       const err = catchError(schema.parse.bind(schema))({ d: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["d"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["d"]');
     });
 
     it('should create a deep partial', () => {
       const inner = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) });
       const schema = inner.partial({ deep: true });
       const ret = schema.parse({ b: { d: 32 } });
-      assert.deepEqual(ret, { b: { d: 32 } });
+      assert.deepStrictEqual(ret, { b: { d: 32 } });
     });
 
     it('should fail deep partial if unknown keys included in nested objects', () => {
       const schema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) }).partial({ deep: true });
       const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
+      assert.strictEqual(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
 
     it('should return a new ObjectType when "and" with other object schema', () => {
@@ -1053,12 +1059,12 @@ describe('Zod Parsing', () => {
 
     it('should return default value if parsing undefined', () => {
       const schema = z.object({ a: z.string(), b: z.string() }).default({ a: 'hello', b: 'world' });
-      assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
+      assert.deepStrictEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
     });
 
     it('should return default value if parsing undefined - func', () => {
       const schema = z.object({ a: z.string(), b: z.string() }).default(() => ({ a: 'hello', b: 'world' }));
-      assert.deepEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
+      assert.deepStrictEqual(schema.parse(undefined), { a: 'hello', b: 'world' });
     });
 
     it('should return nested defaults', () => {
@@ -1068,7 +1074,7 @@ describe('Zod Parsing', () => {
         c: z.boolean().default(true),
         d: z.null().default(),
       });
-      assert.deepEqual(schema.parse({}), { a: 'hello', b: 42, c: true, d: null });
+      assert.deepStrictEqual(schema.parse({}), { a: 'hello', b: 42, c: true, d: null });
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
@@ -1077,48 +1083,54 @@ describe('Zod Parsing', () => {
     it('should pass for a record of primitive type', () => {
       const schema = z.record(z.string());
       const ret = schema.parse({ a: 'hello', b: 'world' });
-      assert.deepEqual(ret, { a: 'hello', b: 'world' });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 'world' });
     });
 
     it('should fail if value to be parsed is not a record/object', () => {
       const schema = z.record(z.boolean());
       const err = catchError(schema.parse.bind(schema))('i am a string');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be object but got string');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be object but got string');
     });
 
     it('should pass if all values in object match type', () => {
       const schema = z.record(z.boolean());
       const ret = schema.parse({ a: true, b: false });
-      assert.deepEqual(ret, { a: true, b: false });
+      assert.deepStrictEqual(ret, { a: true, b: false });
     });
 
     it('should fail if a value in object does not match the type', () => {
       const schema = z.record(z.boolean());
       const err = catchError(schema.parse.bind(schema))({ a: 'true', b: false });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be boolean but got string');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing object at path: "a" - expected type to be boolean but got string');
     });
 
     it('should give meaningful error messages for object records with nested errors', () => {
       const schema = z.record(z.object({ a: z.object({ b: z.boolean() }) }));
       const err = catchError(schema.parse.bind(schema))({ key: { a: { b: 'hello' } } });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "key.a.b" - expected type to be boolean but got string');
-      assert.deepEqual((err as z.ValidationError).path, ['key', 'a', 'b']);
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "key.a.b" - expected type to be boolean but got string'
+      );
+      assert.deepStrictEqual((err as z.ValidationError).path, ['key', 'a', 'b']);
     });
 
     it('should fail if a key is present on object but value is undefined', () => {
       const schema = z.record(z.boolean());
       const err = catchError(schema.parse.bind(schema))({ a: undefined, b: false });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be boolean but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be boolean but got undefined'
+      );
     });
 
     it('should pass if a key is present on object but value is undefined if using dictionary', () => {
       const schema = z.dictionary(z.boolean());
       const ret = schema.parse({ a: undefined, b: false });
-      assert.deepEqual(ret, { a: undefined, b: false });
+      assert.deepStrictEqual(ret, { a: undefined, b: false });
     });
 
     it('should pass for record of partial objects', () => {
@@ -1128,7 +1140,7 @@ describe('Zod Parsing', () => {
         key2: { a: 'hello' },
         key3: {},
       });
-      assert.deepEqual(ret, {
+      assert.deepStrictEqual(ret, {
         key1: { a: 'hello', b: 'world' },
         key2: { a: 'hello' },
         key3: {},
@@ -1140,7 +1152,7 @@ describe('Zod Parsing', () => {
       const date = new Date();
       const ret = schema.parse({ a: date.toISOString() });
       assert.ok(ret.a instanceof Date);
-      assert.equal(ret.a.getTime(), date.getTime());
+      assert.strictEqual(ret.a.getTime(), date.getTime());
     });
 
     it('the and of two records should return a ObjectType', () => {
@@ -1149,41 +1161,44 @@ describe('Zod Parsing', () => {
       const schema = r1.and(r2);
       assert.ok(schema instanceof ObjectType);
       const shape: ObjectShape = (schema as any).objectShape;
-      assert.deepEqual(Object.keys(shape), []);
+      assert.deepStrictEqual(Object.keys(shape), []);
       assert.ok(shape[z.keySignature] instanceof ObjectType);
     });
 
     it('should pick from a record', () => {
       const schema = z.record(z.string()).pick(['a', 'b']);
       const ret = schema.parse({ a: 'hello', b: 'world' });
-      assert.deepEqual(ret, { a: 'hello', b: 'world' });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 'world' });
     });
 
     it('should fail if missing keys from picked records', () => {
       const schema = z.record(z.string()).pick(['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "b" - expected type to be string but got undefined'
+      );
     });
 
     it('should fail if unknown keys in picked records', () => {
       const schema = z.record(z.string()).pick(['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: '!!!' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should pick from a dictionary', () => {
       const schema = z.dictionary(z.string()).pick(['a', 'b']);
-      assert.deepEqual(schema.parse({ a: 'hello', b: 'world' }), { a: 'hello', b: 'world' });
-      assert.deepEqual(schema.parse({}), {});
+      assert.deepStrictEqual(schema.parse({ a: 'hello', b: 'world' }), { a: 'hello', b: 'world' });
+      assert.deepStrictEqual(schema.parse({}), {});
     });
 
     it('should fail if unknown keys in picked dictionaries', () => {
       const schema = z.record(z.string()).pick(['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ c: '!!!' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should collect errors', () => {
@@ -1208,135 +1223,135 @@ describe('Zod Parsing', () => {
     it('should pass when given an empty array', () => {
       const schema = z.array(z.number());
       const ret = schema.parse([]);
-      assert.deepEqual(ret, []);
+      assert.deepStrictEqual(ret, []);
     });
 
     it('should pass when given an array with elements that match type', () => {
       const schema = z.array(z.number());
       const ret = schema.parse([1, 2, 3]);
-      assert.deepEqual(ret, [1, 2, 3]);
+      assert.deepStrictEqual(ret, [1, 2, 3]);
     });
 
     it('should fail if not given an array', () => {
       const schema = z.array(z.string());
       const err = catchError(schema.parse.bind(schema))({ 0: 'first', 1: 'second', length: 2 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected an array but got object');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected an array but got object');
     });
 
     it('should fail if an array element does not match schema', () => {
       const schema = z.array(z.string());
       const err = catchError(schema.parse.bind(schema))(['hello', 123]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error at [1] - expected type to be string but got number');
-      assert.deepEqual((err as z.ValidationError).path, [1]);
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error at [1] - expected type to be string but got number');
+      assert.deepStrictEqual((err as z.ValidationError).path, [1]);
     });
 
     it('should pass if array has provided length', () => {
       const schema = z.array(z.string(), { length: 2 });
       const ret = schema.parse(['hello', 'world']);
-      assert.deepEqual(ret, ['hello', 'world']);
+      assert.deepStrictEqual(ret, ['hello', 'world']);
     });
 
     it('should pass if array has provided length - fluent syntax', () => {
       const schema = z.array(z.string()).length(2);
       const ret = schema.parse(['hello', 'world']);
-      assert.deepEqual(ret, ['hello', 'world']);
+      assert.deepStrictEqual(ret, ['hello', 'world']);
     });
 
     it('should fail if array does not have provided length', () => {
       const schema = z.array(z.string()).length(2);
       const err = catchError(schema.parse.bind(schema))([]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to have length 2 but got 0');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to have length 2 but got 0');
     });
 
     it('should pass if array has length falls within range', () => {
       const schema = z.array(z.number(), { min: 2, max: 2 });
       const ret = schema.parse([1, 2]);
-      assert.deepEqual(ret, [1, 2]);
+      assert.deepStrictEqual(ret, [1, 2]);
     });
 
     it('should pass if array has length falls within range - fluent syntax', () => {
       const schema = z.array(z.number()).min(2).max(2);
       const ret = schema.parse([1, 2]);
-      assert.deepEqual(ret, [1, 2]);
+      assert.deepStrictEqual(ret, [1, 2]);
     });
 
     it('should fail if array length is less than min', () => {
       const schema = z.array(z.number(), { min: 2 });
       const err = catchError(schema.parse.bind(schema))([]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to have length greater than or equal to 2 but got 0');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to have length greater than or equal to 2 but got 0');
     });
 
     it('should fail if array length is greater than max', () => {
       const schema = z.array(z.number(), { max: 1 });
       const err = catchError(schema.parse.bind(schema))([1, 2]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to have length less than or equal to 1 but got 2');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to have length less than or equal to 1 but got 2');
     });
 
     it('should pass if elements are unique', () => {
       const schema = z.array(z.number(), { unique: true });
       const ret = schema.parse([1, 2, 3]);
-      assert.deepEqual(ret, [1, 2, 3]);
+      assert.deepStrictEqual(ret, [1, 2, 3]);
     });
 
     it('should fail if elements are not unique', () => {
       const schema = z.array(z.number(), { unique: true });
       const err = catchError(schema.parse.bind(schema))([1, 2, 2]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
     });
 
     it('should fail if elements are not unique - fluent syntax', () => {
       const schema = z.array(z.number()).unique();
       const err = catchError(schema.parse.bind(schema))([1, 2, 2]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to be unique but found same element at indexes 1 and 2');
     });
 
     it('should give meaningful path error for objects', () => {
       const schema = z.array(z.object({ key: z.number() }));
       const err = catchError(schema.parse.bind(schema))([{ key: '123' }, { key: 321 }]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error at [0].key - expected type to be number but got string');
-      assert.deepEqual((err as z.ValidationError).path, [0, 'key']);
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error at [0].key - expected type to be number but got string');
+      assert.deepStrictEqual((err as z.ValidationError).path, [0, 'key']);
     });
 
     it('should convert date strings', () => {
       const schema = z.array(z.date());
       const date = new Date();
       const ret = schema.parse([date.toISOString()]);
-      assert.equal(ret.length, 1);
+      assert.strictEqual(ret.length, 1);
       assert.ok(ret[0] instanceof Date);
-      assert.equal(ret[0].getTime(), date.getTime());
+      assert.strictEqual(ret[0].getTime(), date.getTime());
     });
 
     it('should fail if predicate is not respected', () => {
       const schema = z.array(z.number()).withPredicate(value => value[0] === 0, 'expected first element to be 0');
-      assert.deepEqual(schema.parse([0, 1]), [0, 1]);
+      assert.deepStrictEqual(schema.parse([0, 1]), [0, 1]);
       const err = catchError(schema.parse.bind(schema))([1, 2]);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected first element to be 0');
+      assert.strictEqual(err.message, 'expected first element to be 0');
     });
 
     it('should return default value when parsing undefined', () => {
       const schema = z.array(z.number()).default([1, 2, 3]);
-      assert.deepEqual(schema.parse(undefined), [1, 2, 3]);
+      assert.deepStrictEqual(schema.parse(undefined), [1, 2, 3]);
     });
 
     it('should return default value when parsing undefined - func', () => {
       const schema = z.array(z.number()).default(() => [1, 2, 3]);
-      assert.deepEqual(schema.parse(undefined), [1, 2, 3]);
+      assert.deepStrictEqual(schema.parse(undefined), [1, 2, 3]);
     });
 
     it('should be possible to fail predicate with default value', () => {
       const schema = z.array(z.number()).length(2).default([]);
       const err = catchError(schema.parse.bind(schema))(undefined);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected array to have length 2 but got 0');
+      assert.strictEqual(err.message, 'expected array to have length 2 but got 0');
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
@@ -1346,9 +1361,9 @@ describe('Zod Parsing', () => {
           return v.split(',');
         },
       });
-      assert.equal((schema as any)[coercionTypeSymbol], true);
+      assert.strictEqual((schema as any)[coercionTypeSymbol], true);
       const ret = schema.parse('a,b,c');
-      assert.deepEqual(ret, ['a', 'b', 'c']);
+      assert.deepStrictEqual(ret, ['a', 'b', 'c']);
     });
 
     it('should support string coercion to arrays with a coerce function and nested coeercion', () => {
@@ -1358,13 +1373,13 @@ describe('Zod Parsing', () => {
         },
       });
       const ret = schema.parse('1,2,3');
-      assert.deepEqual(ret, [1, 2, 3]);
+      assert.deepStrictEqual(ret, [1, 2, 3]);
     });
 
     it('should support string coercion to arrays with a coerce function and nested coeercion - fluent syntax', () => {
       const schema = z.array(z.number({ coerce: true })).coerce(v => v.split(',').map(x => Number(x)));
       const ret = schema.parse('1,2,3');
-      assert.deepEqual(ret, [1, 2, 3]);
+      assert.deepStrictEqual(ret, [1, 2, 3]);
     });
 
     it('should fail if the coerce function throws', () => {
@@ -1374,8 +1389,8 @@ describe('Zod Parsing', () => {
         },
       });
       const err = catchError(schema.parse.bind(schema))('a,b,c');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error coercing string value to array - Whoops!');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error coercing string value to array - Whoops!');
     });
 
     it('should fail if the coerce function does not return an array', () => {
@@ -1385,8 +1400,8 @@ describe('Zod Parsing', () => {
         },
       });
       const err = catchError(schema.parse.bind(schema))('a,b,c');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected an array but got string');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected an array but got string');
     });
 
     it('should allow access to schema property', () => {
@@ -1397,14 +1412,14 @@ describe('Zod Parsing', () => {
       const strArrayFields = Object.entries(s.shape())
         .filter(f => f[1] instanceof ArrayType && f[1].schema instanceof StringType)
         .map(f => f[0]);
-      assert.equal(strArrayFields[0], 'two');
+      assert.strictEqual(strArrayFields[0], 'two');
     });
 
     it('should fail if unique array does not meet minimum length', () => {
       const schema = z.array(z.number(), { unique: true, min: 1 });
       const err = catchError(schema.parse.bind(schema))([]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected array to have length greater than or equal to 1 but got 0');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected array to have length greater than or equal to 1 but got 0');
     });
   });
 
@@ -1432,8 +1447,8 @@ describe('Zod Parsing', () => {
     it('should fail if type does not match any schema inside of union', () => {
       const schema = z.union([z.string(), z.number()]);
       const err = catchError(schema.parse.bind(schema))(true);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
         err.message,
         'No union satisfied:\n  expected type to be string but got boolean\n  expected type to be number but got boolean'
       );
@@ -1442,14 +1457,14 @@ describe('Zod Parsing', () => {
     it('should fail for the union of objects if value not strictly one or the other', () => {
       const schema = z.union([z.object({ a: z.string() }), z.object({ b: z.number() }), z.object({ c: z.boolean() })]);
       const err = catchError(schema.parse.bind(schema))({ a: 'string', b: 123, c: false });
-      assert.equal(err instanceof z.ValidationError, true);
+      assert.strictEqual(err instanceof z.ValidationError, true);
 
       const expectedSubMessages = [
         'unexpected keys on object: ["b","c"]',
         'unexpected keys on object: ["a","c"]',
         'unexpected keys on object: ["a","b"]',
       ];
-      assert.equal(err.message, 'No union satisfied:\n  ' + expectedSubMessages.join('\n  '));
+      assert.strictEqual(err.message, 'No union satisfied:\n  ' + expectedSubMessages.join('\n  '));
     });
 
     it('should pass for the union of objects when strict is false and value subclasses one type', () => {
@@ -1457,7 +1472,7 @@ describe('Zod Parsing', () => {
         strict: false,
       });
       const ret = schema.parse({ a: 'string', b: 123, c: false });
-      assert.deepEqual(ret, { a: 'string', b: 123, c: false });
+      assert.deepStrictEqual(ret, { a: 'string', b: 123, c: false });
     });
 
     it('should coerce parent object if element is a union of a coerced type', () => {
@@ -1469,17 +1484,17 @@ describe('Zod Parsing', () => {
       const data = { name: 'David', birthday: [1991, 7, 22] };
       const ret = schema.parse(data);
       assert.notEqual(ret, data);
-      assert.deepEqual(ret, data);
+      assert.deepStrictEqual(ret, data);
 
       const ret2 = schema.parse({ name: 'David', birthday: '1991-07-22' });
-      assert.equal(ret2.name, 'David');
+      assert.strictEqual(ret2.name, 'David');
       assert.ok(ret2.birthday instanceof Date);
-      assert.equal((ret2.birthday as Date).getTime(), new Date('1991-07-22').getTime());
+      assert.strictEqual((ret2.birthday as Date).getTime(), new Date('1991-07-22').getTime());
     });
 
     it('should use deafult value when parsing undefined', () => {
       const schema = z.string().or(z.number()).default('hello');
-      assert.equal(schema.parse(undefined), 'hello');
+      assert.strictEqual(schema.parse(undefined), 'hello');
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
@@ -1488,7 +1503,7 @@ describe('Zod Parsing', () => {
         .string()
         .or(z.number())
         .default(() => 42);
-      assert.equal(schema.parse(undefined), 42);
+      assert.strictEqual(schema.parse(undefined), 42);
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
@@ -1508,44 +1523,47 @@ describe('Zod Parsing', () => {
     it('should pass if value is the intersection of both object types', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() }));
       const ret = schema.parse({ a: 'hello', b: 123 });
-      assert.deepEqual(ret, { a: 'hello', b: 123 });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 123 });
     });
 
     it('should fail if value is not the intersection of both object types', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() }));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "b" - expected type to be number but got undefined'
+      );
     });
 
     it('should fail if value has unknown keys to the intersection of both object types', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.object({ b: z.number() }));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 3, c: true, d: false });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c","d"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c","d"]');
     });
 
     it('should reduce union types to their interseciton', () => {
       const schema = z.intersection(z.string(), z.string().nullable());
       const ret = schema.parse('string');
-      assert.equal(ret, 'string');
+      assert.strictEqual(ret, 'string');
 
       const err = catchError(schema.parse.bind(schema))(null);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be string but got null');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be string but got null');
     });
 
     it('should intersect a record an object such that the object fields have precedence over the record', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.record(z.number()));
       const ret = schema.parse({ a: 'hello', b: 3 });
-      assert.deepEqual(ret, { a: 'hello', b: 3 });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 3 });
     });
 
     it('should fail the record and object intersection does not respect the object shape', () => {
       const schema = z.intersection(z.object({ a: z.string() }), z.record(z.number()));
       const err = catchError(schema.parse.bind(schema))({ a: 2, b: 3 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
     });
 
     it('should pass if key values in object respects record intersection', () => {
@@ -1553,7 +1571,7 @@ describe('Zod Parsing', () => {
       const recordB = z.record(z.object({ b: z.string() }));
       const schema = z.intersection(recordA, recordB);
       const ret = schema.parse({ key: { a: 2, b: 'hello' } });
-      assert.deepEqual(ret, { key: { a: 2, b: 'hello' } });
+      assert.deepStrictEqual(ret, { key: { a: 2, b: 'hello' } });
     });
 
     it('should fail if key values in object do satisfy record intersection', () => {
@@ -1561,8 +1579,11 @@ describe('Zod Parsing', () => {
       const recordB = z.record(z.object({ b: z.string() }));
       const schema = z.intersection(recordA, recordB);
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2 } });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "key.b" - expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "key.b" - expected type to be string but got undefined'
+      );
     });
 
     it('should fail if the value contains object keys not in Record<object> intersection', () => {
@@ -1570,21 +1591,21 @@ describe('Zod Parsing', () => {
       const recordB = z.record(z.object({ b: z.string() }));
       const schema = z.intersection(recordA, recordB);
       const err = catchError(schema.parse.bind(schema))({ key: { a: 2, b: 'string', c: true } });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "key" - unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing object at path: "key" - unexpected keys on object: ["c"]');
     });
 
     it('should parse the intersection of partials objects', () => {
       const schema = z.intersection(z.partial(z.object({ a: z.string() })), z.partial(z.object({ b: z.number() })));
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should fail if intersection of partial types is not respected', () => {
       const schema = z.intersection(z.partial(z.object({ a: z.string() })), z.partial(z.object({ b: z.number() })));
       const err = catchError(schema.parse.bind(schema))({ a: 3 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing object at path: "a" - expected type to be string but got number');
     });
 
     it('should intersect two picked types', () => {
@@ -1592,7 +1613,7 @@ describe('Zod Parsing', () => {
       const schemaB = z.pick(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const ret = schema.parse({ a: 'hello', b: 123 });
-      assert.deepEqual(ret, { a: 'hello', b: 123 });
+      assert.deepStrictEqual(ret, { a: 'hello', b: 123 });
     });
 
     it('should fail if unknown key is present of intersect of two picked types', () => {
@@ -1600,8 +1621,8 @@ describe('Zod Parsing', () => {
       const schemaB = z.pick(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 123, c: 'patate' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if key is missing from intersect of two picked types', () => {
@@ -1609,8 +1630,11 @@ describe('Zod Parsing', () => {
       const schemaB = z.pick(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ b: 123 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be string but got undefined'
+      );
     });
 
     it('should intersect two omit types', () => {
@@ -1618,7 +1642,7 @@ describe('Zod Parsing', () => {
       const schemaB = z.omit(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const ret = schema.parse({ a: 123, b: 'hello' });
-      assert.deepEqual(ret, { a: 123, b: 'hello' });
+      assert.deepStrictEqual(ret, { a: 123, b: 'hello' });
     });
 
     it('should fail if unknown key in intersect of two omit types', () => {
@@ -1626,8 +1650,8 @@ describe('Zod Parsing', () => {
       const schemaB = z.omit(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if missing key in intersect of two omit types', () => {
@@ -1635,8 +1659,11 @@ describe('Zod Parsing', () => {
       const schemaB = z.omit(z.object({ a: z.number(), b: z.number() }), ['b']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ b: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be number but got undefined'
+      );
     });
 
     it('should intersect a pick and an omit', () => {
@@ -1644,7 +1671,7 @@ describe('Zod Parsing', () => {
       const schemaB = z.pick(z.object({ a: z.number(), b: z.number() }), ['a']);
       const schema = schemaA.and(schemaB);
       const ret = schema.parse({ a: 123, b: 'hello' });
-      assert.deepEqual(ret, { a: 123, b: 'hello' });
+      assert.deepStrictEqual(ret, { a: 123, b: 'hello' });
     });
 
     it('should fail if unknown key in intersect of pick and omit types', () => {
@@ -1652,8 +1679,8 @@ describe('Zod Parsing', () => {
       const schemaB = z.pick(z.object({ a: z.number(), b: z.number() }), ['a']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ a: 123, b: 'hello', c: 'patate' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if missing key in intersect of pick and omit types', () => {
@@ -1661,8 +1688,11 @@ describe('Zod Parsing', () => {
       const schemaB = z.omit(z.object({ a: z.number(), b: z.number() }), ['a']);
       const schema = schemaA.and(schemaB);
       const err = catchError(schema.parse.bind(schema))({ b: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be string but got undefined'
+      );
     });
 
     it('should intersect a pick and some other type correctly', () => {
@@ -1670,7 +1700,7 @@ describe('Zod Parsing', () => {
         .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
         .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
       const ret = schema.parse({ a: 'hello', c: 42, d: true });
-      assert.deepEqual(ret, { a: 'hello', c: 42, d: true });
+      assert.deepStrictEqual(ret, { a: 'hello', c: 42, d: true });
     });
 
     it('should fail if unknown key in intersect of pick and some other complex type', () => {
@@ -1678,8 +1708,8 @@ describe('Zod Parsing', () => {
         .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
         .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 42, d: true });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b"]');
     });
 
     it('should fail if missing key in intersect of pick and some other complex type', () => {
@@ -1687,8 +1717,11 @@ describe('Zod Parsing', () => {
         .pick(z.object({ a: z.string(), b: z.string() }), ['a'])
         .and(z.object({ c: z.number() }).and(z.object({ d: z.boolean() })));
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', d: true });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "c" - expected type to be number but got undefined'
+      );
     });
 
     it('should intersect two tuples', () => {
@@ -1696,7 +1729,7 @@ describe('Zod Parsing', () => {
       const t2 = z.tuple([z.string()]);
       const schema = t1.and(t2);
       const ret = schema.parse(['hello', 42]);
-      assert.deepEqual(ret, ['hello', 42]);
+      assert.deepStrictEqual(ret, ['hello', 42]);
     });
 
     it('should fail if intersect of two tuples is not satisfied', () => {
@@ -1705,7 +1738,7 @@ describe('Zod Parsing', () => {
       const schema = t1.and(t2);
       const err = catchError(schema.parse.bind(schema))(['hello']);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected tuple length to be 2 but got 1');
+      assert.strictEqual(err.message, 'expected tuple length to be 2 but got 1');
     });
 
     it('should fail if intersect of two tuples is not satisfied - typeError', () => {
@@ -1714,7 +1747,7 @@ describe('Zod Parsing', () => {
       const schema = t1.and(t2);
       const err = catchError(schema.parse.bind(schema))(['hello', 'world']);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
+      assert.strictEqual(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
     });
 
     it('should convert date strings', () => {
@@ -1722,7 +1755,7 @@ describe('Zod Parsing', () => {
       const date = new Date();
       const ret = schema.parse({ a: 'hello', b: { c: date.toISOString() } });
       assert.ok(ret.b.c instanceof Date);
-      assert.equal(ret.b.c.getTime(), date.getTime());
+      assert.strictEqual(ret.b.c.getTime(), date.getTime());
     });
 
     it('should intersect recursive types', () => {
@@ -1757,7 +1790,7 @@ describe('Zod Parsing', () => {
         subCategories: [],
       });
 
-      assert.deepEqual(ret, {
+      assert.deepStrictEqual(ret, {
         name: 'David',
         friends: [
           { name: 'Alex', friends: [] },
@@ -1773,7 +1806,7 @@ describe('Zod Parsing', () => {
         { a: 'hello', b: 'world' },
         { a: 'number', b: '42' },
       ]);
-      assert.deepEqual(ret, [
+      assert.deepStrictEqual(ret, [
         { a: 'hello', b: 'world' },
         { a: 'number', b: '42' },
       ]);
@@ -1783,7 +1816,7 @@ describe('Zod Parsing', () => {
       const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
       const err = catchError(schema.parse.bind(schema))([{ a: 'hello', b: 'world' }, { a: 'number' }]);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error at [1].b - expected type to be string but got undefined');
+      assert.strictEqual(err.message, 'error at [1].b - expected type to be string but got undefined');
     });
 
     it('should fail if unknown key in intersect two object arrays', () => {
@@ -1793,12 +1826,12 @@ describe('Zod Parsing', () => {
         { a: 'number', b: '42', c: 'hammock' },
       ]);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error at [1] - unexpected keys on object: ["c"]');
+      assert.strictEqual(err.message, 'error at [1] - unexpected keys on object: ["c"]');
     });
 
     it('and of two arrays should return an array type', () => {
       const schema = z.array(z.object({ a: z.string() })).and(z.array(z.object({ b: z.string() })));
-      assert.equal(typeof schema.unique, 'function');
+      assert.strictEqual(typeof schema.unique, 'function');
     });
 
     it('should intersect and a union of objects correctly', () => {
@@ -1810,7 +1843,7 @@ describe('Zod Parsing', () => {
       const obj = z.object({ version: z.number() });
       const schema = obj.and(unions);
       const ret = schema.parse({ type: 'a', version: 3 });
-      assert.deepEqual(ret, { type: 'a', version: 3 });
+      assert.deepStrictEqual(ret, { type: 'a', version: 3 });
     });
 
     it('should fail with appropriate error intersect and a union of objects', () => {
@@ -1823,7 +1856,7 @@ describe('Zod Parsing', () => {
       const schema = obj.and(unions);
       const err = schema.try({ type: 'd', version: 3 });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'No union satisfied:\n' +
           '  error parsing object at path: "type" - expected value to be literal "a" but got "d"\n' +
@@ -1842,7 +1875,7 @@ describe('Zod Parsing', () => {
       const schema = obj.and(unions);
       const err = schema.try({ type: 'a' });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'No union satisfied:\n' +
           '  error parsing object at path: "version" - expected type to be number but got undefined\n' +
@@ -1860,11 +1893,11 @@ describe('Zod Parsing', () => {
 
       const schemaL = unions.and(obj);
       const retL = schemaL.parse({ type: 'a', version: 2, date: 'now' });
-      assert.deepEqual(retL, { type: 'a', version: 2, date: 'now' });
+      assert.deepStrictEqual(retL, { type: 'a', version: 2, date: 'now' });
 
       const schemaR = obj.and(unions);
       const retR = schemaR.parse({ type: 'a', version: 2, date: 'now' });
-      assert.deepEqual(retR, { type: 'a', version: 2, date: 'now' });
+      assert.deepStrictEqual(retR, { type: 'a', version: 2, date: 'now' });
     });
 
     it('should handle union-intersections of objects', () => {
@@ -1873,7 +1906,7 @@ describe('Zod Parsing', () => {
         .and(z.union([z.object({})]))
         .and(z.object({ id: z.number() }));
       const ret = schema.parse({ id: 0 });
-      assert.deepEqual(ret, { id: 0 });
+      assert.deepStrictEqual(ret, { id: 0 });
     });
 
     it('should parse intersection of two unions', () => {
@@ -1918,45 +1951,45 @@ describe('Zod Parsing', () => {
     const schema = z.enum(Colors);
 
     it('should pass if value is part of enum', () => {
-      assert.equal(schema.parse('red'), Colors.red);
+      assert.strictEqual(schema.parse('red'), Colors.red);
       assert.ok(!(schema as any)[coercionTypeSymbol]);
     });
 
     it('should fail if not part of enum', () => {
       const err = catchError(schema.parse.bind(schema))('hot fuzz');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error "hot fuzz" not part of enum values');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error "hot fuzz" not part of enum values');
     });
 
     it('should return true if value satisfies enum', () => {
-      assert.equal(schema.check('green'), true);
+      assert.strictEqual(schema.check('green'), true);
     });
 
     it('should return false if value satisfies enum', () => {
-      assert.equal(schema.check('blueberry'), false);
+      assert.strictEqual(schema.check('blueberry'), false);
     });
 
     it('should return default value when parsing undefined', () => {
       const defaultedSchema = schema.default(Colors.green);
-      assert.equal(defaultedSchema.parse(undefined), Colors.green);
+      assert.strictEqual(defaultedSchema.parse(undefined), Colors.green);
       assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
 
     it('should return default value when parsing undefined - func', () => {
       const defaultedSchema = schema.default(() => Colors.green);
-      assert.equal(defaultedSchema.parse(undefined), Colors.green);
+      assert.strictEqual(defaultedSchema.parse(undefined), Colors.green);
       assert.ok((defaultedSchema as any)[coercionTypeSymbol]);
     });
 
     it('should be case sensitive for string enum', () => {
       const err = catchError(schema.parse.bind(schema))('RED');
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error "RED" not part of enum values');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error "RED" not part of enum values');
     });
 
     it('should be case insensitive for coerced string enum', () => {
       const coerceSchema = z.enum(Colors, { coerce: 'lower' });
-      assert.equal(coerceSchema.parse('RED'), Colors.red);
+      assert.strictEqual(coerceSchema.parse('RED'), Colors.red);
       assert.ok(!(coerceSchema as any)[coercionTypeSymbol]);
     });
   });
@@ -1964,24 +1997,24 @@ describe('Zod Parsing', () => {
   describe('partial parsing', () => {
     it('should have no effect on a primitive type', () => {
       const schema = z.partial(z.string());
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
 
       const err = catchError(schema.parse.bind(schema))(undefined);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected type to be string but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected type to be string but got undefined');
     });
 
     it('should make an object keys optional', () => {
       const schema = z.partial(z.object({ a: z.string(), b: z.boolean() }));
       const ret = schema.parse({});
-      assert.deepEqual(ret, {});
+      assert.deepStrictEqual(ret, {});
     });
 
     it('should not lose any validation definitions', () => {
       const schema = z.partial(z.object({ a: z.string().pattern(/hello/) }));
       const err = catchError(schema.parse.bind(schema))({ a: 'hey' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
         err.message,
         'error parsing object at path: "a" - expected string to match pattern /hello/ but did not'
       );
@@ -1990,14 +2023,14 @@ describe('Zod Parsing', () => {
     it('should make arrays become "holey" with undefined', () => {
       const schema = z.partial(z.array(z.string()));
       const ret = schema.parse(['hello', undefined, 'world']);
-      assert.deepEqual(ret, ['hello', undefined, 'world']);
+      assert.deepStrictEqual(ret, ['hello', undefined, 'world']);
     });
 
     it('should make object intersection keys optional', () => {
       const schemaA = z.object({ a: z.string() });
       const schemaB = z.object({ b: z.boolean() });
       const schema = z.partial(schemaA.and(schemaB));
-      assert.deepEqual(schema.parse({}), {});
+      assert.deepStrictEqual(schema.parse({}), {});
     });
 
     it('should fail if unknown keys of partial object intersection', () => {
@@ -2005,21 +2038,21 @@ describe('Zod Parsing', () => {
       const schemaB = z.object({ b: z.boolean() });
       const schema = z.partial(schemaA.and(schemaB));
       const err = catchError(schema.parse.bind(schema))({ d: 'hey' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["d"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["d"]');
     });
 
     it('should make the values of a record optional', () => {
       const schema = z.partial(z.record(z.number()));
       const ret = schema.parse({ a: 3, b: undefined });
-      assert.deepEqual(ret, { a: 3, b: undefined });
+      assert.deepStrictEqual(ret, { a: 3, b: undefined });
     });
 
     it('should create a deep partial', () => {
       const innerSchema = z.object({ a: z.string(), b: z.object({ c: z.number(), d: z.number() }) });
       const schema = z.partial(innerSchema, { deep: true });
       const ret = schema.parse({ b: { d: 32 } });
-      assert.deepEqual(ret, { b: { d: 32 } });
+      assert.deepStrictEqual(ret, { b: { d: 32 } });
     });
 
     it('should fail deep partial if unknown keys included in nested objects', () => {
@@ -2027,12 +2060,12 @@ describe('Zod Parsing', () => {
       const schema = z.partial(innerSchema, { deep: true });
       const err = catchError(schema.parse.bind(schema))({ b: { d: 32, f: 'unknown' } });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
+      assert.strictEqual(err.message, 'error parsing object at path: "b" - unexpected keys on object: ["f"]');
     });
 
     it('should pass with empty object for object unions partial', () => {
       const schema = z.partial(z.object({ a: z.number() }).or(z.object({ b: z.string() })));
-      assert.deepEqual(schema.parse({}), {});
+      assert.deepStrictEqual(schema.parse({}), {});
     });
   });
 
@@ -2040,61 +2073,70 @@ describe('Zod Parsing', () => {
     it('should pass if picked object type is satisfied', () => {
       const schema = z.pick(z.object({ a: z.number(), b: z.string() }), ['a']);
       const ret = schema.parse({ a: 1 });
-      assert.deepEqual(ret, { a: 1 });
+      assert.deepStrictEqual(ret, { a: 1 });
     });
 
     it('should fail if value contains all keys and not only picked ones from picked object', () => {
       const schema = z.pick(z.object({ a: z.number(), b: z.string() }), ['a']);
       const err = catchError(schema.parse.bind(schema))({ a: 1, b: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b"]');
     });
 
     it('should fail if value is missing properties from picked object', () => {
       const schema = z.pick(z.object({ a: z.number(), b: z.string() }), ['a']);
       const err = catchError(schema.parse.bind(schema))({});
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be number but got undefined'
+      );
     });
 
     it('should pass if picked record type is satisfied', () => {
       const schema = z.pick(z.record(z.number()), ['a', 'b']);
       const ret = schema.parse({ a: 1, b: 2 });
-      assert.deepEqual(ret, { a: 1, b: 2 });
+      assert.deepStrictEqual(ret, { a: 1, b: 2 });
     });
 
     it('should fail if keys not part of the pick in from the record', () => {
       const schema = z.pick(z.record(z.number()), ['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 1, b: 2, c: 3 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["c"]');
     });
 
     it('should fail if value is missing properties from picked record', () => {
       const schema = z.pick(z.record(z.number()), ['a', 'b']);
       const err = catchError(schema.parse.bind(schema))({ a: 1 });
-      assert.equal(err instanceof z.ValidationError, true, 'Did not throw ValidationError');
-      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true, 'Did not throw ValidationError');
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "b" - expected type to be number but got undefined'
+      );
     });
 
     it('should pass if picked object intersection type is satisfied', () => {
       const schema = z.pick(z.object({ a: z.number() }).and(z.object({ b: z.string() })), ['a']);
       const ret = schema.parse({ a: 1 });
-      assert.deepEqual(ret, { a: 1 });
+      assert.deepStrictEqual(ret, { a: 1 });
     });
 
     it('should pass if value contains all keys and not only picked ones from object intersection', () => {
       const schema = z.pick(z.object({ a: z.number() }).and(z.object({ b: z.string() })), ['a']);
       const err = catchError(schema.parse.bind(schema))({ a: 1, b: 'hello' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b"]');
     });
 
     it('should fail if value is missing properties from picked object intersection', () => {
       const schema = z.pick(z.object({ a: z.number() }).and(z.object({ b: z.string() })), ['a']);
       const err = catchError(schema.parse.bind(schema))({});
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "a" - expected type to be number but got undefined');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "a" - expected type to be number but got undefined'
+      );
     });
 
     it('should pass for pick of pick', () => {
@@ -2110,7 +2152,7 @@ describe('Zod Parsing', () => {
         ['a']
       );
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should fail for pick of pick if keys outside of picked are present', () => {
@@ -2126,8 +2168,8 @@ describe('Zod Parsing', () => {
         ['a']
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yo' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b","c"]');
     });
 
     it('should pass for pick of omitted object', () => {
@@ -2143,7 +2185,7 @@ describe('Zod Parsing', () => {
         ['a']
       );
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should fail for pick of omitted object', () => {
@@ -2159,35 +2201,41 @@ describe('Zod Parsing', () => {
         ['a']
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yo' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b","c"]');
     });
 
     it('should pick the intersection of a record and an object correctly', () => {
       const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
       const ret = schema.parse({ a: 'hello', c: true });
-      assert.deepEqual(ret, { a: 'hello', c: true });
+      assert.deepStrictEqual(ret, { a: 'hello', c: true });
     });
 
     it('should fail if missing key from pick the intersection of a record and an object', () => {
       const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be boolean but got undefined');
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "c" - expected type to be boolean but got undefined'
+      );
     });
 
     it('should fail if missing key from pick the intersection of a record and an object - Inverted LR', () => {
       const schema = z.pick(z.record(z.boolean()).and(z.object({ a: z.string(), b: z.number() })), ['a', 'c']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello' });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing object at path: "c" - expected type to be boolean but got undefined');
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "c" - expected type to be boolean but got undefined'
+      );
     });
 
     it('should fail if unknown key from pick the intersection of a record and an object', () => {
       const schema = z.pick(z.object({ a: z.string(), b: z.number() }).and(z.record(z.boolean())), ['a', 'c']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 42, c: true });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b"]');
     });
   });
 
@@ -2195,20 +2243,20 @@ describe('Zod Parsing', () => {
     it('should pass if value satisfies schema and omits indicated keys', () => {
       const schema = z.omit(z.object({ a: z.string(), b: z.string() }), ['b']);
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should fail if value does not omit indicated key', () => {
       const schema = z.omit(z.object({ a: z.string(), b: z.string() }), ['b']);
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b"]');
     });
 
     it('should pass when value omit key from object intersection', () => {
       const schema = z.omit(z.object({ a: z.string() }).and(z.object({ b: z.string() })), ['b']);
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should pass if omitted key is not present in record of object intersection', () => {
@@ -2217,14 +2265,14 @@ describe('Zod Parsing', () => {
       const intersec = record.and(obj);
       const schema = z.omit(intersec, ['b']);
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
 
     it('should default to keysignature', () => {
       const schema = z.omit(z.record(z.string()).and(z.object({ b: z.number() })), ['b']);
       const err = catchError(schema.parse.bind(schema))({ b: 123 });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing object at path: "b" - expected type to be string but got number');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing object at path: "b" - expected type to be string but got number');
     });
 
     it('should omit a key from a picked type', () => {
@@ -2240,7 +2288,7 @@ describe('Zod Parsing', () => {
         ['b']
       );
       const ret = schema.parse({ a: 'hello' });
-      assert.deepEqual(ret, { a: 'hello' });
+      assert.deepStrictEqual(ret, { a: 'hello' });
     });
     it('should fail if key is present in the omit of a picked type', () => {
       const schema = z.omit(
@@ -2255,8 +2303,8 @@ describe('Zod Parsing', () => {
         ['b']
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["b","c"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["b","c"]');
     });
 
     it('should work for omit of omit', () => {
@@ -2272,7 +2320,7 @@ describe('Zod Parsing', () => {
         ['b']
       );
       const ret = schema.parse({ c: 'hello' });
-      assert.deepEqual(ret, { c: 'hello' });
+      assert.deepStrictEqual(ret, { c: 'hello' });
     });
 
     it('should fail for omit of omit if omitted keys are preset', () => {
@@ -2288,8 +2336,8 @@ describe('Zod Parsing', () => {
         ['b']
       );
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: 'world', c: 'yolo' });
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'unexpected keys on object: ["a","b"]');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'unexpected keys on object: ["a","b"]');
     });
   });
 
@@ -2297,35 +2345,35 @@ describe('Zod Parsing', () => {
     it('should fail if non array is passed as value', () => {
       const schema = z.tuple([]);
       const err = catchError(schema.parse.bind(schema))(null);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected tuple value to be type array but got null');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected tuple value to be type array but got null');
     });
 
     it('should fail fast if value does not have same length as tuple type', () => {
       const schema = z.tuple([z.string(), z.number()]);
       const err = catchError(schema.parse.bind(schema))(['hello']);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'expected tuple length to be 2 but got 1');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'expected tuple length to be 2 but got 1');
     });
 
     it('should pass for tuple', () => {
       const schema = z.tuple([z.string(), z.number(), z.object({ a: z.string(), b: z.number() })]);
       const ret = schema.parse(['hello', 42, { a: 'hello', b: 42 }]);
-      assert.deepEqual(ret, ['hello', 42, { a: 'hello', b: 42 }]);
+      assert.deepStrictEqual(ret, ['hello', 42, { a: 'hello', b: 42 }]);
     });
 
     it('should fail if tuple does not match', () => {
       const schema = z.tuple([z.string(), z.number()]);
       const err = catchError(schema.parse.bind(schema))(['hello', 'world']);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(err.message, 'error parsing tuple at index 1: expected type to be number but got string');
     });
 
     it('should give meaningful error message', () => {
       const schema = z.tuple([z.string(), z.object({ a: z.object({ b: z.string() }) })]);
       const err = catchError(schema.parse.bind(schema))(['hello', { a: { b: 42 } }]);
-      assert.equal(err instanceof z.ValidationError, true);
-      assert.equal(
+      assert.strictEqual(err instanceof z.ValidationError, true);
+      assert.strictEqual(
         err.message,
         'error parsing tuple at index 1: error parsing object at path: "a.b" - expected type to be string but got number'
       );
@@ -2336,21 +2384,21 @@ describe('Zod Parsing', () => {
         .tuple([z.number(), z.string()])
         .withPredicate(value => value[0] === value[1].length, 'expected number to indicate length of string');
 
-      assert.deepEqual(schema.parse([5, 'hello']), [5, 'hello']);
+      assert.deepStrictEqual(schema.parse([5, 'hello']), [5, 'hello']);
       const err = catchError(schema.parse.bind(schema))([2, 'world']);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected number to indicate length of string');
+      assert.strictEqual(err.message, 'expected number to indicate length of string');
     });
 
     it('should return default value when parsing undefined', () => {
       const schema = z.tuple([z.number(), z.string()]).default([42, 'hello world']);
-      assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
+      assert.deepStrictEqual(schema.parse(undefined), [42, 'hello world']);
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
 
     it('should return default value when parsing undefined - func', () => {
       const schema = z.tuple([z.number(), z.string()]).default(() => [42, 'hello world']);
-      assert.deepEqual(schema.parse(undefined), [42, 'hello world']);
+      assert.deepStrictEqual(schema.parse(undefined), [42, 'hello world']);
       assert.ok((schema as any)[coercionTypeSymbol]);
     });
   });
@@ -2358,7 +2406,7 @@ describe('Zod Parsing', () => {
   describe('lazy parsing', () => {
     it('should parse a schema without recursion', () => {
       const schema = z.lazy(() => z.string());
-      assert.equal(schema.parse('hello'), 'hello');
+      assert.strictEqual(schema.parse('hello'), 'hello');
     });
 
     it('should parse a schema recursively', () => {
@@ -2371,7 +2419,7 @@ describe('Zod Parsing', () => {
         b: z.lazy(() => schema).optional(),
       });
       const ret = schema.parse({ a: 'hello', b: { a: 'world' } });
-      assert.deepEqual(ret, { a: 'hello', b: { a: 'world', b: undefined } });
+      assert.deepStrictEqual(ret, { a: 'hello', b: { a: 'world', b: undefined } });
     });
 
     it('should fail when value does not match', () => {
@@ -2385,7 +2433,10 @@ describe('Zod Parsing', () => {
       });
       const err = catchError(schema.parse.bind(schema))({ a: 'hello', b: { a: 'world', b: { a: 42 } } });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'error parsing object at path: "b.b.a" - expected type to be string but got number');
+      assert.strictEqual(
+        err.message,
+        'error parsing object at path: "b.b.a" - expected type to be string but got number'
+      );
     });
 
     it('should work with arrays', () => {
@@ -2398,7 +2449,7 @@ describe('Zod Parsing', () => {
         subCategories: z.array(z.lazy(() => schema)),
       });
       const ret = schema.parse({ name: 'horror', subCategories: [{ name: 'gore', subCategories: [] }] });
-      assert.deepEqual(ret, { name: 'horror', subCategories: [{ name: 'gore', subCategories: [] }] });
+      assert.deepStrictEqual(ret, { name: 'horror', subCategories: [{ name: 'gore', subCategories: [] }] });
     });
 
     it('should fail with appropriate error message', () => {
@@ -2415,7 +2466,7 @@ describe('Zod Parsing', () => {
         subCategories: [{ name: 'Gore', subCategories: [{ name: 'super gore', subCategories: null }] }],
       });
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'error parsing object at path: "subCategories[0].subCategories[0].subCategories" - expected an array but got null'
       );
@@ -2450,24 +2501,24 @@ describe('Zod Parsing', () => {
   describe('bigint parsing', () => {
     it('should parse a string to a bigint', () => {
       const schema = z.bigint();
-      assert.equal(schema.parse('5'), BigInt(5));
+      assert.strictEqual(schema.parse('5'), BigInt(5));
     });
 
     it('should parse an integer number to a bigint', () => {
       const schema = z.bigint();
-      assert.equal(schema.parse(5), BigInt(5));
+      assert.strictEqual(schema.parse(5), BigInt(5));
     });
 
     it('should parse a bigint', () => {
       const schema = z.bigint();
-      assert.equal(schema.parse(BigInt(5)), BigInt(5));
+      assert.strictEqual(schema.parse(BigInt(5)), BigInt(5));
     });
 
     it('should fail to parse a not integer number to a bigint', () => {
       const schema = z.bigint();
       const err = catchError(schema.parse.bind(schema))(5.23);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(
+      assert.strictEqual(
         err.message,
         'expected type to be bigint interpretable - the number 5.23 cannot be converted to a bigint because it is not an integer'
       );
@@ -2477,14 +2528,14 @@ describe('Zod Parsing', () => {
       const schema = z.bigint().min(5);
       const err = catchError(schema.parse.bind(schema))(3);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected bigint to be greater than or equal to 5 but got 3');
+      assert.strictEqual(err.message, 'expected bigint to be greater than or equal to 5 but got 3');
     });
 
     it('should throw if value is greater than max', () => {
       const schema = z.bigint().max(BigInt(5));
       const err = catchError(schema.parse.bind(schema))(8);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected bigint to be less than or equal to 5 but got 8');
+      assert.strictEqual(err.message, 'expected bigint to be less than or equal to 5 but got 8');
     });
 
     it('should force parse to return a new coerced object when bigint is inside object schema', () => {
@@ -2492,19 +2543,19 @@ describe('Zod Parsing', () => {
       const data = { name: 'Joe', age: 32 };
       const person = personSchema.parse(data);
       assert.notEqual(person, data);
-      assert.deepEqual(person, { name: 'Joe', age: BigInt(32) });
+      assert.deepStrictEqual(person, { name: 'Joe', age: BigInt(32) });
     });
 
     it('should fail if predicate is not satisfied', () => {
       const schema = z.bigint().withPredicate(int => int % BigInt(2) === BigInt(0), 'expected bigint to be even');
       const err = catchError(schema.parse.bind(schema))(1);
       assert.ok(err instanceof z.ValidationError);
-      assert.equal(err.message, 'expected bigint to be even');
+      assert.strictEqual(err.message, 'expected bigint to be even');
     });
 
     it('should use default value when parsing undefined', () => {
       const schema = z.bigint().default(BigInt(4));
-      assert.equal(schema.parse(undefined), BigInt(4));
+      assert.strictEqual(schema.parse(undefined), BigInt(4));
     });
   });
 });
@@ -2517,10 +2568,10 @@ describe('Type.try', () => {
     if (value instanceof Error) {
       throw new Error('expected value not error');
     }
-    assert.deepEqual(Object.keys(value), ['name', 'birthday']);
-    assert.equal(value.name, 'Bilbo');
+    assert.deepStrictEqual(Object.keys(value), ['name', 'birthday']);
+    assert.strictEqual(value.name, 'Bilbo');
     assert.ok(value.birthday instanceof Date);
-    assert.equal(value.birthday.getTime(), date.getTime());
+    assert.strictEqual(value.birthday.getTime(), date.getTime());
   });
 
   it('should return an error if failed', () => {
@@ -2530,7 +2581,7 @@ describe('Type.try', () => {
       throw new Error('expected an error as a return value');
     }
     assert.ok(error instanceof z.ValidationError);
-    assert.equal(
+    assert.strictEqual(
       error.message,
       'error parsing object at path: "age" - expected number to be greater than or equal to 18 but got 12'
     );
