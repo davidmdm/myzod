@@ -13,7 +13,7 @@ const catchError = <T extends (...args: any[]) => any>(fn: T): ((...args: Argume
     try {
       fn(...args);
       throw new Error('expected function to throw');
-    } catch (err) {
+    } catch (err: any) {
       return err;
     }
   };
