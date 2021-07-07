@@ -39,7 +39,7 @@ import {
   EnumOptions,
 } from './types';
 
-export { ValidationError, Type, Infer, keySignature } from './types';
+export { ValidationError, Type, Infer, keySignature, AnyType, ObjectShape } from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
