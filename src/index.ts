@@ -1,4 +1,3 @@
-import { NullableType } from './types';
 import {
   ValidationError,
   Type,
@@ -14,6 +13,7 @@ import {
   LazyType,
   UndefinedType,
   NullType,
+  NullableType,
   EnumType,
   BooleanType,
   UnknownType,
@@ -39,7 +39,25 @@ import {
   EnumOptions,
 } from './types';
 
-export { ValidationError, Type, Infer, keySignature, AnyType, ObjectShape } from './types';
+export {
+  ValidationError,
+  Type,
+  Infer,
+  keySignature,
+  AnyType,
+  ObjectShape,
+  // Types
+  NumberType,
+  BooleanType,
+  StringType,
+  UndefinedType,
+  NullType,
+  ObjectType,
+  ArrayType,
+  TupleType,
+  NullableType,
+  OptionalType,
+} from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
@@ -155,6 +173,18 @@ export default {
   enum: enumValue,
   ValidationError,
   keySignature: keySignature as typeof keySignature,
+
+  // types
+  NumberType,
+  BooleanType,
+  StringType,
+  UndefinedType,
+  NullType,
+  ObjectType,
+  ArrayType,
+  TupleType,
+  NullableType,
+  OptionalType,
 };
 
 type Require<T extends AnyType> = T extends NullableType<infer S>
