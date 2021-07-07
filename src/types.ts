@@ -79,7 +79,7 @@ export abstract class Type<T> {
 }
 
 // TODO remove once we can get mapped types inferred properly or Predicate and default funcs move to abstract class Type
-type MappedType<T> = Type<T> & {
+export type MappedType<T> = Type<T> & {
   withPredicate: (fn: Predicate<T>['func'], errMsg?: ErrMsg<T>) => Type<T> & MappedType<T>;
   default: (value: T | (() => T)) => Type<T> & MappedType<T>;
 };

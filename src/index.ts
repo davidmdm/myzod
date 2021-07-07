@@ -57,6 +57,7 @@ export {
   TupleType,
   NullableType,
   OptionalType,
+  MappedType,
 } from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
