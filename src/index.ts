@@ -58,6 +58,7 @@ export {
   NullableType,
   OptionalType,
   MappedType,
+  DateType,
 } from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
@@ -186,6 +187,7 @@ export default {
   TupleType,
   NullableType,
   OptionalType,
+  DateType,
 };
 
 type Require<T extends AnyType> = T extends NullableType<infer S>
