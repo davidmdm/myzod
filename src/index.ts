@@ -1,3 +1,4 @@
+import { IntersectionType } from './types';
 import {
   ValidationError,
   Type,
@@ -59,6 +60,9 @@ export {
   OptionalType,
   MappedType,
   DateType,
+  UnknownType,
+  UnionType,
+  IntersectionType,
 } from './types';
 
 export const string = (opts?: StringOptions) => new StringType(opts);
@@ -188,6 +192,9 @@ export default {
   NullableType,
   OptionalType,
   DateType,
+  UnknownType,
+  UnionType,
+  IntersectionType,
 };
 
 type Require<T extends AnyType> = T extends NullableType<infer S>
