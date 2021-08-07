@@ -60,12 +60,12 @@ const person: Person = personSchema.parse({ ... });
 Type Root
 
 - [Type<T>](#type)
-  - [parse](#type.parse)
-  - [try](#type.try)
-  - [and](#type.and)
-  - [or](#type.or)
-  - [optional](#type.optional)
-  - [nullable](#type.nullable)
+  - [parse](#typeparse)
+  - [try](#typetry)
+  - [and](#typeand)
+  - [or](#typeor)
+  - [optional](#typeoptional)
+  - [nullable](#typenullable)
 
 Primitive Types
 
