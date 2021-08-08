@@ -1,6 +1,6 @@
 {
   "name": "myzod",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",

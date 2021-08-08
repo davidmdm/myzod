@@ -25,6 +25,7 @@ export abstract class Type<T> {
   constructor() {}
   abstract parse(value: unknown): T;
   abstract and<K extends AnyType>(schema: K): any;
+
   or<K extends AnyType>(schema: K): UnionType<[this, K]> {
     return new UnionType([this, schema]);
   }
