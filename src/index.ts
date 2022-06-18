@@ -31,7 +31,6 @@ import {
   PartialShape,
   Eval,
   ToUnion,
-  keySignature,
   StringTypes,
   OptionalType,
   BigIntOptions,
@@ -44,7 +43,6 @@ export {
   ValidationError,
   Type,
   Infer,
-  keySignature,
   AnyType,
   ObjectShape,
   // Types
@@ -64,6 +62,9 @@ export {
   UnionType,
   IntersectionType,
 } from './types';
+
+const keySignature = Symbol('keySignature');
+export { keySignature };
 
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
