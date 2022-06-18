@@ -1,3 +1,5 @@
+import { keySignature } from './index';
+
 function clone<T>(value: T): T {
   if (typeof value !== 'object' || value === null) {
     return value;
@@ -673,7 +675,6 @@ export class DateType extends Type<Date> implements WithPredicate<Date>, Default
   }
 }
 
-export const keySignature = Symbol('keySignature');
 export type ObjectShape = { [key: string]: AnyType; [keySignature]?: AnyType };
 
 type OptionalKeys<T extends ObjectShape> = {
@@ -694,9 +695,9 @@ type Flat<T> = T extends {} ? (T extends Date ? T : { [key in keyof T]: T[key] }
 
 type InferObjectShape<T extends ObjectShape> = Flat<
   Eval<
-    InferKeySignature<T> &
-      { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } &
-      { [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any }
+    InferKeySignature<T> & { [key in OptionalKeys<T>]?: T[key] extends Type<infer K> ? K : any } & {
+      [key in RequiredKeys<T>]: T[key] extends Type<infer K> ? K : any;
+    }
   >
 >;
 
@@ -1464,9 +1465,9 @@ export type UnionOptions<T extends any[]> = {
 };
 
 type UnionIntersection<U extends UnionType<any>, T extends AnyType> = U extends UnionType<infer Schemas>
-  ? UnionType<
-      { [key in keyof Schemas]: Schemas[key] extends AnyType ? IntersectionResult<Schemas[key], T> : Schemas[key] }
-    >
+  ? UnionType<{
+      [key in keyof Schemas]: Schemas[key] extends AnyType ? IntersectionResult<Schemas[key], T> : Schemas[key];
+    }>
   : never;
 
 export class UnionType<T extends AnyType[]>
