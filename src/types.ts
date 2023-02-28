@@ -1689,6 +1689,8 @@ export class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
   }
 }
 
+
+// @ts-ignore
 export class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
   constructor(private readonly fn: T) {
     super();
