@@ -171,8 +171,7 @@ const shapekeysSymbol = Symbol('shapeKeys');
 
 type ObjectIntersection<O1 extends ObjectType<any>, O2 extends ObjectType<any>> = O1 extends ObjectType<infer Shape1>
   ? O2 extends ObjectType<infer Shape2>
-    // @ts-ignore
-    ? ObjectType<Flat<MergeShapes<Shape1, Shape2>>>
+    ? ObjectType<MergeShapes<Shape1, Shape2> extends infer T extends ObjectShape ? Flat<T> : never>
     : never
   : never;
 
@@ -192,9 +191,11 @@ export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
   T extends ObjectType<any>
     ? K extends ObjectType<any>
-      // @ts-ignore
-      ? ObjectIntersection<T, K>
-      : IntersectionType<T, K>
+      ? ObjectIntersection<
+          T extends infer X extends ObjectType<any> ? X : never,
+          K extends infer X extends ObjectType<any> ? X : never
+        >
+      : IntersectionType<T extends infer X extends ObjectType<any> ? X : never, K>
     : T extends ArrayType<any>
     ? K extends ArrayType<any>
       ? ArrayIntersection<T, K>
@@ -1688,7 +1689,6 @@ export class PartialType<T extends AnyType, K extends PartialOpts> extends Type<
     return new IntersectionType(this, schema);
   }
 }
-
 
 // @ts-ignore
 export class LazyType<T extends () => AnyType> extends Type<Infer<ReturnType<T>>> {
