@@ -171,6 +171,7 @@ const shapekeysSymbol = Symbol('shapeKeys');
 
 type ObjectIntersection<O1 extends ObjectType<any>, O2 extends ObjectType<any>> = O1 extends ObjectType<infer Shape1>
   ? O2 extends ObjectType<infer Shape2>
+    // @ts-ignore
     ? ObjectType<Flat<MergeShapes<Shape1, Shape2>>>
     : never
   : never;
@@ -191,6 +192,7 @@ export type IntersectionResult<T extends AnyType, K extends AnyType> =
   //
   T extends ObjectType<any>
     ? K extends ObjectType<any>
+      // @ts-ignore
       ? ObjectIntersection<T, K>
       : IntersectionType<T, K>
     : T extends ArrayType<any>
