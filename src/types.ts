@@ -1611,7 +1611,7 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
   private readonly coerceOpt?: EnumCoerceOptions;
   constructor(private readonly enumeration: T, opts: EnumOptions<T> = {}) {
     super();
-    this.values = Object.values(enumeration);
+    this.values = Object.values(enumeration as any);
     this.coerceOpt = opts.coerce;
     this.defaultValue = opts.defaultValue;
     (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined;
