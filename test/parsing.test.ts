@@ -1949,6 +1949,22 @@ describe('Zod Parsing', () => {
       green = 'green',
     }
     const schema = z.enum(Colors);
+    const notRedColorSchema = schema.withPredicate(value => value !== 'red', 'cannot be red');
+
+    it('should return underlying enum value', () => {
+      assert.strictEqual(Colors, schema.enum());
+    });
+
+    it('should pass if value is part of enum and satisfied predicate', () => {
+      const color = notRedColorSchema.parse('blue');
+      assert.strictEqual(color, 'blue');
+    });
+
+    it('should fail if value is part of enum and does not satisfy precate', () => {
+      const err = notRedColorSchema.try('red');
+      assert.ok(err instanceof z.ValidationError);
+      assert.strictEqual(err.message, 'cannot be red');
+    });
 
     it('should pass if value is part of enum', () => {
       assert.strictEqual(schema.parse('red'), Colors.red);

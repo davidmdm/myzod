@@ -1606,13 +1606,15 @@ export type EnumOptions<T> = {
   defaultValue?: ValueOf<T> | (() => ValueOf<T>);
 };
 
-export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf<T>> {
+export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf<T>>, WithPredicate<ValueOf<T>> {
   private values: any[];
   private readonly defaultValue?: ValueOf<T> | (() => ValueOf<T>);
   private readonly coerceOpt?: EnumCoerceOptions;
+  private readonly predicates: Predicate<ValueOf<T>>[] | null;
   constructor(private readonly enumeration: T, opts: EnumOptions<T> = {}) {
     super();
     this.values = Object.values(enumeration as any);
+    this.predicates = null;
     this.coerceOpt = opts.coerce;
     this.defaultValue = opts.defaultValue;
     (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined;
@@ -1630,6 +1632,9 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
     if (!this.values.includes(coercedValue)) {
       throw this.typeError(`error ${JSON.stringify(value)} not part of enum values`);
     }
+    if (this.predicates) {
+      applyPredicates(this.predicates, coercedValue);
+    }
     return coercedValue as ValueOf<T>;
   }
   check(value: unknown): value is ValueOf<T> {
@@ -1643,6 +1648,12 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
   }
   coerce(opt: EnumCoerceOptions): EnumType<T> {
     return new EnumType(this.enumeration, { defaultValue: this.defaultValue, coerce: opt });
+  }
+  enum(): T {
+    return this.enumeration;
+  }
+  withPredicate(fn: (value: ValueOf<T>) => boolean, errMsg?: ErrMsg<ValueOf<T>> | undefined): this {
+    return withPredicate(this, { func: fn, errMsg });
   }
 }
 
