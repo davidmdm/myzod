@@ -208,7 +208,7 @@ options:
 - min `number` - min length of string
 - max `number` - max length of string
 - pattern `RegExp` - regular expression string must match
-- valid `string[]` - list of valid stings
+- valid `string[]` - list of valid strings
 - predicate `Predicate<string>` - custom predicates to apply to string value
 
 methods:
@@ -241,7 +241,7 @@ const helloworld = myzod.string().valid(['hello', 'world']);
 typeof HelloWorld = myzod.Infer<typeof helloworld>; // => string
 ```
 
-if however you want the stings to be typed used the [literals](#literals) helper function:
+if however you want the strings to be typed used the [literals](#literals) helper function:
 
 ```typescript
 const helloworld = myzod.literals('hello', 'world');
