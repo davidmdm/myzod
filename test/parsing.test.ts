@@ -630,7 +630,7 @@ describe('Zod Parsing', () => {
       assert.ok(pastErr instanceof z.ValidationError);
       assert.strictEqual(pastErr.message, 'expected date to be after than current moment');
 
-      const weekendDate = 'Sun Jul 30 2023';
+      const weekendDate = 'Sun Jul 27 2053';
       const weekendErr = parse(weekendDate);
       assert.ok(weekendErr instanceof z.ValidationError);
       assert.strictEqual(weekendErr.message, 'expected date to be a weekday');
@@ -2006,7 +2006,7 @@ describe('Zod Parsing', () => {
     it('should be case insensitive for coerced string enum', () => {
       const coerceSchema = z.enum(Colors, { coerce: 'lower' });
       assert.strictEqual(coerceSchema.parse('RED'), Colors.red);
-      assert.ok(!(coerceSchema as any)[coercionTypeSymbol]);
+      assert.ok((coerceSchema as any)[coercionTypeSymbol]);
     });
   });
 

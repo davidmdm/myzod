@@ -1617,7 +1617,7 @@ export class EnumType<T> extends Type<ValueOf<T>> implements Defaultable<ValueOf
     this.predicates = null;
     this.coerceOpt = opts.coerce;
     this.defaultValue = opts.defaultValue;
-    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined;
+    (this as any)[coercionTypeSymbol] = this.defaultValue !== undefined || this.coerceOpt !== undefined;
   }
   parse(
     //@ts-ignore
