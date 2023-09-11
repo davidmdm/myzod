@@ -802,7 +802,7 @@ export class ObjectType<T extends ObjectShape>
     const msg = parseOpts.suppressPathErrMsg
       ? err.message
       : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-    return new ValidationError(msg, path);
+    return new ValidationError(msg, path, err.collectedErrors);
   }
 
   private selectParser(): (value: any, parseOpts: ObjectOptions<any> & PathOptions) => InferObjectShape<T> {
