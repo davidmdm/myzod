@@ -984,6 +984,34 @@ describe('Zod Parsing', () => {
     });
   });
 
+  it('should collect deeply nested errors as a tree of errors', () => {
+    const deepSchema = z.object({ x: z.string(), y: z.number() }).collectErrors();
+    const schema = z.object({ a: deepSchema, b: deepSchema, c: deepSchema, d: z.string() }).collectErrors();
+    const err = schema.try({ a: { x: 3, y: 4 }, b: { x: '3', y: '4' }, c: { x: '3', y: 4 }, d: 'hello' });
+    assert.ok(err instanceof z.ValidationError);
+    assert.strictEqual(
+      err.message,
+      [
+        'error parsing object at path: "a" - error parsing object at path: "x" - expected type to be string but got number',
+        'error parsing object at path: "b" - error parsing object at path: "y" - expected type to be number but got string',
+      ].join('\n')
+    );
+    assert.ok(err.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'b']);
+
+    assert.ok(err.collectedErrors.a instanceof z.ValidationError);
+    assert.ok(err.collectedErrors.a.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.a.collectedErrors).sort(), ['x']);
+    assert.ok(err.collectedErrors.a.collectedErrors.x instanceof z.ValidationError);
+    assert.strictEqual(err.collectedErrors.a.collectedErrors.x.message, 'expected type to be string but got number');
+
+    assert.ok(err.collectedErrors.b instanceof z.ValidationError);
+    assert.ok(err.collectedErrors.b.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.b.collectedErrors).sort(), ['y']);
+    assert.ok(err.collectedErrors.b.collectedErrors.y instanceof z.ValidationError);
+    assert.strictEqual(err.collectedErrors.b.collectedErrors.y.message, 'expected type to be number but got string');
+  });
+
   describe('object utility parsing', () => {
     it('should pick some keys', () => {
       const schema = z.object({ a: z.string(), b: z.number(), c: z.boolean() }).pick(['a', 'b']);
