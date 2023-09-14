@@ -985,31 +985,90 @@ describe('Zod Parsing', () => {
   });
 
   it('should collect deeply nested errors as a tree of errors', () => {
-    const deepSchema = z.object({ x: z.string(), y: z.number() }).collectErrors();
+    const deeperSchema = z.object({ q: z.number(), r: z.number() }).collectErrors();
+    const deepSchema = z.object({ w: deeperSchema, x: z.string(), y: z.number() }).collectErrors();
     const schema = z.object({ a: deepSchema, b: deepSchema, c: deepSchema, d: z.string() }).collectErrors();
-    const err = schema.try({ a: { x: 3, y: 4 }, b: { x: '3', y: '4' }, c: { x: '3', y: 4 }, d: 'hello' });
+    const err = schema.try({
+      a: { w: { q: 3 }, x: 3, y: 4 },
+      b: { w: { q: 1, r: '2' }, x: '3', y: '4' },
+      c: { x: '3', y: 4 },
+      d: 'hello',
+    });
     assert.ok(err instanceof z.ValidationError);
     assert.strictEqual(
       err.message,
       [
-        'error parsing object at path: "a" - error parsing object at path: "x" - expected type to be string but got number',
-        'error parsing object at path: "b" - error parsing object at path: "y" - expected type to be number but got string',
+        'error parsing object at path: "a.w.r" - expected type to be number but got undefined',
+        'error parsing object at path: "a.x" - expected type to be string but got number',
+        'error parsing object at path: "b.w.r" - expected type to be number but got string',
+        'error parsing object at path: "b.y" - expected type to be number but got string',
+        'error parsing object at path: "c.w" - expected type to be object but got undefined',
       ].join('\n')
     );
     assert.ok(err.collectedErrors);
-    assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'b']);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors).sort(), ['a', 'b', 'c']);
 
     assert.ok(err.collectedErrors.a instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.a.message,
+      [
+        'error parsing object at path: "w.r" - expected type to be number but got undefined',
+        'error parsing object at path: "x" - expected type to be string but got number',
+      ].join('\n')
+    );
     assert.ok(err.collectedErrors.a.collectedErrors);
-    assert.deepStrictEqual(Object.keys(err.collectedErrors.a.collectedErrors).sort(), ['x']);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.a.collectedErrors).sort(), ['w', 'x']);
+    assert.ok(err.collectedErrors.a.collectedErrors.w instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.a.collectedErrors.w.message,
+      'error parsing object at path: "r" - expected type to be number but got undefined'
+    );
+    assert.ok(err.collectedErrors.a.collectedErrors.w.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.a.collectedErrors.w.collectedErrors), ['r']);
+    assert.ok(err.collectedErrors.a.collectedErrors.w.collectedErrors.r instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.a.collectedErrors.w.collectedErrors.r.message,
+      'expected type to be number but got undefined'
+    );
+
     assert.ok(err.collectedErrors.a.collectedErrors.x instanceof z.ValidationError);
     assert.strictEqual(err.collectedErrors.a.collectedErrors.x.message, 'expected type to be string but got number');
 
     assert.ok(err.collectedErrors.b instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.b.message,
+      [
+        'error parsing object at path: "w.r" - expected type to be number but got string',
+        'error parsing object at path: "y" - expected type to be number but got string',
+      ].join('\n')
+    );
     assert.ok(err.collectedErrors.b.collectedErrors);
-    assert.deepStrictEqual(Object.keys(err.collectedErrors.b.collectedErrors).sort(), ['y']);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.b.collectedErrors).sort(), ['w', 'y']);
+    assert.ok(err.collectedErrors.b.collectedErrors.w instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.b.collectedErrors.w.message,
+      'error parsing object at path: "r" - expected type to be number but got string'
+    );
+    assert.ok(err.collectedErrors.b.collectedErrors.w.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.b.collectedErrors.w.collectedErrors), ['r']);
+    assert.ok(err.collectedErrors.b.collectedErrors.w.collectedErrors.r instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.b.collectedErrors.w.collectedErrors.r.message,
+      'expected type to be number but got string'
+    );
+
     assert.ok(err.collectedErrors.b.collectedErrors.y instanceof z.ValidationError);
     assert.strictEqual(err.collectedErrors.b.collectedErrors.y.message, 'expected type to be number but got string');
+
+    assert.ok(err.collectedErrors.c instanceof z.ValidationError);
+    assert.strictEqual(
+      err.collectedErrors.c.message,
+      'error parsing object at path: "w" - expected type to be object but got undefined'
+    );
+    assert.ok(err.collectedErrors.c.collectedErrors);
+    assert.deepStrictEqual(Object.keys(err.collectedErrors.c.collectedErrors), ['w']);
+    assert.ok(err.collectedErrors.c.collectedErrors.w instanceof z.ValidationError);
+    assert.strictEqual(err.collectedErrors.c.collectedErrors.w.message, 'expected type to be object but got undefined');
   });
 
   describe('object utility parsing', () => {
