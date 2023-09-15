@@ -118,6 +118,26 @@ class MTypeClass<T extends AnyType, K> extends Type<K> implements WithPredicate<
   }
 }
 
+function flattenCollectedErrorsTreeIntoMessages(
+  collectedErrors: Record<string, ValidationError | undefined>,
+  path: (string | number)[] = []
+): string[] {
+  const messages: string[] = [];
+
+  for (const [key, value] of Object.entries(collectedErrors)) {
+    if (value === undefined) {
+      continue;
+    }
+    const newPath = [...path, key];
+    if (value.collectedErrors) {
+      messages.push(...flattenCollectedErrorsTreeIntoMessages(value.collectedErrors, newPath));
+    } else {
+      messages.push(`error parsing object at path: "${prettyPrintPath(newPath)}" - ${value.message}`);
+    }
+  }
+  return messages;
+}
+
 export class ValidationError extends Error {
   name = 'MyZodError';
   path?: (string | number)[];
@@ -129,9 +149,7 @@ export class ValidationError extends Error {
     collectedErrors?: Record<string, ValidationError | undefined>
   ) {
     if (collectedErrors !== undefined) {
-      message = Object.values(collectedErrors)
-        .map(err => `error parsing object at path: "${prettyPrintPath(err?.path || [])}" - ${err?.message}`)
-        .join('\n');
+      message = flattenCollectedErrorsTreeIntoMessages(collectedErrors).join('\n');
     }
     super(message);
     this.path = path;
@@ -802,7 +820,7 @@ export class ObjectType<T extends ObjectShape>
     const msg = parseOpts.suppressPathErrMsg
       ? err.message
       : `error parsing object at path: "${prettyPrintPath(path)}" - ${err.message}`;
-    return new ValidationError(msg, path);
+    return new ValidationError(msg, path, err.collectedErrors);
   }
 
   private selectParser(): (value: any, parseOpts: ObjectOptions<any> & PathOptions) => InferObjectShape<T> {
