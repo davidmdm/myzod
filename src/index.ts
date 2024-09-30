@@ -1,5 +1,6 @@
 import { IntersectionType } from './types';
 import {
+  keySignature,
   ValidationError,
   Type,
   StringType,
@@ -40,6 +41,7 @@ import {
 } from './types';
 
 export {
+  keySignature,
   ValidationError,
   Type,
   Infer,
@@ -62,9 +64,6 @@ export {
   UnionType,
   IntersectionType,
 } from './types';
-
-const keySignature = Symbol('keySignature');
-export { keySignature };
 
 export const string = (opts?: StringOptions) => new StringType(opts);
 export const boolean = () => new BooleanType();
