@@ -1,11 +1,11 @@
 {
   "name": "myzod",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
   "scripts": {
-    "test": "nyc mocha \"test/**/*test.ts\"",
+    "test": "mocha \"test/**/*test.ts\"",
     "build": "rm -rf ./libs && tsc",
     "pub": "npm t && npm run build && npm publish",
     "bench": "find test -path '*.benchmark.ts' | xargs benchmonkey",
