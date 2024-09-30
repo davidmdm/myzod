@@ -1,21 +1,10 @@
-import { keySignature } from './index';
+const keySignature = Symbol('keySignature');
+export { keySignature };
 
-function clone<T>(value: T): T {
-  if (typeof value !== 'object' || value === null) {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(elem => clone(elem)) as any;
-  }
-  const cpy: any = Object.create(null);
-  for (const k in value) {
-    cpy[k] = clone(value[k]);
-  }
-  for (const s of Object.getOwnPropertySymbols(value)) {
-    cpy[s] = clone((value as any)[s]);
-  }
-  Object.setPrototypeOf(cpy, Object.getPrototypeOf(value));
-  return cpy;
+
+function shallowClone<T extends AnyType>(value: T): T {
+  // create a new object with the same prototype then copy all enumerable own properties
+  return Object.assign(Object.create(Object.getPrototypeOf(value)), value)
 }
 
 const typeErrSym = Symbol('typeError');
@@ -37,7 +26,7 @@ export abstract class Type<T> {
   optional(): OptionalType<this>;
   optional(): any {
     if (this instanceof OptionalType) {
-      return clone(this);
+      return shallowClone(this);
     }
     return new OptionalType(this);
   }
@@ -46,7 +35,7 @@ export abstract class Type<T> {
   nullable(): NullableType<this>;
   nullable(): any {
     if (this instanceof NullableType) {
-      return clone(this);
+      return shallowClone(this);
     }
     return new NullableType(this);
   }
@@ -61,7 +50,7 @@ export abstract class Type<T> {
     return new MTypeClass(this, fn) as any;
   }
   onTypeError(msg: string | (() => string)): this {
-    const cpy = clone(this);
+    const cpy = shallowClone(this);
     cpy[typeErrSym] = msg;
     return cpy;
   }
@@ -285,7 +274,7 @@ interface WithPredicate<T> {
 }
 
 const withPredicate = (schema: any, predicate: any) => {
-  const cpy = clone(schema);
+  const cpy = shallowClone(schema);
   cpy.predicates = appendPredicate(cpy.predicates, predicate);
   return cpy;
 };
@@ -295,7 +284,7 @@ interface Defaultable<T> {
 }
 
 const withDefault = (schema: any, value: any) => {
-  const cpy = clone(schema);
+  const cpy = shallowClone(schema);
   (cpy as any)[coercionTypeSymbol] = true;
   cpy.defaultValue = value;
   return cpy;
@@ -611,7 +600,7 @@ export class OptionalType<T extends AnyType> extends Type<Infer<T> | undefined> 
     return this.schema.parse(value, opts);
   }
   required(): T {
-    return clone(this.schema);
+    return shallowClone(this.schema);
   }
   and<K extends AnyType>(schema: K): IntersectionType<this, K> {
     return new IntersectionType(this, schema);
@@ -640,7 +629,7 @@ export class NullableType<T extends AnyType> extends Type<Infer<T> | null> imple
     return new IntersectionType(this, schema);
   }
   required(): T {
-    return clone(this.schema);
+    return shallowClone(this.schema);
   }
   default(value: Nullable<Infer<T>> | (() => Nullable<Infer<T>>)) {
     return withDefault(this, value);
@@ -1224,14 +1213,14 @@ export class ObjectType<T extends ObjectShape>
   }
 
   collectErrors(value: boolean = true): ObjectType<T> {
-    const cpy = clone(this);
+    const cpy = shallowClone(this);
     cpy.shouldCollectErrors = value;
     cpy._parse = cpy.selectParser();
     return cpy;
   }
 
   allowUnknownKeys(value: boolean = true): ObjectType<T> {
-    const cpy = clone(this);
+    const cpy = shallowClone(this);
     cpy[allowUnknownSymbol] = value;
     cpy[coercionTypeSymbol] = cpy[coercionTypeSymbol] || value;
     cpy._parse = cpy.selectParser();
