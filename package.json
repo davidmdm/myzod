@@ -1,6 +1,6 @@
 {
   "name": "myzod",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "description": "",
   "main": "./libs/index.js",
   "types": "./libs/index.d.ts",
@@ -27,7 +27,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/mocha": "^10.0.1",
-    "@types/node": "^18.14.2",
+    "@types/node": "^22.13.1",
     "benchmonkey": "^0.0.8",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
