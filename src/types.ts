@@ -1,10 +1,9 @@
 const keySignature = Symbol('keySignature');
 export { keySignature };
 
-
 function shallowClone<T extends AnyType>(value: T): T {
   // create a new object with the same prototype then copy all enumerable own properties
-  return Object.assign(Object.create(Object.getPrototypeOf(value)), value)
+  return Object.assign(Object.create(Object.getPrototypeOf(value)), value);
 }
 
 const typeErrSym = Symbol('typeError');
@@ -182,11 +181,13 @@ type ObjectIntersection<O1 extends ObjectType<any>, O2 extends ObjectType<any>> 
     : never
   : never;
 
-type ArrayIntersection<A1 extends ArrayType<any>, A2 extends ArrayType<any>> = A1 extends ArrayType<infer S1>
+type ArrayIntersectionObj<A1 extends ArrayType<any>, A2 extends ArrayType<any>> = A1 extends ArrayType<infer S1>
   ? A2 extends ArrayType<infer S2>
-    ? ArrayType<IntersectionResult<S1, S2>>
+    ? IntersectionResult<S1, S2>
     : never
   : never;
+
+type ArrayIntersection<A1 extends ArrayType<any>, A2 extends ArrayType<any>> = ArrayType<ArrayIntersectionObj<A1, A2>>;
 
 type TupleIntersection<T1 extends TupleType<any>, T2 extends TupleType<any>> = T1 extends TupleType<infer S1>
   ? T2 extends TupleType<infer S2>
